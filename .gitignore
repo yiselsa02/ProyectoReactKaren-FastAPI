@@ -18,10 +18,11 @@ venv/
 .venv/
 
 # Environment files
+
 .env
 .env.*
-backend/.env
-frontend/.env
+!.env.example
+!backend/.env.example
 
 # IDE / editor
 .vscode/
