@@ -20,7 +20,8 @@ const celulares = [
     titulo: 'Vivo V30',
     nombre: 'Vivo V30',
     categoria: 'Celular',
-    descripcion: 'Smartphone Vivo con excelente rendimiento y cámara.',
+    descripcion:
+      'Smartphone Vivo con excelente rendimiento y cámara.',
     almacenamiento: '256 GB',
     ram: '12 GB',
     color: 'Negro',
@@ -32,7 +33,8 @@ const celulares = [
     titulo: 'Nokia G42',
     nombre: 'Nokia G42',
     categoria: 'Celular',
-    descripcion: 'Celular Nokia resistente, rápido y confiable.',
+    descripcion:
+      'Celular Nokia resistente, rápido y confiable.',
     almacenamiento: '128 GB',
     ram: '6 GB',
     color: 'Gris',
@@ -44,7 +46,8 @@ const celulares = [
     titulo: 'iPhone 15',
     nombre: 'iPhone 15',
     categoria: 'Celular',
-    descripcion: 'iPhone de última generación con gran rendimiento.',
+    descripcion:
+      'iPhone de última generación con gran rendimiento.',
     almacenamiento: '128 GB',
     ram: '6 GB',
     color: 'Azul',
@@ -56,7 +59,8 @@ const celulares = [
     titulo: 'Huawei Nova 12',
     nombre: 'Huawei Nova 12',
     categoria: 'Celular',
-    descripcion: 'Smartphone Huawei con diseño moderno y potente cámara.',
+    descripcion:
+      'Smartphone Huawei con diseño moderno y potente cámara.',
     almacenamiento: '256 GB',
     ram: '8 GB',
     color: 'Azul',
@@ -68,7 +72,8 @@ const celulares = [
     titulo: 'Samsung Galaxy S24',
     nombre: 'Samsung Galaxy S24',
     categoria: 'Celular',
-    descripcion: 'Galaxy S24 con gran potencia, pantalla y cámara.',
+    descripcion:
+      'Galaxy S24 con gran potencia, pantalla y cámara.',
     almacenamiento: '256 GB',
     ram: '8 GB',
     color: 'Negro',
@@ -80,7 +85,8 @@ const celulares = [
     titulo: 'Motorola Edge 50',
     nombre: 'Motorola Edge 50',
     categoria: 'Celular',
-    descripcion: 'Motorola con gran pantalla y excelente rendimiento.',
+    descripcion:
+      'Motorola con gran pantalla y excelente rendimiento.',
     almacenamiento: '256 GB',
     ram: '8 GB',
     color: 'Verde',
@@ -92,7 +98,8 @@ const celulares = [
     titulo: 'Redmi Note 13',
     nombre: 'Redmi Note 13',
     categoria: 'Celular',
-    descripcion: 'Celular Redmi con excelente relación calidad-precio.',
+    descripcion:
+      'Celular Redmi con excelente relación calidad-precio.',
     almacenamiento: '256 GB',
     ram: '8 GB',
     color: 'Negro',
@@ -104,7 +111,8 @@ const celulares = [
     titulo: 'OPPO Reno 11',
     nombre: 'OPPO Reno 11',
     categoria: 'Celular',
-    descripcion: 'OPPO con diseño elegante y cámara avanzada.',
+    descripcion:
+      'OPPO con diseño elegante y cámara avanzada.',
     almacenamiento: '256 GB',
     ram: '12 GB',
     color: 'Verde',
@@ -116,7 +124,8 @@ const celulares = [
     titulo: 'Honor 200',
     nombre: 'Honor 200',
     categoria: 'Celular',
-    descripcion: 'Smartphone Honor con alto rendimiento y gran autonomía.',
+    descripcion:
+      'Smartphone Honor con alto rendimiento y gran autonomía.',
     almacenamiento: '256 GB',
     ram: '12 GB',
     color: 'Negro',
@@ -128,7 +137,8 @@ const celulares = [
     titulo: 'Realme 12 Pro',
     nombre: 'Realme 12 Pro',
     categoria: 'Celular',
-    descripcion: 'Realme potente con pantalla fluida y cámara profesional.',
+    descripcion:
+      'Realme potente con pantalla fluida y cámara profesional.',
     almacenamiento: '256 GB',
     ram: '12 GB',
     color: 'Azul',
@@ -152,64 +162,252 @@ function obtenerClaveFavoritos(usuario) {
   return `cellworld_favorites_${idUsuario}`
 }
 
-function Productos({ modoOscuro }) {
-  const [productosBD, setProductosBD] = useState([])
-  const [cargando, setCargando] = useState(true)
-  const [marcaSeleccionada, setMarcaSeleccionada] = useState('Todas')
+function obtenerNombreProducto(producto) {
+  return (
+    producto?.titulo ||
+    producto?.nombre ||
+    'Producto'
+  )
+}
 
-  const [usuario, setUsuario] = useState(null)
-  const [favoritos, setFavoritos] = useState([])
-  const [favoritosCargados, setFavoritosCargados] = useState(false)
+function obtenerPrecioProducto(producto) {
+  if (
+    producto?.precio === undefined ||
+    producto?.precio === null
+  ) {
+    return 0
+  }
 
-  const [agregadoRecientemente, setAgregadoRecientemente] = useState(null)
+  if (
+    typeof producto.precio === 'number'
+  ) {
+    return producto.precio
+  }
+
+  const numero = Number(
+    String(producto.precio).replace(
+      /[^0-9]/g,
+      ''
+    )
+  )
+
+  return Number.isFinite(numero)
+    ? numero
+    : 0
+}
+
+function obtenerImagenProducto(producto) {
+  return (
+    producto?.imagen ||
+    producto?.image ||
+    null
+  )
+}
+
+function obtenerIdProducto(
+  producto,
+  indice = 0
+) {
+  if (
+    producto?.id_producto !==
+      undefined &&
+    producto?.id_producto !== null
+  ) {
+    return String(
+      producto.id_producto
+    )
+  }
+
+  if (
+    producto?.id !== undefined &&
+    producto?.id !== null
+  ) {
+    return String(producto.id)
+  }
+
+  const nombre =
+    producto?.titulo ||
+    producto?.nombre ||
+    `producto-${indice}`
+
+  return `catalogo-${String(nombre)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')}`
+}
+
+function normalizarProducto(
+  producto,
+  indice = 0
+) {
+  const nombre =
+    obtenerNombreProducto(producto)
+
+  const precio =
+    obtenerPrecioProducto(producto)
+
+  const imagen =
+    obtenerImagenProducto(producto)
+
+  return {
+    ...producto,
+
+    id: obtenerIdProducto(
+      producto,
+      indice
+    ),
+
+    nombre,
+    titulo:
+      producto?.titulo ||
+      nombre,
+
+    name: nombre,
+
+    precio,
+    price: precio,
+
+    imagen,
+    image: imagen,
+
+    categoria:
+      producto?.categoria ||
+      producto?.category ||
+      'Celular',
+  }
+}
+
+function Productos({
+  modoOscuro,
+}) {
+  const [
+    productosBD,
+    setProductosBD,
+  ] = useState([])
+
+  const [
+    cargando,
+    setCargando,
+  ] = useState(true)
+
+  const [
+    marcaSeleccionada,
+    setMarcaSeleccionada,
+  ] = useState('Todas')
+
+  const [
+    usuario,
+    setUsuario,
+  ] = useState(null)
+
+  const [
+    favoritos,
+    setFavoritos,
+  ] = useState([])
+
+  const [
+    favoritosCargados,
+    setFavoritosCargados,
+  ] = useState(false)
+
+  const [
+    agregadoRecientemente,
+    setAgregadoRecientemente,
+  ] = useState(null)
 
   const { addItem } = useCart()
 
-  const favoritosKey = obtenerClaveFavoritos(usuario)
+  const favoritosKey =
+    obtenerClaveFavoritos(usuario)
+
+  // ==========================================================
+  // USUARIO
+  // ==========================================================
 
   useEffect(() => {
     const cargarUsuario = () => {
       try {
-        const usuarioGuardado = localStorage.getItem('usuario')
+        const usuarioGuardado =
+          localStorage.getItem(
+            'usuario'
+          )
 
         if (!usuarioGuardado) {
           setUsuario(null)
           return
         }
 
-        const datos = JSON.parse(usuarioGuardado)
-        setUsuario(datos)
+        setUsuario(
+          JSON.parse(
+            usuarioGuardado
+          )
+        )
       } catch (error) {
-        console.error('Error cargando usuario:', error)
+        console.error(
+          'Error cargando usuario:',
+          error
+        )
+
         setUsuario(null)
       }
     }
 
     cargarUsuario()
 
-    window.addEventListener('usuarioCambio', cargarUsuario)
-    window.addEventListener('storage', cargarUsuario)
-    window.addEventListener('focus', cargarUsuario)
+    window.addEventListener(
+      'usuarioCambio',
+      cargarUsuario
+    )
+
+    window.addEventListener(
+      'storage',
+      cargarUsuario
+    )
+
+    window.addEventListener(
+      'focus',
+      cargarUsuario
+    )
 
     return () => {
-      window.removeEventListener('usuarioCambio', cargarUsuario)
-      window.removeEventListener('storage', cargarUsuario)
-      window.removeEventListener('focus', cargarUsuario)
+      window.removeEventListener(
+        'usuarioCambio',
+        cargarUsuario
+      )
+
+      window.removeEventListener(
+        'storage',
+        cargarUsuario
+      )
+
+      window.removeEventListener(
+        'focus',
+        cargarUsuario
+      )
     }
   }, [])
+
+  // ==========================================================
+  // FAVORITOS
+  // ==========================================================
 
   useEffect(() => {
     setFavoritosCargados(false)
 
     try {
-      const guardados = localStorage.getItem(favoritosKey)
+      const guardados =
+        localStorage.getItem(
+          favoritosKey
+        )
 
       if (!guardados) {
         setFavoritos([])
+        setFavoritosCargados(true)
         return
       }
 
-      const datos = JSON.parse(guardados)
+      const datos =
+        JSON.parse(guardados)
 
       setFavoritos(
         Array.isArray(datos)
@@ -217,7 +415,11 @@ function Productos({ modoOscuro }) {
           : []
       )
     } catch (error) {
-      console.error('Error cargando favoritos:', error)
+      console.error(
+        'Error cargando favoritos:',
+        error
+      )
+
       setFavoritos([])
     } finally {
       setFavoritosCargados(true)
@@ -232,10 +434,15 @@ function Productos({ modoOscuro }) {
     try {
       localStorage.setItem(
         favoritosKey,
-        JSON.stringify(favoritos)
+        JSON.stringify(
+          favoritos
+        )
       )
     } catch (error) {
-      console.error('Error guardando favoritos:', error)
+      console.error(
+        'Error guardando favoritos:',
+        error
+      )
     }
   }, [
     favoritos,
@@ -243,213 +450,172 @@ function Productos({ modoOscuro }) {
     favoritosKey,
   ])
 
+  // ==========================================================
+  // PRODUCTOS BD
+  // ==========================================================
+
   useEffect(() => {
     cargarProductos()
   }, [])
 
-  const cargarProductos = async () => {
-    try {
-      const respuesta = await fetch(
-        `${API_URL}/api/productos`
-      )
+  const cargarProductos =
+    async () => {
+      try {
+        const respuesta =
+          await fetch(
+            `${API_URL}/api/productos`
+          )
 
-      if (!respuesta.ok) {
-        throw new Error('Error al obtener los productos')
+        if (!respuesta.ok) {
+          throw new Error(
+            'Error al obtener los productos'
+          )
+        }
+
+        const datos =
+          await respuesta.json()
+
+        const listaProductos =
+          Array.isArray(datos)
+            ? datos
+            : datos.productos ||
+              []
+
+        const productosActivos =
+          listaProductos.filter(
+            (producto) =>
+              producto.estado ===
+                true ||
+              producto.estado === 1
+          )
+
+        setProductosBD(
+          productosActivos
+        )
+      } catch (error) {
+        console.error(
+          'Error cargando productos:',
+          error
+        )
+      } finally {
+        setCargando(false)
       }
-
-      const datos = await respuesta.json()
-
-      const listaProductos = Array.isArray(datos)
-        ? datos
-        : datos.productos || []
-
-      const productosActivos = listaProductos.filter(
-        (producto) =>
-          producto.estado === true ||
-          producto.estado === 1
-      )
-
-      setProductosBD(productosActivos)
-    } catch (error) {
-      console.error('Error cargando productos:', error)
-    } finally {
-      setCargando(false)
     }
-  }
+
+  // ==========================================================
+  // LISTA COMPLETA
+  // ==========================================================
 
   const todosLosProductos = [
     ...celulares,
     ...productosBD,
   ]
 
-  const obtenerMarcaProducto = (producto) => {
-    if (producto?.marca) return String(producto.marca)
+  // ==========================================================
+  // MARCA
+  // ==========================================================
 
-    const nombre = String(
-      producto?.titulo ||
-      producto?.nombre ||
-      ''
-    ).toLowerCase()
+  const obtenerMarcaProducto =
+    (producto) => {
+      if (producto?.marca) {
+        return String(
+          producto.marca
+        )
+      }
 
-    const marcas = [
-      'vivo',
-      'nokia',
-      'iphone',
-      'huawei',
-      'samsung',
-      'motorola',
-      'redmi',
-      'oppo',
-      'honor',
-      'realme',
-      'xiaomi',
-      'tecno',
-      'oneplus',
-      'google',
-    ]
+      const nombre =
+        String(
+          producto?.titulo ||
+            producto?.nombre ||
+            ''
+        ).toLowerCase()
 
-    return (
-      marcas.find((marca) => nombre.includes(marca)) ||
-      'Otras'
-    )
-  }
+      const marcas = [
+        'vivo',
+        'nokia',
+        'iphone',
+        'huawei',
+        'samsung',
+        'motorola',
+        'redmi',
+        'oppo',
+        'honor',
+        'realme',
+        'xiaomi',
+        'tecno',
+        'oneplus',
+        'google',
+      ]
+
+      return (
+        marcas.find(
+          (marca) =>
+            nombre.includes(
+              marca
+            )
+        ) || 'Otras'
+      )
+    }
 
   const marcasDisponibles = [
     'Todas',
     ...Array.from(
-      new Set(todosLosProductos.map(obtenerMarcaProducto))
+      new Set(
+        todosLosProductos.map(
+          obtenerMarcaProducto
+        )
+      )
     ).sort(),
   ]
 
-  const productosFiltrados = todosLosProductos.filter(
-    (producto) =>
-      marcaSeleccionada === 'Todas' ||
-      obtenerMarcaProducto(producto) === marcaSeleccionada
-  )
-
-  const obtenerIdProducto = (
-    producto,
-    indice = 0
-  ) => {
-    const esBD =
-      producto?.id_producto !== undefined &&
-      producto?.id_producto !== null
-
-    if (esBD) {
-      return `bd-${producto.id_producto}`
-    }
-
-    if (
-      producto?.id !== undefined &&
-      producto?.id !== null
-    ) {
-      return String(producto.id)
-    }
-
-    const nombre =
-      producto?.titulo ||
-      producto?.nombre ||
-      `producto-${indice}`
-
-    return `catalogo-${String(nombre)
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '-')}`
-  }
-
-  const obtenerNombreProducto = (producto) => {
-    return (
-      producto?.titulo ||
-      producto?.nombre ||
-      'Producto'
-    )
-  }
-
-  const obtenerPrecioProducto = (producto) => {
-    if (
-      producto?.precio === undefined ||
-      producto?.precio === null
-    ) {
-      return 0
-    }
-
-    if (typeof producto.precio === 'number') {
-      return producto.precio
-    }
-
-    return Number(
-      String(producto.precio).replace(
-        /[^0-9]/g,
-        ''
-      )
-    )
-  }
-
-  const obtenerImagenProducto = (producto) => {
-    return (
-      producto?.imagen ||
-      producto?.image ||
-      null
-    )
-  }
-
-  const normalizarProducto = (
-    producto,
-    indice = 0
-  ) => {
-    const id = obtenerIdProducto(
-      producto,
-      indice
+  const productosFiltrados =
+    todosLosProductos.filter(
+      (producto) =>
+        marcaSeleccionada ===
+          'Todas' ||
+        obtenerMarcaProducto(
+          producto
+        ) === marcaSeleccionada
     )
 
-    const nombre = obtenerNombreProducto(producto)
-    const precio = obtenerPrecioProducto(producto)
-    const imagen = obtenerImagenProducto(producto)
-
-    return {
-      ...producto,
-      id,
-      nombre,
-      titulo: producto?.titulo || nombre,
-      name: nombre,
-      precio,
-      price: precio,
-      imagen,
-      image: imagen,
-      categoria:
-        producto?.categoria ||
-        producto?.category ||
-        'Celular',
-    }
-  }
+  // ==========================================================
+  // FAVORITOS
+  // ==========================================================
 
   const estaSeleccionado = (
     producto,
     indice
   ) => {
-    const id = obtenerIdProducto(
-      producto,
-      indice
-    )
+    const id =
+      obtenerIdProducto(
+        producto,
+        indice
+      )
 
     return favoritos.some(
       (favorito) =>
         String(
           favorito?.id ??
-          favorito?.id_producto ??
-          favorito?.producto_id ??
-          favorito
+            favorito?.id_producto ??
+            favorito?.producto_id ??
+            favorito
         ) === String(id)
     )
   }
 
-  const guardarFavoritos = (nuevosFavoritos) => {
-    setFavoritos(nuevosFavoritos)
+  const guardarFavoritos = (
+    nuevosFavoritos
+  ) => {
+    setFavoritos(
+      nuevosFavoritos
+    )
 
     try {
       localStorage.setItem(
         favoritosKey,
-        JSON.stringify(nuevosFavoritos)
+        JSON.stringify(
+          nuevosFavoritos
+        )
       )
     } catch (error) {
       console.error(
@@ -480,30 +646,33 @@ function Productos({ modoOscuro }) {
         indice
       )
 
-    const id = productoNormalizado.id
+    const id =
+      productoNormalizado.id
 
-    const yaExiste = favoritos.some(
-      (favorito) =>
-        String(
-          favorito?.id ??
-          favorito?.id_producto ??
-          favorito?.producto_id ??
-          favorito
-        ) === String(id)
-    )
+    const yaExiste =
+      favoritos.some(
+        (favorito) =>
+          String(
+            favorito?.id ??
+              favorito?.id_producto ??
+              favorito?.producto_id ??
+              favorito
+          ) === String(id)
+      )
 
     let nuevosFavoritos
 
     if (yaExiste) {
-      nuevosFavoritos = favoritos.filter(
-        (favorito) =>
-          String(
-            favorito?.id ??
-            favorito?.id_producto ??
-            favorito?.producto_id ??
-            favorito
-          ) !== String(id)
-      )
+      nuevosFavoritos =
+        favoritos.filter(
+          (favorito) =>
+            String(
+              favorito?.id ??
+                favorito?.id_producto ??
+                favorito?.producto_id ??
+                favorito
+            ) !== String(id)
+        )
     } else {
       nuevosFavoritos = [
         ...favoritos,
@@ -511,45 +680,52 @@ function Productos({ modoOscuro }) {
       ]
     }
 
-    guardarFavoritos(nuevosFavoritos)
+    guardarFavoritos(
+      nuevosFavoritos
+    )
   }
 
   useEffect(() => {
-    const actualizarFavoritos = (evento) => {
-      if (
-        evento?.detail?.key &&
-        evento.detail.key !== favoritosKey
-      ) {
-        return
-      }
-
-      try {
-        const guardados =
-          localStorage.getItem(
+    const actualizarFavoritos =
+      (evento) => {
+        if (
+          evento?.detail?.key &&
+          evento.detail.key !==
             favoritosKey
-          )
-
-        if (!guardados) {
-          setFavoritos([])
+        ) {
           return
         }
 
-        const datos = JSON.parse(guardados)
+        try {
+          const guardados =
+            localStorage.getItem(
+              favoritosKey
+            )
 
-        setFavoritos(
-          Array.isArray(datos)
-            ? datos
-            : []
-        )
-      } catch (error) {
-        console.error(
-          'Error actualizando favoritos:',
-          error
-        )
+          if (!guardados) {
+            setFavoritos([])
+            return
+          }
 
-        setFavoritos([])
+          const datos =
+            JSON.parse(
+              guardados
+            )
+
+          setFavoritos(
+            Array.isArray(datos)
+              ? datos
+              : []
+          )
+        } catch (error) {
+          console.error(
+            'Error actualizando favoritos:',
+            error
+          )
+
+          setFavoritos([])
+        }
       }
-    }
 
     window.addEventListener(
       'storage',
@@ -584,6 +760,10 @@ function Productos({ modoOscuro }) {
     }
   }, [favoritosKey])
 
+  // ==========================================================
+  // AGREGAR AL CARRITO
+  // ==========================================================
+
   const agregarAlCarrito = (
     producto,
     indice
@@ -594,28 +774,141 @@ function Productos({ modoOscuro }) {
         indice
       )
 
-    addItem({
-      id: productoNormalizado.id,
-      name: productoNormalizado.name,
-      price: productoNormalizado.price,
-      image: productoNormalizado.image,
-      categoria: productoNormalizado.categoria,
-      descripcion: productoNormalizado.descripcion,
-      almacenamiento: productoNormalizado.almacenamiento,
-      ram: productoNormalizado.ram,
-      color: productoNormalizado.color,
-    })
+    // --------------------------------------------------------
+    // 1. Si el producto ya viene de BD,
+    //    usamos su ID real.
+    // --------------------------------------------------------
 
-    const id = productoNormalizado.id
+    let productoBD = null
 
-    setAgregadoRecientemente(id)
+    if (
+      producto?.id_producto !==
+        undefined &&
+      producto?.id_producto !==
+        null
+    ) {
+      productoBD =
+        producto
+    }
 
-    setTimeout(() => {
-      setAgregadoRecientemente(null)
-    }, 1200)
+    // --------------------------------------------------------
+    // 2. Si es un producto del catálogo local,
+    //    buscamos el mismo nombre en la BD.
+    // --------------------------------------------------------
+
+    if (!productoBD) {
+      const nombreBuscado =
+        obtenerNombreProducto(
+          producto
+        )
+          .trim()
+          .toLowerCase()
+
+      productoBD =
+        productosBD.find(
+          (productoExistente) =>
+            String(
+              productoExistente?.nombre ||
+                ''
+            )
+              .trim()
+              .toLowerCase() ===
+            nombreBuscado
+        )
+    }
+
+    // --------------------------------------------------------
+    // 3. Si encontramos el producto real en BD,
+    //    usamos su ID numérico.
+    // --------------------------------------------------------
+
+    if (productoBD) {
+      const idBD =
+        Number(
+          productoBD.id_producto
+        )
+
+      if (
+        Number.isInteger(idBD) &&
+        idBD > 0
+      ) {
+        const agregado =
+          addItem({
+            ...productoNormalizado,
+
+            id: idBD,
+            id_producto: idBD,
+
+            name:
+              obtenerNombreProducto(
+                productoBD
+              ),
+
+            nombre:
+              obtenerNombreProducto(
+                productoBD
+              ),
+
+            price:
+              obtenerPrecioProducto(
+                productoBD
+              ),
+
+            precio:
+              obtenerPrecioProducto(
+                productoBD
+              ),
+
+            image:
+              obtenerImagenProducto(
+                productoBD
+              ) ||
+              productoNormalizado.image,
+
+            imagen:
+              obtenerImagenProducto(
+                productoBD
+              ) ||
+              productoNormalizado.imagen,
+          })
+
+        if (agregado) {
+          setAgregadoRecientemente(
+            idBD
+          )
+
+          setTimeout(() => {
+            setAgregadoRecientemente(
+              null
+            )
+          }, 1200)
+        }
+
+        return
+      }
+    }
+
+    // --------------------------------------------------------
+    // 4. Si NO existe en BD, no lo metemos al carrito.
+    // --------------------------------------------------------
+
+    console.error(
+      'Producto sin ID de base de datos:',
+      producto
+    )
+
+    alert(
+      'Este producto no está registrado en la base de datos y no se puede comprar.'
+    )
   }
 
-  const formatearPrecio = (precio) => {
+  // ==========================================================
+  // PRECIO FORMATEADO
+  // ==========================================================
+
+  const formatearPrecio = (
+    precio
+  ) => {
     return new Intl.NumberFormat(
       'es-CO',
       {
@@ -625,6 +918,10 @@ function Productos({ modoOscuro }) {
       }
     ).format(precio)
   }
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <main
@@ -703,7 +1000,9 @@ function Productos({ modoOscuro }) {
           <label
             htmlFor="filtro-marca"
             className={`text-sm font-semibold ${
-              modoOscuro ? 'text-slate-200' : 'text-slate-700'
+              modoOscuro
+                ? 'text-slate-200'
+                : 'text-slate-700'
             }`}
           >
             Filtrar por marca
@@ -711,26 +1010,40 @@ function Productos({ modoOscuro }) {
 
           <select
             id="filtro-marca"
-            value={marcaSeleccionada}
-            onChange={(event) => setMarcaSeleccionada(event.target.value)}
+            value={
+              marcaSeleccionada
+            }
+            onChange={(event) =>
+              setMarcaSeleccionada(
+                event.target.value
+              )
+            }
             className={`min-w-48 rounded-xl border px-4 py-2.5 text-sm font-medium outline-none focus:border-blue-500 ${
               modoOscuro
                 ? 'border-slate-700 bg-slate-800 text-white'
                 : 'border-slate-200 bg-white text-slate-800 shadow-sm'
             }`}
           >
-            {marcasDisponibles.map((marca) => (
-              <option key={marca} value={marca}>
-                {marca}
-              </option>
-            ))}
+            {marcasDisponibles.map(
+              (marca) => (
+                <option
+                  key={marca}
+                  value={marca}
+                >
+                  {marca}
+                </option>
+              )
+            )}
           </select>
         </div>
 
         <div className="grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-3">
 
           {productosFiltrados.map(
-            (celular, indice) => {
+            (
+              celular,
+              indice
+            ) => {
               const idProducto =
                 obtenerIdProducto(
                   celular,
@@ -767,7 +1080,6 @@ function Productos({ modoOscuro }) {
                       : 'border-slate-200 bg-white shadow-lg shadow-slate-200/60 hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-100'
                   }`}
                 >
-
                   <div className="relative h-56 overflow-hidden">
 
                     {imagen ? (
@@ -970,6 +1282,7 @@ function Productos({ modoOscuro }) {
                           Disponible
                         </p>
                       </div>
+
                     </div>
 
                     <div className="mb-5">
@@ -1013,7 +1326,6 @@ function Productos({ modoOscuro }) {
                             : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-300/60'
                       }`}
                     >
-
                       <span
                         aria-hidden="true"
                         className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover/carrito:translate-x-full"
@@ -1022,7 +1334,6 @@ function Productos({ modoOscuro }) {
                       {agregadoRecientemente ===
                       idProducto ? (
                         <span className="relative flex items-center gap-2 animate-[bounce_0.5s_ease-in-out]">
-
                           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20">
                             ✓
                           </span>
@@ -1031,7 +1342,6 @@ function Productos({ modoOscuro }) {
                         </span>
                       ) : (
                         <span className="relative flex items-center gap-2">
-
                           <span>
                             Agregar al carrito
                           </span>
@@ -1042,30 +1352,33 @@ function Productos({ modoOscuro }) {
                           >
                             →
                           </span>
-
                         </span>
                       )}
-
                     </button>
+
                   </div>
                 </article>
               )
             }
           )}
+
         </div>
 
         {productosFiltrados.length === 0 && (
-          <div className={`mt-8 rounded-2xl border p-8 text-center text-sm ${
-            modoOscuro
-              ? 'border-slate-700 bg-slate-900 text-slate-300'
-              : 'border-slate-200 bg-white text-slate-500'
-          }`}>
+          <div
+            className={`mt-8 rounded-2xl border p-8 text-center text-sm ${
+              modoOscuro
+                ? 'border-slate-700 bg-slate-900 text-slate-300'
+                : 'border-slate-200 bg-white text-slate-500'
+            }`}
+          >
             No hay productos disponibles para esta marca.
           </div>
         )}
 
         {!cargando &&
-          todosLosProductos.length === 0 && (
+          todosLosProductos.length ===
+            0 && (
             <div
               className={`mx-auto mt-10 max-w-xl rounded-2xl border p-8 text-center ${
                 modoOscuro
@@ -1089,6 +1402,7 @@ function Productos({ modoOscuro }) {
               </p>
             </div>
           )}
+
       </section>
     </main>
   )
