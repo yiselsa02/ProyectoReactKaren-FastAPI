@@ -16,10 +16,6 @@ app = FastAPI(
 )
 
 
-# ============================================================
-# RUTAS
-# ============================================================
-
 app.include_router(
     auth.router,
     prefix="/api/auth",
@@ -57,10 +53,6 @@ app.include_router(
 )
 
 
-# ============================================================
-# RUTA PRINCIPAL
-# ============================================================
-
 @app.get("/")
 def inicio():
     return {
@@ -69,20 +61,19 @@ def inicio():
     }
 
 
-# ============================================================
-# CORS
-# ============================================================
-#
-# Se coloca envolviendo TODA la aplicación para que las
-# respuestas normales y también los errores lleven CORS.
-#
-
-app = CORSMiddleware(
-    app=app,
+app.add_middleware(
+    CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+
+        # Dominio principal de producción
         "https://cellworld-flax.vercel.app",
+
+        # Deployment actual
+        "https://cellworld-52dpcsvi3-yiselsa02.vercel.app",
+
+        # Deployment anterior
         "https://cellworld-amu7ahzzo-yiselsa02.vercel.app",
     ],
     allow_credentials=True,
