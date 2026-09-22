@@ -109,14 +109,14 @@ function PanelEmpleado({ modoOscuro }) {
 
       const [productosResponse, clientesResponse] =
         await Promise.all([
-          fetch('${API_URL}/api/productos', {
+          fetch(`${API_URL}/api/productos`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           }),
 
           fetch(
-            '${API_URL}/api/usuarios/estadisticas',
+            `${API_URL}/api/usuarios/estadisticas`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -208,7 +208,7 @@ function PanelEmpleado({ modoOscuro }) {
       setErrorVentas('')
 
       const respuesta = await fetch(
-        '${API_URL}/api/pedidos/historial',
+        `${API_URL}/api/pedidos/historial`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

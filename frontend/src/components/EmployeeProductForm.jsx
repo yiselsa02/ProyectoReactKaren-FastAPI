@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { API_URL } from '../config'
 
-
 const initial = {
   nombre: '',
   categoria: 'Celulares',
@@ -17,7 +16,10 @@ const initial = {
 
 function obtenerMensajeError(data) {
   if (!data) return 'No se pudo crear el producto.'
-  if (typeof data === 'string') return data
+
+  if (typeof data === 'string') {
+    return data
+  }
 
   if (Array.isArray(data)) {
     return data
@@ -31,10 +33,21 @@ function obtenerMensajeError(data) {
       return `${data.loc[data.loc.length - 1]}: ${data.msg}`
     }
 
-    if (data.detail) return obtenerMensajeError(data.detail)
-    if (data.message) return obtenerMensajeError(data.message)
-    if (data.error) return obtenerMensajeError(data.error)
-    if (data.msg) return obtenerMensajeError(data.msg)
+    if (data.detail) {
+      return obtenerMensajeError(data.detail)
+    }
+
+    if (data.message) {
+      return obtenerMensajeError(data.message)
+    }
+
+    if (data.error) {
+      return obtenerMensajeError(data.error)
+    }
+
+    if (data.msg) {
+      return obtenerMensajeError(data.msg)
+    }
   }
 
   return 'No se pudo crear el producto.'
@@ -52,12 +65,20 @@ function EmployeeProductForm({ modoOscuro, onCreated }) {
     setMessage('')
 
     try {
+      const token = localStorage.getItem('token')
+
+      if (!token) {
+        throw new Error(
+          'La sesión ha expirado. Inicia sesión nuevamente.'
+        )
+      }
+
       const response = await fetch(
-        '${API_URL}/api/productos',
+        `${API_URL}/api/productos`,
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -68,18 +89,39 @@ function EmployeeProductForm({ modoOscuro, onCreated }) {
         }
       )
 
-      const data = await response.json()
+      let data = null
+
+      const contentType =
+        response.headers.get('content-type') || ''
+
+      if (contentType.includes('application/json')) {
+        data = await response.json()
+      } else {
+        const text = await response.text()
+
+        data = text || null
+      }
 
       if (!response.ok) {
-        throw new Error(obtenerMensajeError(data))
+        throw new Error(
+          obtenerMensajeError(data)
+        )
       }
 
       setForm(initial)
-      setMessage('Producto agregado correctamente.')
+
+      setMessage(
+        'Producto agregado correctamente.'
+      )
 
       onCreated?.()
 
     } catch (error) {
+      console.error(
+        'ERROR CREANDO PRODUCTO:',
+        error
+      )
+
       setMessage(
         typeof error?.message === 'string'
           ? error.message
@@ -122,7 +164,6 @@ function EmployeeProductForm({ modoOscuro, onCreated }) {
         }
       `}
     >
-
       {/* =====================================================
           ENCABEZADO
       ===================================================== */}
