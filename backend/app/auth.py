@@ -1,179 +1,199 @@
-import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
-import bcrypt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session, joinedload
 
-from .database import get_db
-from .models import Usuario
+from ..auth import require_roles
+from ..database import get_db
+from ..models import PQR
+from ..schemas.pqr import PQRCrear, PQRResponder
 
 
-# ============================================================
-# CONFIGURACIÓN JWT
-# ============================================================
-
-JWT_SECRET = os.getenv(
-    "JWT_SECRET",
-    "change-this-secret-in-production"
-)
-
-JWT_ALGORITHM = os.getenv(
-    "JWT_ALGORITHM",
-    "HS256"
-)
-
-JWT_EXPIRE_MINUTES = int(
-    os.getenv(
-        "JWT_EXPIRE_MINUTES",
-        "60"
-    )
-)
+router = APIRouter(tags=["PQR"])
 
 
 # ============================================================
-# OAUTH2
+# CREAR PQR
+# SOLO CLIENTES
 # ============================================================
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/auth/token"
-)
-
-
-# ============================================================
-# HASH DE CONTRASEÑA
-# ============================================================
-
-def hash_password(password: str) -> str:
-
-    password_bytes = password.encode("utf-8")
-
-    if len(password_bytes) > 72:
-        raise ValueError(
-            "La contraseña no puede superar los 72 bytes."
-        )
-
-    return bcrypt.hashpw(
-        password_bytes,
-        bcrypt.gensalt()
-    ).decode("utf-8")
-
-
-# ============================================================
-# VERIFICAR CONTRASEÑA
-# ============================================================
-
-def verify_password(
-    password: str,
-    hashed_password: str
-) -> bool:
-
-    return bcrypt.checkpw(
-        password.encode("utf-8"),
-        hashed_password.encode("utf-8")
+@router.post("")
+def crear_pqr(
+    datos: PQRCrear,
+    db: Session = Depends(get_db),
+    usuario_actual=Depends(require_roles(2)),
+):
+    nueva_pqr = PQR(
+        usuario_id=usuario_actual.id_usuario,
+        tipo=datos.tipo,
+        asunto=datos.asunto,
+        descripcion=datos.descripcion,
+        estado="Pendiente",
+        creado_en=datetime.utcnow(),
     )
 
+    db.add(nueva_pqr)
+    db.commit()
+    db.refresh(nueva_pqr)
 
-# ============================================================
-# CREAR TOKEN JWT
-# ============================================================
-
-def create_access_token(
-    user: Usuario
-) -> str:
-
-    expires_at = (
-        datetime.now(timezone.utc)
-        + timedelta(
-            minutes=JWT_EXPIRE_MINUTES
-        )
-    )
-
-    payload = {
-        "sub": str(user.id_usuario),
-        "role": user.rol_id,
-        "exp": expires_at,
+    return {
+        "success": True,
+        "message": "PQR creada correctamente.",
+        "pqr": {
+            "id_pqr": nueva_pqr.id_pqr,
+            "usuario_id": nueva_pqr.usuario_id,
+            "tipo": nueva_pqr.tipo,
+            "asunto": nueva_pqr.asunto,
+            "descripcion": nueva_pqr.descripcion,
+            "respuesta": nueva_pqr.respuesta,
+            "estado": nueva_pqr.estado,
+            "creado_en": nueva_pqr.creado_en,
+            "respondido_en": None,
+        },
     }
 
-    return jwt.encode(
-        payload,
-        JWT_SECRET,
-        algorithm=JWT_ALGORITHM
-    )
-
 
 # ============================================================
-# OBTENER USUARIO ACTUAL
+# LISTAR TODAS LAS PQR
+# ADMINISTRADOR / EMPLEADO
 # ============================================================
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
+@router.get("")
+def listar_pqrs(
     db: Session = Depends(get_db),
-) -> Usuario:
-
-    credentials_error = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Token inválido o expirado",
-        headers={
-            "WWW-Authenticate": "Bearer"
-        },
+    usuario_actual=Depends(require_roles(1, 3)),
+):
+    pqrs = (
+        db.query(PQR)
+        .options(joinedload(PQR.usuario))
+        .order_by(PQR.creado_en.desc())
+        .all()
     )
 
-    try:
+    resultado = []
 
-        payload = jwt.decode(
-            token,
-            JWT_SECRET,
-            algorithms=[JWT_ALGORITHM]
+    for pqr in pqrs:
+        usuario = pqr.usuario
+
+        resultado.append(
+            {
+                "id_pqr": pqr.id_pqr,
+                "usuario_id": pqr.usuario_id,
+
+                "usuario": (
+                    f"{usuario.nombres} {usuario.apellidos}"
+                    if usuario
+                    else "Usuario"
+                ),
+
+                "nombre_usuario": (
+                    f"{usuario.nombres} {usuario.apellidos}"
+                    if usuario
+                    else "Usuario"
+                ),
+
+                "email": (
+                    usuario.email
+                    if usuario
+                    else None
+                ),
+
+                "tipo": pqr.tipo,
+                "asunto": pqr.asunto,
+                "descripcion": pqr.descripcion,
+                "respuesta": pqr.respuesta,
+                "estado": pqr.estado,
+                "creado_en": pqr.creado_en,
+
+                # Este campo no existe en el modelo actual.
+                # Se conserva en la respuesta para no romper
+                # el frontend.
+                "respondido_en": None,
+            }
         )
 
-        user_id = payload.get("sub")
-
-        if not user_id:
-            raise credentials_error
-
-    except (
-        JWTError,
-        ValueError,
-    ):
-
-        raise credentials_error
-
-    user = db.query(Usuario).filter(
-        Usuario.id_usuario == int(user_id)
-    ).first()
-
-    if not user:
-        raise credentials_error
-
-    if not user.estado:
-        raise credentials_error
-
-    return user
+    return resultado
 
 
 # ============================================================
-# REQUERIR ROLES
+# LISTAR PQR DEL CLIENTE ACTUAL
 # ============================================================
 
-def require_roles(*roles: int):
+@router.get("/mis-pqrs")
+def listar_mis_pqrs(
+    db: Session = Depends(get_db),
+    usuario_actual=Depends(require_roles(2)),
+):
+    pqrs = (
+        db.query(PQR)
+        .filter(
+            PQR.usuario_id == usuario_actual.id_usuario
+        )
+        .order_by(PQR.creado_en.desc())
+        .all()
+    )
 
-    def role_dependency(
-        user: Usuario = Depends(get_current_user)
-    ) -> Usuario:
+    return [
+        {
+            "id_pqr": pqr.id_pqr,
+            "usuario_id": pqr.usuario_id,
+            "tipo": pqr.tipo,
+            "asunto": pqr.asunto,
+            "descripcion": pqr.descripcion,
+            "respuesta": pqr.respuesta,
+            "estado": pqr.estado,
+            "creado_en": pqr.creado_en,
+            "respondido_en": None,
+        }
+        for pqr in pqrs
+    ]
 
-        if user.rol_id not in roles:
 
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "No tienes permisos para "
-                    "realizar esta operación"
-                ),
-            )
+# ============================================================
+# RESPONDER PQR
+# ADMINISTRADOR / EMPLEADO
+# ============================================================
 
-        return user
+@router.patch("/{pqr_id}/respuesta")
+def responder_pqr(
+    pqr_id: int,
+    datos: PQRResponder,
+    db: Session = Depends(get_db),
+    usuario_actual=Depends(require_roles(1, 3)),
+):
+    pqr = (
+        db.query(PQR)
+        .filter(PQR.id_pqr == pqr_id)
+        .first()
+    )
 
-    return role_dependency
+    if not pqr:
+        raise HTTPException(
+            status_code=404,
+            detail="PQR no encontrada.",
+        )
+
+    pqr.respuesta = datos.respuesta
+    pqr.estado = "Respondida"
+
+    # No usamos respondido_en porque esa columna
+    # no existe en el modelo PQR actual.
+
+    db.commit()
+    db.refresh(pqr)
+
+    return {
+        "success": True,
+        "message": "PQR respondida correctamente.",
+        "pqr": {
+            "id_pqr": pqr.id_pqr,
+            "usuario_id": pqr.usuario_id,
+            "tipo": pqr.tipo,
+            "asunto": pqr.asunto,
+            "descripcion": pqr.descripcion,
+            "respuesta": pqr.respuesta,
+            "estado": pqr.estado,
+            "creado_en": pqr.creado_en,
+            "respondido_en": None,
+        },
+    }
