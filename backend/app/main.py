@@ -7,33 +7,37 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine
 from .routes import auth, chatbot, pedidos, productos, usuarios, pqr
 
+
 load_dotenv()
 
 Base.metadata.create_all(bind=engine)
 
-allowed_origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://cellworld-evo96ywsi-yiselsa02.vercel.app/",
-]
-
-frontend_url = os.getenv("FRONTEND_URL")
-
-if frontend_url and frontend_url not in allowed_origins:
-    allowed_origins.append(frontend_url)
 
 app = FastAPI(
     title="API CellWorld",
     version="1.0.0",
 )
 
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://cellworld-evo96ywsi-yiselsa02.vercel.app",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=[
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "OPTIONS",
+    ],
     allow_headers=["*"],
 )
+
 
 app.include_router(auth.router)
 app.include_router(usuarios.router)
