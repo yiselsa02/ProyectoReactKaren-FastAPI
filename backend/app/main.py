@@ -21,9 +21,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "https://cellworld-evo96ywsi-yiselsa02.vercel.app",
-        "https://cellworld-dae4gvlvt-yiselsa02.vercel.app",
     ],
+    allow_origin_regex=r"https://cellworld-[a-z0-9]+-yiselsa02\.vercel\.app",
     allow_credentials=True,
     allow_methods=[
         "GET",
@@ -35,7 +34,6 @@ app.add_middleware(
     ],
     allow_headers=["*"],
 )
-
 app.include_router(auth.router)
 app.include_router(usuarios.router)
 app.include_router(productos.router)
