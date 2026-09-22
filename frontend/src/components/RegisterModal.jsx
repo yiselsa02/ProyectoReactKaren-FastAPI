@@ -6,7 +6,7 @@ import logoDark from '../assets/logo-dark.png'
 import Input from './input'
 import Select from './select'
 
-function RegisterModal({ modoOscuro, cerrarModal }) {
+function RegisterModal({ modoOscuro, onClose }) {
   // ==========================================================
   // URL DEL BACKEND
   // ==========================================================
@@ -303,8 +303,7 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
 
       setErrores((erroresActuales) => ({
         ...erroresActuales,
-        confirmarContrasena:
-          errorConfirmacion,
+        confirmarContrasena: errorConfirmacion,
       }))
     }
 
@@ -478,7 +477,7 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
 
       alert('Cuenta creada correctamente.')
 
-      cerrarModal()
+      onClose()
 
     } catch (error) {
       console.error(
@@ -573,7 +572,11 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-2 backdrop-blur-sm sm:p-4"
-      onClick={cerrarModal}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose()
+        }
+      }}
     >
       <div
         className={`relative max-h-[95vh] w-full max-w-2xl overflow-y-auto rounded-2xl border shadow-2xl sm:rounded-[28px] ${
@@ -590,7 +593,7 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
         <div className="relative px-5 pb-6 pt-7 sm:px-8 sm:pb-7 sm:pt-8 md:px-10">
           <button
             type="button"
-            onClick={cerrarModal}
+            onClick={onClose}
             disabled={cargando}
             className={`absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-2xl leading-none transition-all duration-200 sm:right-5 sm:top-5 ${
               modoOscuro
@@ -1175,7 +1178,7 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
             >
               <button
                 type="button"
-                onClick={cerrarModal}
+                onClick={onClose}
                 disabled={cargando}
                 className={`w-full rounded-xl border px-6 py-3.5 text-sm font-semibold transition-all duration-200 sm:w-auto ${
                   modoOscuro
