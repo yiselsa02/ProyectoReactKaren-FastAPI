@@ -6,10 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from ..auth import require_roles
 from ..database import get_db
 from ..models import PQR, Usuario
-from ..schemas.pqr import (
-    PQRCrear,
-    PQRResponder,
-)
+from ..schemas.pqr import PQRCrear, PQRResponder
 
 
 router = APIRouter(tags=["PQR"])
@@ -17,190 +14,178 @@ router = APIRouter(tags=["PQR"])
 
 # ============================================================
 # CREAR PQR
-# Solo clientes
 # ============================================================
 
-@router.post(
-    "",
-    status_code=201,
-)
+@router.post("")
 def crear_pqr(
-    data: PQRCrear,
+    datos: PQRCrear,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(
-        require_roles(2)
-    ),
+    usuario_actual=Depends(require_roles([2])),
 ):
-    pqr = PQR(
-        usuario_id=usuario.id_usuario,
-        tipo=data.tipo,
-        asunto=data.asunto,
-        descripcion=data.descripcion,
+    nueva_pqr = PQR(
+        usuario_id=usuario_actual.id_usuario,
+        tipo=datos.tipo,
+        asunto=datos.asunto,
+        descripcion=datos.descripcion,
         estado="Pendiente",
         creado_en=datetime.utcnow(),
     )
 
-    db.add(pqr)
+    db.add(nueva_pqr)
     db.commit()
-    db.refresh(pqr)
+    db.refresh(nueva_pqr)
 
     return {
         "success": True,
-        "pqr": pqr,
+        "message": "PQR creada correctamente.",
+        "pqr": {
+            "id_pqr": nueva_pqr.id_pqr,
+            "usuario_id": nueva_pqr.usuario_id,
+            "tipo": nueva_pqr.tipo,
+            "asunto": nueva_pqr.asunto,
+            "descripcion": nueva_pqr.descripcion,
+            "respuesta": nueva_pqr.respuesta,
+            "estado": nueva_pqr.estado,
+            "creado_en": nueva_pqr.creado_en,
+        },
     }
 
 
 # ============================================================
-# LISTAR PQR
-# Administrador y empleado
+# LISTAR TODAS LAS PQR
+# ADMINISTRADOR / EMPLEADO
 # ============================================================
 
 @router.get("")
 def listar_pqrs(
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(
-        require_roles(1, 3)
-    ),
+    usuario_actual=Depends(require_roles([1, 3])),
 ):
     pqrs = (
         db.query(PQR)
-        .options(
-            joinedload(PQR.usuario)
-        )
-        .order_by(
-            PQR.creado_en.desc()
-        )
+        .options(joinedload(PQR.usuario))
+        .order_by(PQR.creado_en.desc())
         .all()
     )
 
     resultado = []
 
     for pqr in pqrs:
-        nombre_cliente = "Cliente no disponible"
+        usuario = pqr.usuario
 
-        if pqr.usuario:
-            nombres = (
-                getattr(
-                    pqr.usuario,
-                    "nombres",
-                    "",
-                )
-                or ""
-            )
+        resultado.append({
+            "id_pqr": pqr.id_pqr,
+            "usuario_id": pqr.usuario_id,
 
-            apellidos = (
-                getattr(
-                    pqr.usuario,
-                    "apellidos",
-                    "",
-                )
-                or ""
-            )
+            "usuario": (
+                f"{usuario.nombres} {usuario.apellidos}"
+                if usuario
+                else "Usuario"
+            ),
 
-            nombre_cliente = (
-                f"{nombres} {apellidos}"
-                .strip()
-            )
+            "nombre_usuario": (
+                f"{usuario.nombres} {usuario.apellidos}"
+                if usuario
+                else "Usuario"
+            ),
 
-            if not nombre_cliente:
-                nombre_cliente = (
-                    getattr(
-                        pqr.usuario,
-                        "email",
-                        None,
-                    )
-                    or "Cliente no disponible"
-                )
+            "email": usuario.email if usuario else None,
 
-        resultado.append(
-            {
-                "id_pqr": pqr.id_pqr,
-                "usuario_id": pqr.usuario_id,
-                "cliente": nombre_cliente,
-                "tipo": pqr.tipo,
-                "asunto": pqr.asunto,
-                "descripcion": pqr.descripcion,
-                "estado": pqr.estado,
-                "respuesta": pqr.respuesta,
-                "creado_en": pqr.creado_en,
-                "respondido_en": pqr.respondido_en,
-            }
-        )
+            "tipo": pqr.tipo,
+            "asunto": pqr.asunto,
+            "descripcion": pqr.descripcion,
+            "respuesta": pqr.respuesta,
+            "estado": pqr.estado,
+            "creado_en": pqr.creado_en,
 
-    return {
-        "success": True,
-        "pqrs": resultado,
-    }
+            # IMPORTANTE:
+            # No se usa pqr.respondido_en porque esa columna
+            # no existe en tu modelo PQR.
+            "respondido_en": None,
+        })
+
+    return resultado
 
 
 # ============================================================
-# MIS PQR
-# Solo clientes
+# PQR DEL CLIENTE ACTUAL
 # ============================================================
 
 @router.get("/mis-pqrs")
-def mis_pqrs(
+def listar_mis_pqrs(
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(
-        require_roles(2)
-    ),
+    usuario_actual=Depends(require_roles([2])),
 ):
     pqrs = (
         db.query(PQR)
-        .filter(
-            PQR.usuario_id
-            == usuario.id_usuario
-        )
-        .order_by(
-            PQR.creado_en.desc()
-        )
+        .filter(PQR.usuario_id == usuario_actual.id_usuario)
+        .order_by(PQR.creado_en.desc())
         .all()
     )
 
-    return {
-        "success": True,
-        "pqrs": pqrs,
-    }
+    return [
+        {
+            "id_pqr": pqr.id_pqr,
+            "usuario_id": pqr.usuario_id,
+            "tipo": pqr.tipo,
+            "asunto": pqr.asunto,
+            "descripcion": pqr.descripcion,
+            "respuesta": pqr.respuesta,
+            "estado": pqr.estado,
+            "creado_en": pqr.creado_en,
+            "respondido_en": None,
+        }
+        for pqr in pqrs
+    ]
 
 
 # ============================================================
 # RESPONDER PQR
-# Administrador y empleado
+# ADMINISTRADOR / EMPLEADO
 # ============================================================
 
-@router.patch(
-    "/{pqr_id}/respuesta"
-)
+@router.patch("/{pqr_id}/respuesta")
 def responder_pqr(
     pqr_id: int,
-    data: PQRResponder,
+    datos: PQRResponder,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(
-        require_roles(1, 3)
-    ),
+    usuario_actual=Depends(require_roles([1, 3])),
 ):
     pqr = (
         db.query(PQR)
-        .filter(
-            PQR.id_pqr == pqr_id
-        )
+        .filter(PQR.id_pqr == pqr_id)
         .first()
     )
 
     if not pqr:
         raise HTTPException(
             status_code=404,
-            detail="PQR no encontrada",
+            detail="PQR no encontrada."
         )
 
-    pqr.respuesta = data.respuesta
+    pqr.respuesta = datos.respuesta
     pqr.estado = "Respondida"
-    pqr.respondido_en = datetime.utcnow()
+
+    # NO hacemos:
+    # pqr.respondido_en = datetime.utcnow()
+    #
+    # porque esa propiedad no existe en el modelo.
 
     db.commit()
     db.refresh(pqr)
 
     return {
         "success": True,
-        "pqr": pqr,
+        "message": "PQR respondida correctamente.",
+        "pqr": {
+            "id_pqr": pqr.id_pqr,
+            "usuario_id": pqr.usuario_id,
+            "tipo": pqr.tipo,
+            "asunto": pqr.asunto,
+            "descripcion": pqr.descripcion,
+            "respuesta": pqr.respuesta,
+            "estado": pqr.estado,
+            "creado_en": pqr.creado_en,
+            "respondido_en": None,
+        },
     }
