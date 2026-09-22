@@ -422,37 +422,43 @@ class Pedido(Base):
 # ============================================================
 # DETALLE DEL PEDIDO
 # ============================================================
-
 class DetallePedido(Base):
     __tablename__ = "detalle_pedidos"
+
+    id_detalle = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+        autoincrement=True,
+    )
 
     pedido_id = Column(
         Integer,
         ForeignKey("pedidos.id_pedido"),
-        primary_key=True
+        nullable=False,
     )
 
     producto_id = Column(
         Integer,
-        primary_key=True
+        nullable=False,
     )
 
     nombre_producto = Column(
         String(150),
-        nullable=False
+        nullable=False,
     )
 
     precio_unitario = Column(
         Integer,
-        nullable=False
+        nullable=False,
     )
 
     cantidad = Column(
         Integer,
-        nullable=False
+        nullable=False,
     )
 
     pedido = relationship(
         "Pedido",
-        back_populates="detalles"
+        back_populates="detalles",
     )
