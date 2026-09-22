@@ -21,6 +21,7 @@ import {
 import logo from '../assets/logo.png'
 import logoDark from '../assets/logo-dark.png'
 import EmployeeProductForm from '../components/EmployeeProductForm'
+import { API_URL } from '../config'
 
 function PanelEmpleado({ modoOscuro }) {
   const navigate = useNavigate()
@@ -108,14 +109,14 @@ function PanelEmpleado({ modoOscuro }) {
 
       const [productosResponse, clientesResponse] =
         await Promise.all([
-          fetch('http://127.0.0.1:8000/api/productos', {
+          fetch('${API_URL}/api/productos', {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           }),
 
           fetch(
-            'http://127.0.0.1:8000/api/usuarios/estadisticas',
+            '${API_URL}/api/usuarios/estadisticas',
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -207,7 +208,7 @@ function PanelEmpleado({ modoOscuro }) {
       setErrorVentas('')
 
       const respuesta = await fetch(
-        'http://127.0.0.1:8000/api/pedidos/historial',
+        '${API_URL}/api/pedidos/historial',
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -274,7 +275,7 @@ function PanelEmpleado({ modoOscuro }) {
       setErrorReporte('')
 
       const respuesta = await fetch(
-        `http://127.0.0.1:8000/api/pedidos/reporte-diario?fecha=${encodeURIComponent(
+        `${API_URL}/api/pedidos/reporte-diario?fecha=${encodeURIComponent(
           fecha
         )}`,
         {

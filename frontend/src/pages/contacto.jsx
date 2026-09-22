@@ -2,8 +2,9 @@ import { useState } from 'react'
 import logo from '../assets/logo.png'
 import logoDark from '../assets/logo-dark.png'
 import whatsapp from '../assets/whatsapp.png'
+import { API_URL } from '../config'
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
+const API_URL = (import.meta.env.VITE_API_URL || '${API_URL}').replace(/\/$/, '')
 
 function Contacto({ modoOscuro }) {
   const [mensajeEnviado, setMensajeEnviado] = useState(false)

@@ -5,6 +5,7 @@ import logo from '../assets/logo.png'
 import logoDark from '../assets/logo-dark.png'
 
 import Input from './input'
+import { API_URL } from '../config'
 
 function RecoverPassword({ modoOscuro }) {
   const [correo, setCorreo] = useState('')
@@ -68,7 +69,7 @@ function RecoverPassword({ modoOscuro }) {
       }
       setCargando(true)
       try {
-        const respuesta = await fetch('http://127.0.0.1:8000/api/auth/reset-password', {
+        const respuesta = await fetch('${API_URL}/api/auth/reset-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: codigo, password: nuevaContrasena }),
@@ -98,7 +99,7 @@ function RecoverPassword({ modoOscuro }) {
 
     setCargando(true)
     try {
-      const respuesta = await fetch('http://127.0.0.1:8000/api/auth/forgot-password', {
+      const respuesta = await fetch('${API_URL}/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: correo.trim().toLowerCase() }),

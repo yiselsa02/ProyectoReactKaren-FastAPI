@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { useCart } from '../context/CartContext'
+import { API_URL } from '../config'
 
 import vivo from '../assets/vivo.jpg'
 import nokia from '../assets/nokia.jpg'
@@ -249,7 +250,7 @@ function Productos({ modoOscuro }) {
   const cargarProductos = async () => {
     try {
       const respuesta = await fetch(
-        'http://127.0.0.1:8000/api/productos'
+        `${API_URL}/api/productos`
       )
 
       if (!respuesta.ok) {
@@ -289,6 +290,7 @@ function Productos({ modoOscuro }) {
       producto?.nombre ||
       ''
     ).toLowerCase()
+
     const marcas = [
       'vivo',
       'nokia',
@@ -434,9 +436,9 @@ function Productos({ modoOscuro }) {
       (favorito) =>
         String(
           favorito?.id ??
-            favorito?.id_producto ??
-            favorito?.producto_id ??
-            favorito
+          favorito?.id_producto ??
+          favorito?.producto_id ??
+          favorito
         ) === String(id)
     )
   }
@@ -484,9 +486,9 @@ function Productos({ modoOscuro }) {
       (favorito) =>
         String(
           favorito?.id ??
-            favorito?.id_producto ??
-            favorito?.producto_id ??
-            favorito
+          favorito?.id_producto ??
+          favorito?.producto_id ??
+          favorito
         ) === String(id)
     )
 
@@ -497,9 +499,9 @@ function Productos({ modoOscuro }) {
         (favorito) =>
           String(
             favorito?.id ??
-              favorito?.id_producto ??
-              favorito?.producto_id ??
-              favorito
+            favorito?.id_producto ??
+            favorito?.producto_id ??
+            favorito
           ) !== String(id)
       )
     } else {

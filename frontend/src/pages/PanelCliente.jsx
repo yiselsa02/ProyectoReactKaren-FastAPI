@@ -20,6 +20,7 @@ import { useCart } from '../context/CartContext'
 import { jsPDF } from 'jspdf'
 import logo from '../assets/logo.png'
 import logoDark from '../assets/logo-dark.png'
+import { API_URL } from '../config'
 
 const COMPRAS_KEY = 'cellworld_compras'
 
@@ -454,7 +455,7 @@ function PanelCliente({ modoOscuro = false }) {
       }
 
       const respuesta = await fetch(
-        'http://127.0.0.1:8000/api/pedidos/mis-pedidos',
+        '${API_URL}/api/pedidos/mis-pedidos',
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -512,7 +513,7 @@ function PanelCliente({ modoOscuro = false }) {
       }
 
       const respuesta = await fetch(
-        'http://127.0.0.1:8000/api/pqr/mis-pqrs',
+        '${API_URL}/api/pqr/mis-pqrs',
         {
           headers: {
             Authorization: `Bearer ${token}`,

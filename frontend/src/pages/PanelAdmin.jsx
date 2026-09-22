@@ -33,8 +33,9 @@ import * as XLSX from 'xlsx'
 
 import logo from '../assets/logo.png'
 import logoDark from '../assets/logo-dark.png'
+import { API_URL } from '../config'
 
-const API_URL = 'http://127.0.0.1:8000'
+const API_URL = '${API_URL}'
 
 function obtenerTextoPqr(valor, respaldo = '') {
   if (valor === null || valor === undefined) return respaldo

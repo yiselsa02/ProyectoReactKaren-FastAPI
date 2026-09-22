@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bot, Send, X } from 'lucide-react'
+import { API_URL } from '../config'
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
+
+const API_URL = (import.meta.env.VITE_API_URL || '${API_URL}').replace(/\/$/, '')
 
 const SUGGESTIONS = [
   'Quiero saber más de los productos',

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
+import { API_URL } from '../config'
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
+const API_URL = (import.meta.env.VITE_API_URL || '${API_URL}').replace(/\/$/, '')
 
 const initial = {
   nombre: '',
@@ -53,7 +54,7 @@ function EmployeeProductForm({ modoOscuro, onCreated }) {
 
     try {
       const response = await fetch(
-        'http://127.0.0.1:8000/api/productos',
+        '${API_URL}/api/productos',
         {
           method: 'POST',
           headers: {
