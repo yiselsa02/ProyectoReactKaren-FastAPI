@@ -1,20 +1,22 @@
-import os
-
-from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import Base, engine
-from .routes import auth, chatbot, pedidos, productos, usuarios, pqr
-
-load_dotenv()
-
-Base.metadata.create_all(bind=engine)
+from app.routes import auth
+from app.routes import usuarios
+from app.routes import productos
+from app.routes import pedidos
+from app.routes import pqr
+from app.routes import chatbot
 
 app = FastAPI(
-    title="API CellWorld",
-    version="1.0.0",
+    title="CellWorld API",
+    description="API para el sistema CellWorld",
+    version="1.0.0"
 )
+
+# ============================================================
+# CORS
+# ============================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,17 +36,55 @@ app.add_middleware(
     ],
     allow_headers=["*"],
 )
-app.include_router(auth.router)
-app.include_router(usuarios.router)
-app.include_router(productos.router)
-app.include_router(pedidos.router)
-app.include_router(pqr.router)
-app.include_router(chatbot.router)
 
+# ============================================================
+# RUTAS
+# ============================================================
+
+app.include_router(
+    auth.router,
+    prefix="/api/auth",
+    tags=["Autenticación"]
+)
+
+app.include_router(
+    usuarios.router,
+    prefix="/api/usuarios",
+    tags=["Usuarios"]
+)
+
+app.include_router(
+    productos.router,
+    prefix="/api/productos",
+    tags=["Productos"]
+)
+
+app.include_router(
+    pedidos.router,
+    prefix="/api/pedidos",
+    tags=["Pedidos"]
+)
+
+app.include_router(
+    pqr.router,
+    prefix="/api/pqr",
+    tags=["PQR"]
+)
+
+app.include_router(
+    chatbot.router,
+    prefix="/api/chatbot",
+    tags=["Chatbot"]
+)
+
+
+# ============================================================
+# RUTA PRINCIPAL
+# ============================================================
 
 @app.get("/")
 def inicio():
     return {
         "success": True,
-        "message": "Bienvenido a la API de CellWorld",
+        "message": "Bienvenido a la API de CellWorld"
     }
