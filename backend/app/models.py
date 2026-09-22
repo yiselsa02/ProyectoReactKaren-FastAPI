@@ -1,8 +1,19 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Boolean,
+    ForeignKey,
+    DateTime,
+)
 from sqlalchemy.orm import relationship
 
 from .database import Base
 
+
+# ============================================================
+# ROL
+# ============================================================
 
 class Rol(Base):
     __tablename__ = "roles"
@@ -41,6 +52,10 @@ class Rol(Base):
         cascade="all, delete-orphan"
     )
 
+
+# ============================================================
+# USUARIO
+# ============================================================
 
 class Usuario(Base):
     __tablename__ = "usuarios"
@@ -110,30 +125,108 @@ class Usuario(Base):
         back_populates="usuarios"
     )
 
+    pqrs = relationship(
+        "PQR",
+        back_populates="usuario"
+    )
+
+
+# ============================================================
+# PRODUCTO
+# ============================================================
 
 class Producto(Base):
     __tablename__ = "productos"
 
-    id_producto = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(150), nullable=False)
-    categoria = Column(String(80), nullable=False)
-    descripcion = Column(String(500), nullable=True)
-    almacenamiento = Column(String(50), nullable=True)
-    ram = Column(String(50), nullable=True)
-    color = Column(String(50), nullable=True)
-    precio = Column(Integer, nullable=False, default=0)
-    imagen = Column(String(500), nullable=True)
-    stock = Column(Integer, nullable=False, default=0)
-    estado = Column(Boolean, nullable=False, default=True)
+    id_producto = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
+    nombre = Column(
+        String(150),
+        nullable=False
+    )
+
+    categoria = Column(
+        String(80),
+        nullable=False
+    )
+
+    descripcion = Column(
+        String(500),
+        nullable=True
+    )
+
+    almacenamiento = Column(
+        String(50),
+        nullable=True
+    )
+
+    ram = Column(
+        String(50),
+        nullable=True
+    )
+
+    color = Column(
+        String(50),
+        nullable=True
+    )
+
+    precio = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    imagen = Column(
+        String(500),
+        nullable=True
+    )
+
+    stock = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    estado = Column(
+        Boolean,
+        nullable=False,
+        default=True
+    )
+
+
+# ============================================================
+# PERMISO
+# ============================================================
 
 class Permiso(Base):
     __tablename__ = "permisos"
 
-    id_permiso = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(80), unique=True, nullable=False)
-    descripcion = Column(String(255), nullable=True)
-    estado = Column(Boolean, nullable=False, default=True)
+    id_permiso = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    nombre = Column(
+        String(80),
+        unique=True,
+        nullable=False
+    )
+
+    descripcion = Column(
+        String(255),
+        nullable=True
+    )
+
+    estado = Column(
+        Boolean,
+        nullable=False,
+        default=True
+    )
 
     roles = relationship(
         "RolPermiso",
@@ -142,21 +235,129 @@ class Permiso(Base):
     )
 
 
+# ============================================================
+# ROL - PERMISO
+# ============================================================
+
 class RolPermiso(Base):
     __tablename__ = "rol_permisos"
 
-    id_rol = Column(Integer, ForeignKey("roles.id_rol"), primary_key=True)
-    id_permiso = Column(Integer, ForeignKey("permisos.id_permiso"), primary_key=True)
+    id_rol = Column(
+        Integer,
+        ForeignKey("roles.id_rol"),
+        primary_key=True
+    )
 
-    rol = relationship("Rol", back_populates="permisos")
-    permiso = relationship("Permiso", back_populates="roles")
+    id_permiso = Column(
+        Integer,
+        ForeignKey("permisos.id_permiso"),
+        primary_key=True
+    )
 
+    rol = relationship(
+        "Rol",
+        back_populates="permisos"
+    )
+
+    permiso = relationship(
+        "Permiso",
+        back_populates="roles"
+    )
+
+
+# ============================================================
+# SERVICIO
+# ============================================================
 
 class Servicio(Base):
     __tablename__ = "servicios"
 
-    id_servicio = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(150), nullable=False)
-    descripcion = Column(String(500), nullable=True)
-    precio = Column(Integer, nullable=False, default=0)
-    estado = Column(Boolean, nullable=False, default=True)
+    id_servicio = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    nombre = Column(
+        String(150),
+        nullable=False
+    )
+
+    descripcion = Column(
+        String(500),
+        nullable=True
+    )
+
+    precio = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    estado = Column(
+        Boolean,
+        nullable=False,
+        default=True
+    )
+
+
+# ============================================================
+# PQR
+# ============================================================
+
+class PQR(Base):
+    __tablename__ = "pqr"
+
+    id_pqr = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    usuario_id = Column(
+        Integer,
+        ForeignKey("usuarios.id_usuario"),
+        nullable=False
+    )
+
+    tipo = Column(
+        String,
+        nullable=False
+    )
+
+    asunto = Column(
+        String,
+        nullable=False
+    )
+
+    descripcion = Column(
+        String,
+        nullable=False
+    )
+
+    respuesta = Column(
+        String,
+        nullable=True
+    )
+
+    estado = Column(
+        String,
+        nullable=False,
+        default="Pendiente"
+    )
+
+    creado_en = Column(
+        DateTime,
+        nullable=False
+    )
+
+    actualizado_en = Column(
+        DateTime,
+        nullable=True
+    )
+
+    usuario = relationship(
+        "Usuario",
+        back_populates="pqrs",
+        foreign_keys=[usuario_id]
+    )
