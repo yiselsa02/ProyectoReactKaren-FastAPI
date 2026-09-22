@@ -8,6 +8,10 @@ import logoDark from '../assets/logo-dark.png'
 function Login({ modoOscuro }) {
   const navigate = useNavigate()
 
+  // ==========================================================
+  // URL DEL BACKEND
+  // ==========================================================
+
   const API_URL = (
     import.meta.env.VITE_API_URL ||
     'https://cellworld-backend.vercel.app'
@@ -77,11 +81,9 @@ function Login({ modoOscuro }) {
         `${API_URL}/api/auth/login`,
         {
           method: 'POST',
-
           headers: {
             'Content-Type': 'application/json',
           },
-
           body: JSON.stringify({
             email: formData.correo.trim(),
             password: formData.password,
@@ -170,10 +172,12 @@ function Login({ modoOscuro }) {
       // GUARDAR TOKEN
       // ========================================================
 
-      localStorage.setItem(
-        'token',
-        datos.token
-      )
+      if (datos.token) {
+        localStorage.setItem(
+          'token',
+          datos.token
+        )
+      }
 
       // ========================================================
       // GUARDAR USUARIO
@@ -490,3 +494,4 @@ function Login({ modoOscuro }) {
 }
 
 export default Login
+
