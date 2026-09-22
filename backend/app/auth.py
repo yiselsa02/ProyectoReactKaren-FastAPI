@@ -1,167 +1,349 @@
-import os
-from datetime import datetime, timedelta, timezone
+import secrets
+import smtplib
 
-import bcrypt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+from datetime import datetime, timedelta
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+)
+
+from fastapi.security import OAuth2PasswordRequestForm
+
 from sqlalchemy.orm import Session
 
-from .database import get_db
-from .models import Usuario
-
-
-JWT_SECRET = os.getenv(
-    "JWT_SECRET",
-    "change-this-secret-in-production"
+from ..auth import (
+    create_access_token,
+    hash_password,
+    verify_password,
+    get_current_user,
 )
 
-JWT_ALGORITHM = os.getenv(
-    "JWT_ALGORITHM",
-    "HS256"
+from ..database import get_db
+
+from ..models import (
+    PasswordResetToken,
+    Usuario,
 )
 
-JWT_EXPIRE_MINUTES = int(
-    os.getenv("JWT_EXPIRE_MINUTES", "60")
+from ..services.email import (
+    EmailConfigurationError,
+    send_password_reset_email,
+)
+
+from ..schemas import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    ResetPasswordRequest,
+    UsuarioResponse,
+)
+
+
+router = APIRouter(
+    prefix="/api/auth",
+    tags=["Autenticación"]
 )
 
 
 # =====================================================
-# OAUTH2
+# LOGIN
 # =====================================================
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/auth/token"
-)
-
-
-# =====================================================
-# HASH DE CONTRASEÑA
-# =====================================================
-
-def hash_password(password: str) -> str:
-    password_bytes = password.encode("utf-8")
-
-    if len(password_bytes) > 72:
-        raise ValueError(
-            "La contraseña no puede superar los 72 bytes."
-        )
-
-    return bcrypt.hashpw(
-        password_bytes,
-        bcrypt.gensalt()
-    ).decode("utf-8")
-
-
-# =====================================================
-# VERIFICAR CONTRASEÑA
-# =====================================================
-
-def verify_password(
-    password: str,
-    hashed_password: str
-) -> bool:
-
-    return bcrypt.checkpw(
-        password.encode("utf-8"),
-        hashed_password.encode("utf-8")
-    )
-
-
-# =====================================================
-# CREAR JWT
-# =====================================================
-
-def create_access_token(user: Usuario) -> str:
-
-    expires_at = (
-        datetime.now(timezone.utc)
-        + timedelta(minutes=JWT_EXPIRE_MINUTES)
-    )
-
-    payload = {
-        "sub": str(user.id_usuario),
-        "role": user.rol_id,
-        "exp": expires_at,
-    }
-
-    return jwt.encode(
-        payload,
-        JWT_SECRET,
-        algorithm=JWT_ALGORITHM
-    )
-
-
-# =====================================================
-# OBTENER USUARIO ACTUAL
-# =====================================================
-
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-) -> Usuario:
-
-    credentials_error = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Token inválido o expirado",
-        headers={
-            "WWW-Authenticate": "Bearer"
-        },
-    )
-
-    try:
-
-        payload = jwt.decode(
-            token,
-            JWT_SECRET,
-            algorithms=[JWT_ALGORITHM]
-        )
-
-        user_id = payload.get("sub")
-
-        if not user_id:
-            raise credentials_error
-
-    except (JWTError, ValueError):
-        raise credentials_error
+@router.post("/login")
+def login(
+    credentials: LoginRequest,
+    db: Session = Depends(get_db)
+):
+    # =================================================
+    # BUSCAR USUARIO POR CORREO
+    # =================================================
 
     user = db.query(Usuario).filter(
-        Usuario.id_usuario == int(user_id)
+        Usuario.email == str(
+            credentials.email
+        ).lower()
     ).first()
 
+    # =================================================
+    # USUARIO NO EXISTE
+    # =================================================
+
     if not user:
-        raise credentials_error
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo o contraseña incorrectos",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            },
+        )
 
     # =================================================
-    # VERIFICAR SI LA CUENTA SIGUE ACTIVA
+    # CUENTA INACTIVA
     # =================================================
 
     if not user.estado:
-        raise credentials_error
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Tu cuenta ha sido inactivada. "
+                "No puedes iniciar sesión."
+            ),
+        )
 
-    return user
+    # =================================================
+    # VERIFICAR CONTRASEÑA
+    # =================================================
+
+    if not verify_password(
+        credentials.password,
+        user.password_hash
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo o contraseña incorrectos",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            },
+        )
+
+    # =================================================
+    # LOGIN CORRECTO
+    # =================================================
+
+    return {
+        "success": True,
+        "token": create_access_token(user),
+        "usuario": UsuarioResponse.model_validate(user),
+    }
 
 
 # =====================================================
-# VERIFICAR ROLES
+# TOKEN PARA SWAGGER / OAUTH2
 # =====================================================
 
-def require_roles(*roles: int):
+@router.post("/token")
+def login_swagger(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    # =================================================
+    # BUSCAR USUARIO
+    # Swagger manda el correo en "username"
+    # =================================================
 
-    def role_dependency(
-        user: Usuario = Depends(get_current_user)
-    ) -> Usuario:
+    user = db.query(Usuario).filter(
+        Usuario.email == form_data.username.lower()
+    ).first()
 
-        if user.rol_id not in roles:
+    # =================================================
+    # USUARIO NO EXISTE
+    # =================================================
 
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    "No tienes permisos para realizar "
-                    "esta operación"
-                ),
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo o contraseña incorrectos",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            },
+        )
+
+    # =================================================
+    # CUENTA INACTIVA
+    # =================================================
+
+    if not user.estado:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Tu cuenta ha sido inactivada. "
+                "No puedes iniciar sesión."
+            ),
+        )
+
+    # =================================================
+    # VERIFICAR CONTRASEÑA
+    # =================================================
+
+    if not verify_password(
+        form_data.password,
+        user.password_hash
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo o contraseña incorrectos",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            },
+        )
+
+    # =================================================
+    # DEVOLVER TOKEN PARA SWAGGER
+    # =================================================
+
+    return {
+        "access_token": create_access_token(user),
+        "token_type": "bearer"
+    }
+
+
+# =====================================================
+# PERFIL
+# =====================================================
+
+@router.get("/perfil")
+def perfil(
+    usuario: Usuario = Depends(get_current_user),
+):
+    return {
+        "success": True,
+        "usuario": UsuarioResponse.model_validate(usuario),
+    }
+
+
+# =====================================================
+# RECUPERAR CONTRASEÑA
+# =====================================================
+
+@router.post("/forgot-password")
+def forgot_password(
+    data: ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    # =================================================
+    # BUSCAR USUARIO POR CORREO
+    # =================================================
+
+    user = db.query(Usuario).filter(
+        Usuario.email == str(
+            data.email
+        ).lower(),
+        Usuario.estado == True
+    ).first()
+
+    # =================================================
+    # NO REVELAR SI EL CORREO EXISTE
+    # =================================================
+
+    if not user:
+        return {
+            "success": True,
+            "message": (
+                "Si el correo existe, "
+                "recibirás instrucciones"
             )
+        }
 
-        return user
+    # =================================================
+    # GENERAR CÓDIGO DE 6 DÍGITOS
+    # =================================================
 
-    return role_dependency
+    token = f"{secrets.randbelow(1_000_000):06d}"
+
+    reset = PasswordResetToken(
+        token=token,
+        user_id=user.id_usuario,
+        expires_at=(
+            datetime.utcnow()
+            + timedelta(minutes=30)
+        ),
+    )
+
+    db.add(reset)
+    db.commit()
+
+    # =================================================
+    # ENVIAR CORREO
+    # =================================================
+
+    try:
+        send_password_reset_email(
+            user.email,
+            token
+        )
+
+    except (
+        EmailConfigurationError,
+        OSError,
+        smtplib.SMTPException
+    ) as error:
+
+        # Si el correo no pudo enviarse,
+        # eliminar el código generado.
+        db.delete(reset)
+        db.commit()
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "No se pudo enviar el correo "
+                f"de recuperación: {error}"
+            )
+        )
+
+    # =================================================
+    # RESPUESTA EXITOSA
+    # =================================================
+
+    return {
+        "success": True,
+        "message": (
+            "Si el correo existe, "
+            "recibirás instrucciones"
+        )
+    }
+
+
+# =====================================================
+# RESTABLECER CONTRASEÑA
+# =====================================================
+
+@router.post("/reset-password")
+def reset_password(
+    data: ResetPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    # =================================================
+    # BUSCAR CÓDIGO
+    # =================================================
+
+    reset = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token == data.code,
+        PasswordResetToken.used == False,
+    ).first()
+
+    # =================================================
+    # VALIDAR CÓDIGO
+    # =================================================
+
+    if (
+        not reset
+        or reset.expires_at < datetime.utcnow()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="El código no es válido o expiró"
+        )
+
+    # =================================================
+    # CAMBIAR CONTRASEÑA
+    # =================================================
+
+    reset.usuario.password_hash = hash_password(
+        data.password
+    )
+
+    reset.used = True
+
+    db.commit()
+
+    # =================================================
+    # RESPUESTA
+    # =================================================
+
+    return {
+        "success": True,
+        "message": "Contraseña actualizada correctamente"
+    }
