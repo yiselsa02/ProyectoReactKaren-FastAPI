@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..auth import require_roles
 from ..database import get_db
-from ..models import PQR, Usuario
+from ..models import PQR
 from ..schemas.pqr import PQRCrear, PQRResponder
 
 
@@ -14,13 +14,14 @@ router = APIRouter(tags=["PQR"])
 
 # ============================================================
 # CREAR PQR
+# CLIENTE
 # ============================================================
 
 @router.post("")
 def crear_pqr(
     datos: PQRCrear,
     db: Session = Depends(get_db),
-    usuario_actual=Depends(require_roles([2])),
+    usuario_actual=Depends(require_roles(2)),
 ):
     nueva_pqr = PQR(
         usuario_id=usuario_actual.id_usuario,
@@ -59,7 +60,7 @@ def crear_pqr(
 @router.get("")
 def listar_pqrs(
     db: Session = Depends(get_db),
-    usuario_actual=Depends(require_roles([1, 3])),
+    usuario_actual=Depends(require_roles(1, 3)),
 ):
     pqrs = (
         db.query(PQR)
@@ -98,9 +99,7 @@ def listar_pqrs(
             "estado": pqr.estado,
             "creado_en": pqr.creado_en,
 
-            # IMPORTANTE:
-            # No se usa pqr.respondido_en porque esa columna
-            # no existe en tu modelo PQR.
+            # La tabla/modelo PQR no tiene esta columna.
             "respondido_en": None,
         })
 
@@ -114,11 +113,13 @@ def listar_pqrs(
 @router.get("/mis-pqrs")
 def listar_mis_pqrs(
     db: Session = Depends(get_db),
-    usuario_actual=Depends(require_roles([2])),
+    usuario_actual=Depends(require_roles(2)),
 ):
     pqrs = (
         db.query(PQR)
-        .filter(PQR.usuario_id == usuario_actual.id_usuario)
+        .filter(
+            PQR.usuario_id == usuario_actual.id_usuario
+        )
         .order_by(PQR.creado_en.desc())
         .all()
     )
@@ -133,6 +134,8 @@ def listar_mis_pqrs(
             "respuesta": pqr.respuesta,
             "estado": pqr.estado,
             "creado_en": pqr.creado_en,
+
+            # La columna no existe en el modelo.
             "respondido_en": None,
         }
         for pqr in pqrs
@@ -149,7 +152,7 @@ def responder_pqr(
     pqr_id: int,
     datos: PQRResponder,
     db: Session = Depends(get_db),
-    usuario_actual=Depends(require_roles([1, 3])),
+    usuario_actual=Depends(require_roles(1, 3)),
 ):
     pqr = (
         db.query(PQR)
@@ -160,16 +163,11 @@ def responder_pqr(
     if not pqr:
         raise HTTPException(
             status_code=404,
-            detail="PQR no encontrada."
+            detail="PQR no encontrada.",
         )
 
     pqr.respuesta = datos.respuesta
     pqr.estado = "Respondida"
-
-    # NO hacemos:
-    # pqr.respondido_en = datetime.utcnow()
-    #
-    # porque esa propiedad no existe en el modelo.
 
     db.commit()
     db.refresh(pqr)
