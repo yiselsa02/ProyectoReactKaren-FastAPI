@@ -17,30 +17,6 @@ app = FastAPI(
 
 
 # ============================================================
-# CORS
-# ============================================================
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "https://cellworld-flax.vercel.app",
-    ],
-    allow_credentials=True,
-    allow_methods=[
-        "GET",
-        "POST",
-        "PUT",
-        "PATCH",
-        "DELETE",
-        "OPTIONS",
-    ],
-    allow_headers=["*"],
-)
-
-
-# ============================================================
 # RUTAS
 # ============================================================
 
@@ -91,3 +67,24 @@ def inicio():
         "success": True,
         "message": "Bienvenido a la API de CellWorld"
     }
+
+
+# ============================================================
+# CORS
+# ============================================================
+#
+# Se coloca envolviendo TODA la aplicación para que las
+# respuestas normales y también los errores lleven CORS.
+#
+
+app = CORSMiddleware(
+    app=app,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://cellworld-flax.vercel.app",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
