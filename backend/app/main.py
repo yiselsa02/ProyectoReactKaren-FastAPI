@@ -1,4 +1,3 @@
-```python
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -37,7 +36,7 @@ app.add_middleware(
     # Ejemplo:
     # https://cellworld-nb6jwxuoa-yiselsa02.vercel.app
     # https://cellworld-3m9dvsyq4-yiselsa02.vercel.app
-    allow_origin_regex=r"https://cellworld-[a-z0-9]+-yiselsa02\.vercel\.app",
+    allow_origin_regex=r"https://cellworld-[a-z0-9-]+\.vercel\.app",
 
     allow_credentials=True,
     allow_methods=["*"],
