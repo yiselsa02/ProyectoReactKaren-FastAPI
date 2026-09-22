@@ -7,17 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine
 from .routes import auth, chatbot, pedidos, productos, usuarios, pqr
 
-
 load_dotenv()
 
 Base.metadata.create_all(bind=engine)
-
 
 app = FastAPI(
     title="API CellWorld",
     version="1.0.0",
 )
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,6 +22,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://cellworld-evo96ywsi-yiselsa02.vercel.app",
+        "https://cellworld-dae4gvlvt-yiselsa02.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=[
@@ -37,7 +35,6 @@ app.add_middleware(
     ],
     allow_headers=["*"],
 )
-
 
 app.include_router(auth.router)
 app.include_router(usuarios.router)
