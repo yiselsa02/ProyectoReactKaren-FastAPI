@@ -84,6 +84,68 @@ const obtenerCarritoGuardado = (usuarioId) => {
 
 
 // ============================================================
+// OBTENER ID DE PRODUCTO
+// ============================================================
+
+const obtenerProductoId = (item) => {
+  let id =
+    item?.id_producto ??
+    item?.id ??
+    item?.producto_id
+
+  if (
+    typeof id === 'string'
+  ) {
+    id = id.replace(
+      /^bd-/,
+      ''
+    )
+  }
+
+  const numero =
+    Number(id)
+
+  return Number.isInteger(numero) &&
+    numero > 0
+    ? numero
+    : null
+}
+
+
+// ============================================================
+// OBTENER NOMBRE DEL PRODUCTO
+// ============================================================
+
+const obtenerNombreProducto = (item) => {
+  return (
+    item?.nombre ??
+    item?.name ??
+    item?.nombre_producto ??
+    ''
+  )
+}
+
+
+// ============================================================
+// OBTENER PRECIO DEL PRODUCTO
+// ============================================================
+
+const obtenerPrecioProducto = (item) => {
+  const precio =
+    Number(
+      item?.precio ??
+      item?.price ??
+      item?.precio_unitario ??
+      0
+    )
+
+  return Number.isFinite(precio)
+    ? precio
+    : 0
+}
+
+
+// ============================================================
 // PROVIDER
 // ============================================================
 
@@ -172,23 +234,25 @@ export function CartProvider({ children }) {
   const addItem = useCallback((product) => {
 
     const productoId =
-      product?.id_producto ??
-      product?.id ??
-      product?.producto_id
+      obtenerProductoId(product)
 
     const nombreProducto =
-      product?.nombre ??
-      product?.name ??
-      product?.nombre_producto ??
-      'Producto'
+      obtenerNombreProducto(product)
 
     const precioProducto =
-      Number(
-        product?.precio ??
-        product?.price ??
-        product?.precio_unitario ??
-        0
+      obtenerPrecioProducto(product)
+
+
+    // Si el producto no tiene ID válido,
+    // no lo agregamos al carrito.
+    if (!productoId) {
+      console.error(
+        'No se pudo agregar el producto al carrito:',
+        product
       )
+
+      return
+    }
 
 
     setItems((current) => {
@@ -197,12 +261,12 @@ export function CartProvider({ children }) {
         current.find((item) => {
 
           const idExistente =
-            item?.id_producto ??
-            item?.id ??
-            item?.producto_id
+            obtenerProductoId(item)
 
-          return String(idExistente) ===
-            String(productoId)
+          return (
+            idExistente !== null &&
+            idExistente === productoId
+          )
         })
 
 
@@ -211,21 +275,46 @@ export function CartProvider({ children }) {
         return current.map((item) => {
 
           const idExistente =
-            item?.id_producto ??
-            item?.id ??
-            item?.producto_id
+            obtenerProductoId(item)
 
           if (
-            String(idExistente) !==
-            String(productoId)
+            idExistente !== productoId
           ) {
             return item
           }
 
           return {
             ...item,
+
+            // Mantenemos ambos nombres
+            // para compatibilidad con la interfaz.
+            id: productoId,
+            id_producto: productoId,
+
+            name:
+              item?.name ??
+              nombreProducto,
+
+            nombre:
+              item?.nombre ??
+              nombreProducto,
+
+            price:
+              Number(
+                item?.price ??
+                precioProducto
+              ),
+
+            precio:
+              Number(
+                item?.precio ??
+                precioProducto
+              ),
+
             quantity:
-              Number(item.quantity || 0) + 1,
+              Number(
+                item?.quantity || 0
+              ) + 1,
           }
 
         })
@@ -234,17 +323,21 @@ export function CartProvider({ children }) {
 
       return [
         ...current,
+
         {
           ...product,
 
-          id_producto:
-            Number(productoId),
+          // IDs compatibles
+          id: productoId,
+          id_producto: productoId,
 
-          nombre:
-            nombreProducto,
+          // Nombres compatibles
+          name: nombreProducto,
+          nombre: nombreProducto,
 
-          precio:
-            precioProducto,
+          // Precios compatibles
+          price: precioProducto,
+          precio: precioProducto,
 
           quantity: 1,
         },
@@ -260,16 +353,39 @@ export function CartProvider({ children }) {
 
   const removeItem = useCallback((id) => {
 
+    let idBuscado = id
+
+    if (
+      typeof idBuscado === 'object' &&
+      idBuscado !== null
+    ) {
+      idBuscado =
+        obtenerProductoId(idBuscado)
+    }
+
+    if (
+      typeof idBuscado === 'string'
+    ) {
+      idBuscado =
+        idBuscado.replace(
+          /^bd-/,
+          ''
+        )
+    }
+
+    idBuscado =
+      Number(idBuscado)
+
+
     setItems((current) =>
       current.filter((item) => {
 
         const itemId =
-          item?.id_producto ??
-          item?.id ??
-          item?.producto_id
+          obtenerProductoId(item)
 
-        return String(itemId) !==
-          String(id)
+        return (
+          itemId !== idBuscado
+        )
       })
     )
 
@@ -283,33 +399,58 @@ export function CartProvider({ children }) {
   const updateQuantity = useCallback(
     (id, quantity) => {
 
+      let idBuscado = id
+
+      if (
+        typeof idBuscado === 'object' &&
+        idBuscado !== null
+      ) {
+        idBuscado =
+          obtenerProductoId(idBuscado)
+      }
+
+      if (
+        typeof idBuscado === 'string'
+      ) {
+        idBuscado =
+          idBuscado.replace(
+            /^bd-/,
+            ''
+          )
+      }
+
+      idBuscado =
+        Number(idBuscado)
+
+
       const nuevaCantidad =
         Number(quantity)
+
 
       setItems((current) =>
         current
           .map((item) => {
 
             const itemId =
-              item?.id_producto ??
-              item?.id ??
-              item?.producto_id
+              obtenerProductoId(item)
 
             if (
-              String(itemId) !==
-              String(id)
+              itemId !== idBuscado
             ) {
               return item
             }
 
             return {
               ...item,
-              quantity: nuevaCantidad,
+              quantity:
+                nuevaCantidad,
             }
           })
           .filter(
             (item) =>
-              Number(item.quantity) > 0
+              Number(
+                item.quantity
+              ) > 0
           )
       )
     },
@@ -386,50 +527,17 @@ export function CartProvider({ children }) {
     }
 
 
-    // --------------------------------------------------------
-    // CONSTRUIR ITEMS DEL PEDIDO
-    // --------------------------------------------------------
-
     const pedidoItems =
       items.map((item) => {
 
-        let productoId =
-          item?.id_producto ??
-          item?.id ??
-          item?.producto_id
-
-
-        // Por si algún carrito antiguo tiene
-        // valores como "bd-5".
-        if (
-          typeof productoId === 'string'
-        ) {
-          productoId =
-            productoId.replace(
-              /^bd-/,
-              ''
-            )
-        }
-
-
-        productoId =
-          Number(productoId)
-
+        const productoId =
+          obtenerProductoId(item)
 
         const nombreProducto =
-          item?.nombre ??
-          item?.name ??
-          item?.nombre_producto
-
+          obtenerNombreProducto(item)
 
         const precioUnitario =
-          Number(
-            item?.precio ??
-            item?.price ??
-            item?.precio_unitario ??
-            0
-          )
-
+          obtenerPrecioProducto(item)
 
         const cantidad =
           Number(
@@ -440,48 +548,66 @@ export function CartProvider({ children }) {
 
 
         return {
-          producto_id: productoId,
+          producto_id:
+            productoId,
+
           nombre_producto:
             nombreProducto,
+
           precio_unitario:
             precioUnitario,
+
           cantidad,
         }
       })
 
 
-    // --------------------------------------------------------
-    // VALIDAR ANTES DE ENVIAR
-    // --------------------------------------------------------
+    // ========================================================
+    // VALIDAR PEDIDO
+    // ========================================================
 
     const itemInvalido =
       pedidoItems.find(
         (item) =>
+          !item.producto_id ||
+          !item.nombre_producto ||
           !Number.isInteger(
             item.producto_id
           ) ||
           item.producto_id < 1 ||
-          !item.nombre_producto ||
+          !Number.isFinite(
+            item.precio_unitario
+          ) ||
           item.precio_unitario < 0 ||
+          !Number.isInteger(
+            item.cantidad
+          ) ||
           item.cantidad < 1
       )
 
 
     if (itemInvalido) {
+
       console.error(
         'Producto inválido enviado al checkout:',
         itemInvalido
       )
 
       throw new Error(
-        'Uno de los productos del carrito no tiene información válida. Elimina el producto del carrito y vuelve a agregarlo.'
+        'Uno de los productos del carrito tiene información inválida. Vuelve a agregar ese producto al carrito.'
       )
     }
 
 
-    // --------------------------------------------------------
-    // PETICIÓN
-    // --------------------------------------------------------
+    console.log(
+      'Enviando pedido:',
+      pedidoItems
+    )
+
+
+    // ========================================================
+    // PETICIÓN AL BACKEND
+    // ========================================================
 
     const response =
       await fetch(
@@ -514,16 +640,18 @@ export function CartProvider({ children }) {
     }
 
 
-    // --------------------------------------------------------
-    // ERROR DEL BACKEND
-    // --------------------------------------------------------
+    // ========================================================
+    // ERROR
+    // ========================================================
 
     if (!response.ok) {
 
       console.error(
         'Error creando pedido:',
         {
-          status: response.status,
+          status:
+            response.status,
+
           data,
         }
       )
@@ -535,9 +663,9 @@ export function CartProvider({ children }) {
     }
 
 
-    // --------------------------------------------------------
+    // ========================================================
     // COMPRA EXITOSA
-    // --------------------------------------------------------
+    // ========================================================
 
     setItems([])
 
@@ -557,16 +685,16 @@ export function CartProvider({ children }) {
   }, [items])
 
 
-  // ============================================================
+  // ==========================================================
   // CONTADORES
-  // ============================================================
+  // ==========================================================
 
   const count =
     items.reduce(
       (total, item) =>
         total +
         Number(
-          item.quantity || 0
+          item?.quantity || 0
         ),
       0
     )
@@ -577,18 +705,13 @@ export function CartProvider({ children }) {
       (sum, item) => {
 
         const precio =
-          Number(
-            item?.precio ??
-            item?.price ??
-            item?.precio_unitario ??
-            0
-          )
+          obtenerPrecioProducto(item)
 
         return (
           sum +
           precio *
           Number(
-            item.quantity || 0
+            item?.quantity || 0
           )
         )
       },
@@ -596,9 +719,9 @@ export function CartProvider({ children }) {
     )
 
 
-  // ============================================================
+  // ==========================================================
   // VALOR DEL CONTEXTO
-  // ============================================================
+  // ==========================================================
 
   const value = useMemo(
     () => ({
