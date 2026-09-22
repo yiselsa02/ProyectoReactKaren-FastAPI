@@ -16,6 +16,10 @@ app = FastAPI(
 )
 
 
+# ============================================================
+# RUTAS
+# ============================================================
+
 app.include_router(
     auth.router,
     prefix="/api/auth",
@@ -53,6 +57,10 @@ app.include_router(
 )
 
 
+# ============================================================
+# INICIO
+# ============================================================
+
 @app.get("/")
 def inicio():
     return {
@@ -61,21 +69,28 @@ def inicio():
     }
 
 
+# ============================================================
+# CORS
+# ============================================================
+
 app.add_middleware(
     CORSMiddleware,
+
     allow_origins=[
+        # Desarrollo local
         "http://localhost:5173",
         "http://127.0.0.1:5173",
 
-        # Dominio principal de producción
+        # Dominio principal del frontend
         "https://cellworld-flax.vercel.app",
-
-        # Deployment actual
-        "https://cellworld-52dpcsvi3-yiselsa02.vercel.app",
-
-        # Deployment anterior
-        "https://cellworld-amu7ahzzo-yiselsa02.vercel.app",
     ],
+
+    # Permite los deployments generados por Vercel
+    # Ejemplo:
+    # cellworld-3m9dvsyq4-yiselsa02.vercel.app
+    # cellworld-52dpcsvi3-yiselsa02.vercel.app
+    allow_origin_regex=r"https://cellworld-[a-z0-9]+-yiselsa02\.vercel\.app$",
+
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
