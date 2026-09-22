@@ -8,11 +8,13 @@ from app.routes import pedidos
 from app.routes import pqr
 from app.routes import chatbot
 
+
 app = FastAPI(
     title="CellWorld API",
     description="API para el sistema CellWorld",
     version="1.0.0"
 )
+
 
 # ============================================================
 # CORS
@@ -26,9 +28,18 @@ app.add_middleware(
         "https://cellworld-flax.vercel.app",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=[
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "OPTIONS",
+    ],
     allow_headers=["*"],
 )
+
+
 # ============================================================
 # RUTAS
 # ============================================================

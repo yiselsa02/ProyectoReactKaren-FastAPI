@@ -380,7 +380,7 @@ function PanelAdmin({ modoOscuro }) {
 
     try {
       const token = obtenerToken()
-      const rutas = ['/api/pqrs', '/api/pqr']
+      const rutas = ['/api/pqr', '/api/pqr']
       let respuesta
 
       for (const ruta of rutas) {
