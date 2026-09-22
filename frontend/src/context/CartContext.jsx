@@ -349,7 +349,7 @@ export function CartProvider({ children }) {
 
     const response =
       await fetch(
-        '${API_URL}/api/pedidos',
+        `${API_URL}/api/pedidos`,
         {
           method: 'POST',
 

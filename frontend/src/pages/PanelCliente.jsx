@@ -455,7 +455,7 @@ function PanelCliente({ modoOscuro = false }) {
       }
 
       const respuesta = await fetch(
-        '${API_URL}/api/pedidos/mis-pedidos',
+        `${API_URL}/api/pedidos/mis-pedidos`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -513,7 +513,7 @@ function PanelCliente({ modoOscuro = false }) {
       }
 
       const respuesta = await fetch(
-        '${API_URL}/api/pqr/mis-pqrs',
+      `${API_URL}/api/pqr/mis-pqrs`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
