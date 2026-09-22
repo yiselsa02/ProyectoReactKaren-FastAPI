@@ -1,185 +1,62 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-
-import RegisterModal from '../components/RegisterModal'
+import { useNavigate } from 'react-router-dom'
 
 function Login({ modoOscuro }) {
-
   const navigate = useNavigate()
+
+  const API_URL = (
+    import.meta.env.VITE_API_URL ||
+    'https://cellworld-backend.vercel.app'
+  ).replace(/\/$/, '')
 
   const [formData, setFormData] = useState({
     correo: '',
-    password: ''
+    password: '',
   })
 
-  const [errores, setErrores] = useState({})
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
-  // =====================================================
-  // MODAL DE REGISTRO
-  // =====================================================
-
-  const [mostrarRegistro, setMostrarRegistro] =
-    useState(false)
-
-  // =====================================================
-  // VALIDAR CAMPOS
-  // =====================================================
-
-  const validarCampo = (campo, valor) => {
-
-    let mensaje = ''
-
-    switch (campo) {
-
-      case 'correo':
-
-        if (!valor.trim()) {
-
-          mensaje =
-            'El correo es obligatorio.'
-
-        } else if (
-          valor.trim().length > 100
-        ) {
-
-          mensaje =
-            'El correo no puede superar los 100 caracteres.'
-
-        } else {
-
-          const regexCorreo =
-            /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-          if (
-            !regexCorreo.test(
-              valor.trim()
-            )
-          ) {
-
-            mensaje =
-              'Ingresa un correo electrónico válido.'
-
-          }
-
-        }
-
-        break
-
-      case 'password':
-
-        if (!valor) {
-
-          mensaje =
-            'La contraseña es obligatoria.'
-
-        } else if (
-          valor.length < 8
-        ) {
-
-          mensaje =
-            'La contraseña debe tener mínimo 8 caracteres.'
-
-        } else if (
-          valor.length > 50
-        ) {
-
-          mensaje =
-            'La contraseña no puede superar los 50 caracteres.'
-
-        }
-
-        break
-
-      default:
-        break
-    }
-
-    return mensaje
-  }
-
-  // =====================================================
-  // CAMBIO DE INPUT
-  // =====================================================
+  // ==========================================================
+  // CAMBIO DE CAMPOS
+  // ==========================================================
 
   const handleChange = (e) => {
+    const { name, value } = e.target
 
-    const {
-      name,
-      value
-    } = e.target
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
+    setFormData((actual) => ({
+      ...actual,
+      [name]: value,
     }))
 
-    const mensaje =
-      validarCampo(
-        name,
-        value
-      )
-
-    setErrores((prev) => ({
-      ...prev,
-      [name]: mensaje
-    }))
-
-    setError('')
+    if (error) {
+      setError('')
+    }
   }
 
-  // =====================================================
-  // VALIDAR FORMULARIO
-  // =====================================================
+  // ==========================================================
+  // VALIDACIÓN
+  // ==========================================================
 
   const validarFormulario = () => {
-
-    const nuevosErrores = {}
-
-    const errorCorreo =
-      validarCampo(
-        'correo',
-        formData.correo
-      )
-
-    const errorPassword =
-      validarCampo(
-        'password',
-        formData.password
-      )
-
-    if (errorCorreo) {
-
-      nuevosErrores.correo =
-        errorCorreo
-
+    if (!formData.correo.trim()) {
+      setError('Ingresa tu correo electrónico.')
+      return false
     }
 
-    if (errorPassword) {
-
-      nuevosErrores.password =
-        errorPassword
-
+    if (!formData.password) {
+      setError('Ingresa tu contraseña.')
+      return false
     }
 
-    setErrores(
-      nuevosErrores
-    )
-
-    return (
-      Object.keys(
-        nuevosErrores
-      ).length === 0
-    )
+    return true
   }
 
-  // =====================================================
+  // ==========================================================
   // LOGIN
-  // =====================================================
+  // ==========================================================
 
   const handleSubmit = async (e) => {
-
     e.preventDefault()
 
     setError('')
@@ -191,52 +68,78 @@ function Login({ modoOscuro }) {
     setCargando(true)
 
     try {
+      // ========================================================
+      // CONEXIÓN CON FASTAPI EN VERCEL
+      // ========================================================
 
-      const response =
-        await fetch(
-          'http://127.0.0.1:8000/api/auth/login',
-          {
-            method: 'POST',
+      const response = await fetch(
+        `${API_URL}/api/auth/login`,
+        {
+          method: 'POST',
 
-            headers: {
-              'Content-Type':
-                'application/json'
-            },
+          headers: {
+            'Content-Type': 'application/json',
+          },
 
-            body: JSON.stringify({
-              email:
-                formData.correo.trim(),
+          body: JSON.stringify({
+            email: formData.correo.trim(),
+            password: formData.password,
+          }),
+        }
+      )
 
-              password:
-                formData.password
-            })
-          }
-        )
+      // ========================================================
+      // LEER RESPUESTA
+      // ========================================================
 
-      const datos =
-        await response.json()
+      let datos = {}
 
-      // =================================================
-      // ERROR DEL BACKEND
-      // =================================================
+      try {
+        datos = await response.json()
+      } catch {
+        datos = {}
+      }
+
+      // ========================================================
+      // MANEJAR ERROR
+      // ========================================================
 
       if (!response.ok) {
+        if (typeof datos.detail === 'string') {
+          setError(datos.detail)
+        } else if (Array.isArray(datos.detail)) {
+          setError(
+            datos.detail
+              .map((item) => {
+                if (typeof item === 'string') {
+                  return item
+                }
 
-        setError(
-          datos.detail ||
-          datos.message ||
-          'Correo o contraseña incorrectos.'
-        )
+                return (
+                  item.msg ||
+                  'Error de validación.'
+                )
+              })
+              .join(', ')
+          )
+        } else {
+          setError(
+            'Correo o contraseña incorrectos.'
+          )
+        }
 
         return
       }
 
-      const usuarioLogin =
-        datos.usuario
+      // ========================================================
+      // OBTENER USUARIO
+      // ========================================================
 
-      // =================================================
-      // CUENTA INACTIVA
-      // =================================================
+      const usuarioLogin = datos.usuario
+
+      // ========================================================
+      // VERIFICAR CUENTA INACTIVA
+      // ========================================================
 
       const cuentaInactiva =
         usuarioLogin?.estado === false ||
@@ -245,7 +148,6 @@ function Login({ modoOscuro }) {
         usuarioLogin?.estado === 'inactivo'
 
       if (cuentaInactiva) {
-
         setError(
           'Tu cuenta ha sido inactivada. No puedes iniciar sesión.'
         )
@@ -253,17 +155,17 @@ function Login({ modoOscuro }) {
         return
       }
 
-      // =================================================
+      // ========================================================
       // LIMPIAR CARRITO ANTERIOR
-      // =================================================
+      // ========================================================
 
       localStorage.removeItem(
         'cellworld_cart'
       )
 
-      // =================================================
-      // AVISAR CAMBIO DE USUARIO
-      // =================================================
+      // ========================================================
+      // AVISAR QUE CAMBIÓ EL USUARIO
+      // ========================================================
 
       window.dispatchEvent(
         new CustomEvent(
@@ -271,20 +173,24 @@ function Login({ modoOscuro }) {
           {
             detail: {
               userId:
-                usuarioLogin?.id_usuario
-            }
+                usuarioLogin?.id_usuario,
+            },
           }
         )
       )
 
-      // =================================================
-      // GUARDAR SESIÓN
-      // =================================================
+      // ========================================================
+      // GUARDAR TOKEN
+      // ========================================================
 
       localStorage.setItem(
         'token',
         datos.token
       )
+
+      // ========================================================
+      // GUARDAR USUARIO
+      // ========================================================
 
       localStorage.setItem(
         'usuario',
@@ -293,14 +199,13 @@ function Login({ modoOscuro }) {
         )
       )
 
-      // =================================================
-      // IR AL INICIO
-      // =================================================
+      // ========================================================
+      // REDIRECCIÓN
+      // ========================================================
 
       navigate('/')
 
     } catch (err) {
-
       console.error(
         'Error al iniciar sesión:',
         err
@@ -309,396 +214,164 @@ function Login({ modoOscuro }) {
       setError(
         'No se pudo conectar con el servidor.'
       )
-
     } finally {
-
       setCargando(false)
-
     }
   }
 
-  // =====================================================
+  // ==========================================================
   // RENDER
-  // =====================================================
+  // ==========================================================
 
   return (
-    <>
+    <div
+      className={`min-h-screen flex items-center justify-center px-4 py-8 ${
+        modoOscuro
+          ? 'bg-[#0b1220]'
+          : 'bg-gray-50'
+      }`}
+    >
       <div
-        className={`
-          min-h-screen
-          flex
-          items-center
-          justify-center
-          px-4
-          py-10
-          transition-colors
-          duration-500
-          ${
-            modoOscuro
-              ? 'bg-[#0b1422]'
-              : 'bg-slate-50'
-          }
-        `}
+        className={`w-full max-w-md rounded-2xl border p-6 shadow-xl sm:p-8 ${
+          modoOscuro
+            ? 'border-slate-700 bg-[#0f1a2b]'
+            : 'border-gray-200 bg-white'
+        }`}
       >
+        {/* ====================================================
+            TÍTULO
+        ==================================================== */}
 
-        <div
-          className={`
-            w-full
-            max-w-md
-            rounded-2xl
-            p-8
-            shadow-xl
-            border
-            transition-colors
-            duration-500
-            ${
+        <div className="mb-8 text-center">
+          <h1
+            className={`text-2xl font-bold ${
               modoOscuro
-                ? 'bg-[#111c2d] border-slate-700'
-                : 'bg-white border-slate-200'
-            }
-          `}
-        >
-
-          {/* =================================================
-              TÍTULO
-          ================================================= */}
-
-          <div className="text-center mb-8">
-
-            <h1
-              className={`
-                text-3xl
-                font-bold
-                transition-colors
-                duration-300
-                ${
-                  modoOscuro
-                    ? 'text-white'
-                    : 'text-slate-800'
-                }
-              `}
-            >
-              Iniciar sesión
-            </h1>
-
-            <p
-              className={`
-                mt-2
-                transition-colors
-                duration-300
-                ${
-                  modoOscuro
-                    ? 'text-slate-400'
-                    : 'text-slate-500'
-                }
-              `}
-            >
-              Ingresa a tu cuenta de CellWorld
-            </p>
-
-          </div>
-
-          {/* =================================================
-              ERROR GENERAL
-          ================================================= */}
-
-          {error && (
-
-            <div
-              className={`
-                mb-5
-                rounded-lg
-                border
-                px-4
-                py-3
-                text-sm
-                ${
-                  modoOscuro
-                    ? 'border-red-800 bg-red-950/40 text-red-300'
-                    : 'border-red-300 bg-red-50 text-red-700'
-                }
-              `}
-            >
-              {error}
-            </div>
-
-          )}
-
-          {/* =================================================
-              FORMULARIO
-          ================================================= */}
-
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-5"
+                ? 'text-white'
+                : 'text-gray-900'
+            }`}
           >
+            Iniciar sesión
+          </h1>
 
-            {/* =================================================
-                CORREO
-            ================================================= */}
-
-            <div>
-
-              <label
-                htmlFor="correo"
-                className={`
-                  block
-                  mb-2
-                  text-sm
-                  font-medium
-                  ${
-                    modoOscuro
-                      ? 'text-slate-200'
-                      : 'text-slate-700'
-                  }
-                `}
-              >
-                Correo electrónico
-              </label>
-
-              <input
-                id="correo"
-                name="correo"
-                type="email"
-                value={
-                  formData.correo
-                }
-                onChange={
-                  handleChange
-                }
-                maxLength={100}
-                placeholder="correo@ejemplo.com"
-                className={`
-                  w-full
-                  rounded-lg
-                  border
-                  px-4
-                  py-3
-                  outline-none
-                  transition
-                  ${
-                    modoOscuro
-                      ? 'bg-[#0b1422] text-white placeholder-slate-400'
-                      : 'bg-white text-slate-800 placeholder-slate-400'
-                  }
-                  ${
-                    errores.correo
-                      ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                      : modoOscuro
-                        ? 'border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-900'
-                        : 'border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
-                  }
-                `}
-              />
-
-              {errores.correo && (
-
-                <p
-                  className={`
-                    mt-1
-                    text-sm
-                    ${
-                      modoOscuro
-                        ? 'text-red-400'
-                        : 'text-red-500'
-                    }
-                  `}
-                >
-                  {errores.correo}
-                </p>
-
-              )}
-
-            </div>
-
-            {/* =================================================
-                CONTRASEÑA
-            ================================================= */}
-
-            <div>
-
-              <label
-                htmlFor="password"
-                className={`
-                  block
-                  mb-2
-                  text-sm
-                  font-medium
-                  ${
-                    modoOscuro
-                      ? 'text-slate-200'
-                      : 'text-slate-700'
-                  }
-                `}
-              >
-                Contraseña
-              </label>
-
-              <input
-                id="password"
-                name="password"
-                type="password"
-                value={
-                  formData.password
-                }
-                onChange={
-                  handleChange
-                }
-                maxLength={50}
-                placeholder="Ingresa tu contraseña"
-                className={`
-                  w-full
-                  rounded-lg
-                  border
-                  px-4
-                  py-3
-                  outline-none
-                  transition
-                  ${
-                    modoOscuro
-                      ? 'bg-[#0b1422] text-white placeholder-slate-400'
-                      : 'bg-white text-slate-800 placeholder-slate-400'
-                  }
-                  ${
-                    errores.password
-                      ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                      : modoOscuro
-                        ? 'border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-900'
-                        : 'border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
-                  }
-                `}
-              />
-
-              {errores.password && (
-
-                <p
-                  className={`
-                    mt-1
-                    text-sm
-                    ${
-                      modoOscuro
-                        ? 'text-red-400'
-                        : 'text-red-500'
-                    }
-                  `}
-                >
-                  {errores.password}
-                </p>
-
-              )}
-
-            </div>
-
-            {/* =================================================
-                RECUPERAR CONTRASEÑA
-            ================================================= */}
-
-            <div className="text-right">
-
-              <Link
-                to="/recuperar-contrasena"
-                className={`
-                  text-sm
-                  hover:underline
-                  ${
-                    modoOscuro
-                      ? 'text-blue-400'
-                      : 'text-blue-600'
-                  }
-                `}
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-
-            </div>
-
-            {/* =================================================
-                BOTÓN LOGIN
-            ================================================= */}
-
-            <button
-              type="submit"
-              disabled={cargando}
-              className="
-                w-full
-                rounded-lg
-                bg-blue-600
-                hover:bg-blue-700
-                disabled:bg-blue-400
-                text-white
-                font-semibold
-                py-3
-                transition
-                duration-200
-                disabled:cursor-not-allowed
-              "
-            >
-              {cargando
-                ? 'Iniciando sesión...'
-                : 'Iniciar sesión'}
-            </button>
-
-          </form>
-
-          {/* =================================================
-              REGISTRO
-          ================================================= */}
-
-          <div
-            className={`
-              mt-6
-              text-center
-              text-sm
-              ${
-                modoOscuro
-                  ? 'text-slate-400'
-                  : 'text-slate-600'
-              }
-            `}
+          <p
+            className={`mt-2 text-sm ${
+              modoOscuro
+                ? 'text-slate-400'
+                : 'text-gray-500'
+            }`}
           >
-
-            ¿No tienes una cuenta?{' '}
-
-            <button
-              type="button"
-              onClick={() =>
-                setMostrarRegistro(true)
-              }
-              className={`
-                font-semibold
-                hover:underline
-                ${
-                  modoOscuro
-                    ? 'text-blue-400'
-                    : 'text-blue-600'
-                }
-              `}
-            >
-              Regístrate
-            </button>
-
-          </div>
-
+            Ingresa a tu cuenta de CellWorld
+          </p>
         </div>
 
+        {/* ====================================================
+            FORMULARIO
+        ==================================================== */}
+
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5"
+        >
+          {/* CORREO */}
+
+          <div>
+            <label
+              htmlFor="correo"
+              className={`mb-2 block text-sm font-semibold ${
+                modoOscuro
+                  ? 'text-slate-200'
+                  : 'text-gray-700'
+              }`}
+            >
+              Correo electrónico
+            </label>
+
+            <input
+              id="correo"
+              name="correo"
+              type="email"
+              value={formData.correo}
+              onChange={handleChange}
+              placeholder="tu@correo.com"
+              autoComplete="email"
+              disabled={cargando}
+              className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition ${
+                modoOscuro
+                  ? 'border-slate-700 bg-[#17263c] text-white placeholder:text-slate-500 focus:border-blue-500'
+                  : 'border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-blue-500'
+              } ${
+                cargando
+                  ? 'cursor-not-allowed opacity-60'
+                  : ''
+              }`}
+            />
+          </div>
+
+          {/* CONTRASEÑA */}
+
+          <div>
+            <label
+              htmlFor="password"
+              className={`mb-2 block text-sm font-semibold ${
+                modoOscuro
+                  ? 'text-slate-200'
+                  : 'text-gray-700'
+              }`}
+            >
+              Contraseña
+            </label>
+
+            <input
+              id="password"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="Ingresa tu contraseña"
+              autoComplete="current-password"
+              disabled={cargando}
+              className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition ${
+                modoOscuro
+                  ? 'border-slate-700 bg-[#17263c] text-white placeholder:text-slate-500 focus:border-blue-500'
+                  : 'border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-blue-500'
+              } ${
+                cargando
+                  ? 'cursor-not-allowed opacity-60'
+                  : ''
+              }`}
+            />
+          </div>
+
+          {/* ERROR */}
+
+          {error && (
+            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-red-500 text-xs font-bold">
+                !
+              </span>
+
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* BOTÓN */}
+
+          <button
+            type="submit"
+            disabled={cargando}
+            className={`w-full rounded-xl bg-blue-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition-all ${
+              cargando
+                ? 'cursor-not-allowed opacity-70'
+                : 'hover:bg-blue-700 hover:shadow-xl'
+            }`}
+          >
+            {cargando
+              ? 'Iniciando sesión...'
+              : 'Iniciar sesión'}
+          </button>
+        </form>
       </div>
-
-      {/* =====================================================
-          MODAL REGISTRO
-      ===================================================== */}
-
-      {mostrarRegistro && (
-
-        <RegisterModal
-          modoOscuro={modoOscuro}
-          cerrarModal={() =>
-            setMostrarRegistro(false)
-          }
-        />
-
-      )}
-
-    </>
+    </div>
   )
 }
 

@@ -7,7 +7,14 @@ import Input from './input'
 import Select from './select'
 
 function RegisterModal({ modoOscuro, cerrarModal }) {
-  const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
+  // ==========================================================
+  // URL DEL BACKEND
+  // ==========================================================
+
+  const API_URL = (
+    import.meta.env.VITE_API_URL ||
+    'https://cellworld-backend.vercel.app'
+  ).replace(/\/$/, '')
 
   const [formulario, setFormulario] = useState({
     nombre: '',
@@ -26,9 +33,9 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
   const [cargando, setCargando] = useState(false)
   const [errorServidor, setErrorServidor] = useState('')
 
-  // ==============================
+  // ==========================================================
   // REGEX
-  // ==============================
+  // ==========================================================
 
   const regexNombre = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$/
   const regexNumero = /^\d+$/
@@ -36,9 +43,9 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
   const regexDireccion =
     /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9\s#.,\-°]+$/
 
-  // ==============================
+  // ==========================================================
   // VALIDACIÓN DE CAMPOS
-  // ==============================
+  // ==========================================================
 
   const validarCampo = (
     nombre,
@@ -48,11 +55,9 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
     let mensaje = ''
 
     switch (nombre) {
-
-      // ==========================
+      // ======================================================
       // NOMBRE
-      // MÍNIMO 3 - MÁXIMO 10
-      // ==========================
+      // ======================================================
 
       case 'nombre': {
         const nombreLimpio = valor.trim()
@@ -64,16 +69,16 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
         } else if (nombreLimpio.length > 10) {
           mensaje = 'El nombre no puede superar los 10 caracteres.'
         } else if (!regexNombre.test(nombreLimpio)) {
-          mensaje = 'El nombre solo puede contener letras y espacios.'
+          mensaje =
+            'El nombre solo puede contener letras y espacios.'
         }
 
         break
       }
 
-      // ==========================
+      // ======================================================
       // APELLIDO
-      // MÍNIMO 2 - MÁXIMO 20
-      // ==========================
+      // ======================================================
 
       case 'apellido': {
         const apellidoLimpio = valor.trim()
@@ -83,17 +88,19 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
         } else if (apellidoLimpio.length < 2) {
           mensaje = 'El apellido debe tener mínimo 2 caracteres.'
         } else if (apellidoLimpio.length > 20) {
-          mensaje = 'El apellido no puede superar los 20 caracteres.'
+          mensaje =
+            'El apellido no puede superar los 20 caracteres.'
         } else if (!regexNombre.test(apellidoLimpio)) {
-          mensaje = 'El apellido solo puede contener letras y espacios.'
+          mensaje =
+            'El apellido solo puede contener letras y espacios.'
         }
 
         break
       }
 
-      // ==========================
+      // ======================================================
       // TIPO DOCUMENTO
-      // ==========================
+      // ======================================================
 
       case 'tipoDocumento':
         if (!valor) {
@@ -101,29 +108,29 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
         }
         break
 
-      // ==========================
+      // ======================================================
       // NÚMERO DOCUMENTO
-      // MÍNIMO 5 - MÁXIMO 15
-      // ==========================
+      // ======================================================
 
       case 'numeroDocumento':
-
         if (!valor.trim()) {
           mensaje = 'El número de documento es obligatorio.'
         } else if (!regexNumero.test(valor)) {
-          mensaje = 'El documento solo puede contener números.'
+          mensaje =
+            'El documento solo puede contener números.'
         } else if (valor.length < 5) {
-          mensaje = 'El documento debe tener mínimo 5 dígitos.'
+          mensaje =
+            'El documento debe tener mínimo 5 dígitos.'
         } else if (valor.length > 15) {
-          mensaje = 'El documento no puede superar los 15 dígitos.'
+          mensaje =
+            'El documento no puede superar los 15 dígitos.'
         }
 
         break
 
-      // ==========================
+      // ======================================================
       // DIRECCIÓN
-      // MÍNIMO 5 - MÁXIMO 50
-      // ==========================
+      // ======================================================
 
       case 'direccion': {
         const direccionLimpia = valor.trim()
@@ -131,65 +138,70 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
         if (!direccionLimpia) {
           mensaje = 'La dirección es obligatoria.'
         } else if (direccionLimpia.length < 5) {
-          mensaje = 'La dirección debe tener mínimo 5 caracteres.'
+          mensaje =
+            'La dirección debe tener mínimo 5 caracteres.'
         } else if (direccionLimpia.length > 50) {
-          mensaje = 'La dirección no puede superar los 50 caracteres.'
+          mensaje =
+            'La dirección no puede superar los 50 caracteres.'
         } else if (!regexDireccion.test(direccionLimpia)) {
-          mensaje = 'La dirección contiene caracteres no permitidos.'
+          mensaje =
+            'La dirección contiene caracteres no permitidos.'
         }
 
         break
       }
 
-      // ==========================
+      // ======================================================
       // TELÉFONO
-      // MÍNIMO 7 - MÁXIMO 15
-      // ==========================
+      // ======================================================
 
       case 'telefono':
-
         if (!valor.trim()) {
           mensaje = 'El teléfono es obligatorio.'
         } else if (!regexNumero.test(valor)) {
-          mensaje = 'El teléfono solo puede contener números.'
+          mensaje =
+            'El teléfono solo puede contener números.'
         } else if (valor.length < 7) {
-          mensaje = 'El teléfono debe tener mínimo 7 dígitos.'
+          mensaje =
+            'El teléfono debe tener mínimo 7 dígitos.'
         } else if (valor.length > 15) {
-          mensaje = 'El teléfono no puede superar los 15 dígitos.'
+          mensaje =
+            'El teléfono no puede superar los 15 dígitos.'
         }
 
         break
 
-      // ==========================
+      // ======================================================
       // CORREO
-      // MÁXIMO 60
-      // ==========================
+      // ======================================================
 
       case 'correo':
-
         if (!valor.trim()) {
-          mensaje = 'El correo electrónico es obligatorio.'
+          mensaje =
+            'El correo electrónico es obligatorio.'
         } else if (valor.trim().length > 60) {
-          mensaje = 'El correo no puede superar los 60 caracteres.'
+          mensaje =
+            'El correo no puede superar los 60 caracteres.'
         } else if (!regexCorreo.test(valor.trim())) {
-          mensaje = 'Ingresa un correo electrónico válido.'
+          mensaje =
+            'Ingresa un correo electrónico válido.'
         }
 
         break
 
-      // ==========================
+      // ======================================================
       // CONTRASEÑA
-      // MÍNIMO 6 - MÁXIMO 30
-      // ==========================
+      // ======================================================
 
       case 'contrasena':
-
         if (!valor) {
           mensaje = 'La contraseña es obligatoria.'
         } else if (valor.length < 6) {
-          mensaje = 'La contraseña debe tener mínimo 6 caracteres.'
+          mensaje =
+            'La contraseña debe tener mínimo 6 caracteres.'
         } else if (valor.length > 30) {
-          mensaje = 'La contraseña no puede superar los 30 caracteres.'
+          mensaje =
+            'La contraseña no puede superar los 30 caracteres.'
         } else if (!/[A-Z]/.test(valor)) {
           mensaje =
             'La contraseña debe contener al menos una letra mayúscula.'
@@ -199,30 +211,34 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
         } else if (!/\d/.test(valor)) {
           mensaje =
             'La contraseña debe contener al menos un número.'
-        } else if (!/[!@#$%^&*(),.?":{}|<>_\-+=/\\[\]';`~]/.test(valor)) {
+        } else if (
+          !/[!@#$%^&*(),.?":{}|<>\_\-+=\[\]';`~]/.test(valor)
+        ) {
           mensaje =
             'La contraseña debe contener al menos un carácter especial.'
         }
 
         break
 
-      // ==========================
+      // ======================================================
       // CONFIRMAR CONTRASEÑA
-      // MÍNIMO 6 - MÁXIMO 30
-      // ==========================
+      // ======================================================
 
       case 'confirmarContrasena':
-
         if (!valor) {
-          mensaje = 'Debes confirmar tu contraseña.'
+          mensaje =
+            'Debes confirmar tu contraseña.'
         } else if (valor.length < 6) {
           mensaje =
             'La confirmación debe tener mínimo 6 caracteres.'
         } else if (valor.length > 30) {
           mensaje =
             'La confirmación no puede superar los 30 caracteres.'
-        } else if (valor !== formularioActual.contrasena) {
-          mensaje = 'Las contraseñas no coinciden.'
+        } else if (
+          valor !== formularioActual.contrasena
+        ) {
+          mensaje =
+            'Las contraseñas no coinciden.'
         }
 
         break
@@ -234,9 +250,9 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
     return mensaje
   }
 
-  // ==============================
+  // ==========================================================
   // CAMBIO DE CAMPOS
-  // ==============================
+  // ==========================================================
 
   const manejarCambio = (e) => {
     const { name, value } = e.target
@@ -259,11 +275,7 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
       [name]: errorCampo,
     }))
 
-    // ==============================
-    // VALIDAR CONFIRMACIÓN
-    // CUANDO CAMBIA LA CONTRASEÑA
-    // ==============================
-
+    // Validar confirmación cuando cambia la contraseña
     if (
       name === 'contrasena' &&
       camposTocados.confirmarContrasena
@@ -281,10 +293,7 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
       }))
     }
 
-    // ==============================
-    // VALIDAR CONFIRMACIÓN
-    // ==============================
-
+    // Validar confirmación directamente
     if (name === 'confirmarContrasena') {
       const errorConfirmacion = validarCampo(
         'confirmarContrasena',
@@ -294,7 +303,8 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
 
       setErrores((erroresActuales) => ({
         ...erroresActuales,
-        confirmarContrasena: errorConfirmacion,
+        confirmarContrasena:
+          errorConfirmacion,
       }))
     }
 
@@ -303,9 +313,9 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
     }
   }
 
-  // ==============================
+  // ==========================================================
   // BLUR
-  // ==============================
+  // ==========================================================
 
   const manejarBlur = (e) => {
     const { name, value } = e.target
@@ -327,10 +337,9 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
     }))
   }
 
-  // ==============================
+  // ==========================================================
   // SOLO NÚMEROS
-  // MÁXIMO 15
-  // ==============================
+  // ==========================================================
 
   const manejarNumero = (e) => {
     const valor = e.target.value
@@ -345,9 +354,9 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
     })
   }
 
-  // ==============================
+  // ==========================================================
   // SUBMIT
-  // ==============================
+  // ==========================================================
 
   const manejarSubmit = async (e) => {
     e.preventDefault()
@@ -372,7 +381,7 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
     setErrores(nuevosErrores)
     setCamposTocados(nuevosCamposTocados)
 
-    // Si hay errores de validación, no se conecta al backend
+    // Si hay errores no se conecta al backend
     if (Object.keys(nuevosErrores).length > 0) {
       return
     }
@@ -381,15 +390,16 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
       setCargando(true)
       setErrorServidor('')
 
-      // ==========================================================
-      // DATOS QUE SE ENVIARÁN A FASTAPI
-      // ==========================================================
+      // ========================================================
+      // DATOS QUE SE ENVÍAN A FASTAPI
+      // ========================================================
 
       const datosRegistro = {
         nombres: formulario.nombre.trim(),
         apellidos: formulario.apellido.trim(),
         tipo_documento: formulario.tipoDocumento,
-        numero_documento: formulario.numeroDocumento,
+        numero_documento:
+          formulario.numeroDocumento,
         direccion: formulario.direccion.trim(),
         telefono: formulario.telefono,
         email: formulario.correo.trim(),
@@ -399,9 +409,9 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
         rol_id: 2,
       }
 
-      // ==========================================================
-      // CONEXIÓN CON FASTAPI
-      // ==========================================================
+      // ========================================================
+      // CONEXIÓN CON FASTAPI EN VERCEL
+      // ========================================================
 
       const respuesta = await fetch(
         `${API_URL}/api/usuarios/registro`,
@@ -416,38 +426,43 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
         }
       )
 
-      // ==========================================================
-      // LEER RESPUESTA DEL SERVIDOR
-      // ==========================================================
+      // ========================================================
+      // LEER RESPUESTA
+      // ========================================================
 
-      const datos = await respuesta.json()
+      let datos = {}
 
-      // ==========================================================
+      try {
+        datos = await respuesta.json()
+      } catch {
+        datos = {}
+      }
+
+      // ========================================================
       // MANEJAR ERRORES
-      // ==========================================================
+      // ========================================================
 
       if (!respuesta.ok) {
-
         let mensajeError =
           'El servidor rechazó el registro.'
 
-        // FastAPI normalmente devuelve:
-        // { "detail": "mensaje" }
-
-        if (typeof datos.detail === 'string') {
+        if (
+          typeof datos.detail === 'string'
+        ) {
           mensajeError = datos.detail
-        }
-
-        // En caso de errores de validación de FastAPI
-        else if (Array.isArray(datos.detail)) {
-
+        } else if (
+          Array.isArray(datos.detail)
+        ) {
           mensajeError = datos.detail
             .map((error) => {
               if (typeof error === 'string') {
                 return error
               }
 
-              return error.msg || 'Error de validación.'
+              return (
+                error.msg ||
+                'Error de validación.'
+              )
             })
             .join(', ')
         }
@@ -457,41 +472,43 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
         return
       }
 
-      // ==========================================================
+      // ========================================================
       // REGISTRO EXITOSO
-      // ==========================================================
+      // ========================================================
 
       alert('Cuenta creada correctamente.')
 
       cerrarModal()
 
     } catch (error) {
-
-      console.error('=================================')
-      console.error('ERROR COMPLETO:', error)
-      console.error('MENSAJE:', error.message)
-      console.error('=================================')
-
-      // ==========================================================
-      // ERROR DE CONEXIÓN
-      // ==========================================================
-
-      setErrorServidor(
-        'No se pudo conectar con FastAPI. Verifica que el servidor esté ejecutándose en http://127.0.0.1:8000'
+      console.error(
+        '================================='
+      )
+      console.error(
+        'ERROR COMPLETO:',
+        error
+      )
+      console.error(
+        'MENSAJE:',
+        error.message
+      )
+      console.error(
+        '================================='
       )
 
+      setErrorServidor(
+        'No se pudo conectar con el servidor. Verifica que el backend esté disponible.'
+      )
     } finally {
-
       setCargando(false)
     }
   }
 
-  // ==============================
+  // ==========================================================
   // MENSAJE CORRECTO
-  // ==============================
+  // ==========================================================
 
   const mostrarCorrecto = (campo) => {
-
     if (
       !camposTocados[campo] ||
       !formulario[campo] ||
@@ -502,7 +519,9 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
 
     return (
       <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-emerald-500">
-        <span className="font-bold">✓</span>
+        <span className="font-bold">
+          ✓
+        </span>
         Correcto
       </p>
     )
@@ -513,15 +532,18 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
     formulario[campo] &&
     !errores[campo]
 
-  const estiloSelect = campoCorrecto('tipoDocumento')
+  const estiloSelect = campoCorrecto(
+    'tipoDocumento'
+  )
     ? 'border-emerald-600 bg-[#17263c]'
     : ''
 
-  // ==============================
+  // ==========================================================
   // ESTADOS DE CONTRASEÑA
-  // ==============================
+  // ==========================================================
 
-  const contrasena = formulario.contrasena
+  const contrasena =
+    formulario.contrasena
 
   const cumpleMinimo =
     contrasena.length >= 6
@@ -536,7 +558,7 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
     /\d/.test(contrasena)
 
   const cumpleEspecial =
-    /[!@#$%^&*(),.?":{}|<>_\-+=/\\[\]';`~]/.test(
+    /[!@#$%^&*(),.?":{}|<>\_\-+=\[\]';`~]/.test(
       contrasena
     )
 
@@ -544,31 +566,28 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
     contrasena.length > 0 &&
     contrasena.length <= 30
 
-  // ==============================
+  // ==========================================================
   // RENDER
-  // ==============================
+  // ==========================================================
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-2 backdrop-blur-sm sm:p-4"
       onClick={cerrarModal}
     >
-
       <div
         className={`relative max-h-[95vh] w-full max-w-2xl overflow-y-auto rounded-2xl border shadow-2xl sm:rounded-[28px] ${
           modoOscuro
             ? 'border-slate-700/80 bg-[#0f1a2b] shadow-black/40'
             : 'border-gray-200 bg-white shadow-gray-900/20'
         }`}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) =>
+          e.stopPropagation()
+        }
       >
-
-        {/* ==============================
-            ENCABEZADO
-        ============================== */}
+        {/* ENCABEZADO */}
 
         <div className="relative px-5 pb-6 pt-7 sm:px-8 sm:pb-7 sm:pt-8 md:px-10">
-
           <button
             type="button"
             onClick={cerrarModal}
@@ -584,7 +603,6 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
           </button>
 
           <div className="flex flex-col items-center text-center">
-
             <div
               className={`mb-4 flex h-16 w-16 items-center justify-center rounded-2xl sm:mb-5 sm:h-20 sm:w-20 ${
                 modoOscuro
@@ -592,13 +610,15 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                   : 'bg-blue-50'
               }`}
             >
-
               <img
-                src={modoOscuro ? logoDark : logo}
+                src={
+                  modoOscuro
+                    ? logoDark
+                    : logo
+                }
                 alt="CellWorld"
                 className="h-12 w-12 object-contain sm:h-40 sm:w-40"
               />
-
             </div>
 
             <h2
@@ -618,11 +638,11 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                   : 'text-gray-500'
               }`}
             >
-              Regístrate para acceder a todos nuestros servicios y disfrutar de una mejor experiencia.
+              Regístrate para acceder a todos
+              nuestros servicios y disfrutar de
+              una mejor experiencia.
             </p>
-
           </div>
-
         </div>
 
         <div
@@ -633,28 +653,19 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
           }`}
         />
 
-        {/* ==============================
-            FORMULARIO
-        ============================== */}
+        {/* FORMULARIO */}
 
         <div className="px-5 py-6 sm:px-8 sm:py-8 md:px-10">
-
           <form onSubmit={manejarSubmit}>
-
-            {/* ==============================
-                INFORMACIÓN PERSONAL
-            ============================== */}
+            {/* INFORMACIÓN PERSONAL */}
 
             <div className="mb-8 sm:mb-9">
-
               <div className="mb-5 flex items-center gap-3">
-
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white sm:h-9 sm:w-9 sm:text-sm">
                   01
                 </div>
 
                 <div>
-
                   <h3
                     className={`text-sm font-bold sm:text-base ${
                       modoOscuro
@@ -674,17 +685,13 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                   >
                     Datos básicos de tu cuenta
                   </p>
-
                 </div>
-
               </div>
 
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
                 {/* NOMBRE */}
 
                 <div>
-
                   <Input
                     label="Nombre"
                     name="nombre"
@@ -701,18 +708,20 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                     modoOscuro={modoOscuro}
                   />
 
-                  {mostrarCorrecto('nombre')}
-
+                  {mostrarCorrecto(
+                    'nombre'
+                  )}
                 </div>
 
                 {/* APELLIDO */}
 
                 <div>
-
                   <Input
                     label="Apellido"
                     name="apellido"
-                    value={formulario.apellido}
+                    value={
+                      formulario.apellido
+                    }
                     onChange={manejarCambio}
                     onBlur={manejarBlur}
                     placeholder="Ej. Rodríguez"
@@ -725,8 +734,9 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                     modoOscuro={modoOscuro}
                   />
 
-                  {mostrarCorrecto('apellido')}
-
+                  {mostrarCorrecto(
+                    'apellido'
+                  )}
                 </div>
 
                 {/* TIPO DOCUMENTO */}
@@ -734,29 +744,35 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                 <Select
                   label="Tipo de documento"
                   name="tipoDocumento"
-                  value={formulario.tipoDocumento}
+                  value={
+                    formulario.tipoDocumento
+                  }
                   onChange={manejarCambio}
                   onBlur={manejarBlur}
                   options={[
                     {
                       value: 'CC',
-                      label: 'Cédula de ciudadanía'
+                      label:
+                        'Cédula de ciudadanía',
                     },
                     {
                       value: 'CE',
-                      label: 'Cédula de extranjería'
+                      label:
+                        'Cédula de extranjería',
                     },
                     {
                       value: 'TI',
-                      label: 'Tarjeta de identidad'
+                      label:
+                        'Tarjeta de identidad',
                     },
                     {
                       value: 'PAS',
-                      label: 'Pasaporte'
+                      label: 'Pasaporte',
                     },
                   ]}
                   error={
-                    camposTocados.tipoDocumento
+                    camposTocados
+                      .tipoDocumento
                       ? errores.tipoDocumento
                       : ''
                   }
@@ -767,45 +783,41 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                 {/* NÚMERO DOCUMENTO */}
 
                 <div>
-
                   <Input
                     label="Número de documento"
                     name="numeroDocumento"
-                    value={formulario.numeroDocumento}
+                    value={
+                      formulario.numeroDocumento
+                    }
                     onChange={manejarNumero}
                     onBlur={manejarBlur}
                     placeholder="Ej. 1234567890"
                     maxLength={15}
                     error={
-                      camposTocados.numeroDocumento
+                      camposTocados
+                        .numeroDocumento
                         ? errores.numeroDocumento
                         : ''
                     }
                     modoOscuro={modoOscuro}
                   />
 
-                  {mostrarCorrecto('numeroDocumento')}
-
+                  {mostrarCorrecto(
+                    'numeroDocumento'
+                  )}
                 </div>
-
               </div>
-
             </div>
 
-            {/* ==============================
-                CONTACTO
-            ============================== */}
+            {/* CONTACTO */}
 
             <div className="mb-8 sm:mb-9">
-
               <div className="mb-5 flex items-center gap-3">
-
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white sm:h-9 sm:w-9 sm:text-sm">
                   02
                 </div>
 
                 <div>
-
                   <h3
                     className={`text-sm font-bold sm:text-base ${
                       modoOscuro
@@ -823,23 +835,22 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                         : 'text-gray-400'
                     }`}
                   >
-                    ¿Cómo podemos comunicarnos contigo?
+                    ¿Cómo podemos comunicarnos
+                    contigo?
                   </p>
-
                 </div>
-
               </div>
 
               <div className="space-y-5">
-
                 {/* DIRECCIÓN */}
 
                 <div>
-
                   <Input
                     label="Dirección"
                     name="direccion"
-                    value={formulario.direccion}
+                    value={
+                      formulario.direccion
+                    }
                     onChange={manejarCambio}
                     onBlur={manejarBlur}
                     placeholder="Ej. Calle 10 #20-30"
@@ -852,21 +863,22 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                     modoOscuro={modoOscuro}
                   />
 
-                  {mostrarCorrecto('direccion')}
-
+                  {mostrarCorrecto(
+                    'direccion'
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
                   {/* TELÉFONO */}
 
                   <div>
-
                     <Input
                       label="Teléfono"
                       name="telefono"
                       type="tel"
-                      value={formulario.telefono}
+                      value={
+                        formulario.telefono
+                      }
                       onChange={manejarNumero}
                       onBlur={manejarBlur}
                       placeholder="3001234567"
@@ -876,22 +888,26 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                           ? errores.telefono
                           : ''
                       }
-                      modoOscuro={modoOscuro}
+                      modoOscuro={
+                        modoOscuro
+                      }
                     />
 
-                    {mostrarCorrecto('telefono')}
-
+                    {mostrarCorrecto(
+                      'telefono'
+                    )}
                   </div>
 
                   {/* CORREO */}
 
                   <div>
-
                     <Input
                       label="Correo electrónico"
                       name="correo"
                       type="email"
-                      value={formulario.correo}
+                      value={
+                        formulario.correo
+                      }
                       onChange={manejarCambio}
                       onBlur={manejarBlur}
                       placeholder="tu@correo.com"
@@ -901,33 +917,28 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                           ? errores.correo
                           : ''
                       }
-                      modoOscuro={modoOscuro}
+                      modoOscuro={
+                        modoOscuro
+                      }
                     />
 
-                    {mostrarCorrecto('correo')}
-
+                    {mostrarCorrecto(
+                      'correo'
+                    )}
                   </div>
-
                 </div>
-
               </div>
-
             </div>
 
-            {/* ==============================
-                SEGURIDAD
-            ============================== */}
+            {/* SEGURIDAD */}
 
             <div className="mb-8">
-
               <div className="mb-5 flex items-center gap-3">
-
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white sm:h-9 sm:w-9 sm:text-sm">
                   03
                 </div>
 
                 <div>
-
                   <h3
                     className={`text-sm font-bold sm:text-base ${
                       modoOscuro
@@ -945,24 +956,23 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                         : 'text-gray-400'
                     }`}
                   >
-                    Protege tu cuenta con una contraseña segura
+                    Protege tu cuenta con una
+                    contraseña segura
                   </p>
-
                 </div>
-
               </div>
 
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
                 {/* CONTRASEÑA */}
 
                 <div>
-
                   <Input
                     label="Contraseña"
                     name="contrasena"
                     type="password"
-                    value={formulario.contrasena}
+                    value={
+                      formulario.contrasena
+                    }
                     onChange={manejarCambio}
                     onBlur={manejarBlur}
                     placeholder="Mínimo 6 caracteres"
@@ -975,40 +985,41 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                     modoOscuro={modoOscuro}
                   />
 
-                  {mostrarCorrecto('contrasena')}
-
+                  {mostrarCorrecto(
+                    'contrasena'
+                  )}
                 </div>
 
                 {/* CONFIRMAR CONTRASEÑA */}
 
                 <div>
-
                   <Input
                     label="Confirmar contraseña"
                     name="confirmarContrasena"
                     type="password"
-                    value={formulario.confirmarContrasena}
+                    value={
+                      formulario.confirmarContrasena
+                    }
                     onChange={manejarCambio}
                     onBlur={manejarBlur}
                     placeholder="Repite tu contraseña"
                     maxLength={30}
                     error={
-                      camposTocados.confirmarContrasena
+                      camposTocados
+                        .confirmarContrasena
                         ? errores.confirmarContrasena
                         : ''
                     }
                     modoOscuro={modoOscuro}
                   />
 
-                  {mostrarCorrecto('confirmarContrasena')}
-
+                  {mostrarCorrecto(
+                    'confirmarContrasena'
+                  )}
                 </div>
-
               </div>
 
-              {/* ==============================
-                  REQUISITOS
-              ============================== */}
+              {/* REQUISITOS */}
 
               <div
                 className={`mt-4 rounded-xl border px-4 py-4 ${
@@ -1017,7 +1028,6 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                     : 'border-gray-200 bg-gray-50'
                 }`}
               >
-
                 <p
                   className={`mb-2 text-xs font-bold ${
                     modoOscuro
@@ -1029,9 +1039,6 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                 </p>
 
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-
-                  {/* MÍNIMO 6 */}
-
                   <p
                     className={`text-xs ${
                       cumpleMinimo
@@ -1041,11 +1048,11 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                           : 'text-gray-400'
                     }`}
                   >
-                    {cumpleMinimo ? '✓' : '○'}{' '}
+                    {cumpleMinimo
+                      ? '✓'
+                      : '○'}{' '}
                     Mínimo 6 caracteres
                   </p>
-
-                  {/* MAYÚSCULA */}
 
                   <p
                     className={`text-xs ${
@@ -1056,11 +1063,11 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                           : 'text-gray-400'
                     }`}
                   >
-                    {cumpleMayuscula ? '✓' : '○'}{' '}
+                    {cumpleMayuscula
+                      ? '✓'
+                      : '○'}{' '}
                     Al menos una mayúscula
                   </p>
-
-                  {/* MINÚSCULA */}
 
                   <p
                     className={`text-xs ${
@@ -1071,11 +1078,11 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                           : 'text-gray-400'
                     }`}
                   >
-                    {cumpleMinuscula ? '✓' : '○'}{' '}
+                    {cumpleMinuscula
+                      ? '✓'
+                      : '○'}{' '}
                     Al menos una minúscula
                   </p>
-
-                  {/* NÚMERO */}
 
                   <p
                     className={`text-xs ${
@@ -1086,11 +1093,11 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                           : 'text-gray-400'
                     }`}
                   >
-                    {cumpleNumero ? '✓' : '○'}{' '}
+                    {cumpleNumero
+                      ? '✓'
+                      : '○'}{' '}
                     Al menos un número
                   </p>
-
-                  {/* CARÁCTER ESPECIAL */}
 
                   <p
                     className={`text-xs ${
@@ -1101,11 +1108,12 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                           : 'text-gray-400'
                     }`}
                   >
-                    {cumpleEspecial ? '✓' : '○'}{' '}
-                    Al menos un carácter especial
+                    {cumpleEspecial
+                      ? '✓'
+                      : '○'}{' '}
+                    Al menos un carácter
+                    especial
                   </p>
-
-                  {/* MÁXIMO 30 */}
 
                   <p
                     className={`text-xs ${
@@ -1116,53 +1124,47 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                           : 'text-gray-400'
                     }`}
                   >
-                    {cumpleMaximo ? '✓' : '○'}{' '}
+                    {cumpleMaximo
+                      ? '✓'
+                      : '○'}{' '}
                     Máximo 30 caracteres
                   </p>
-
                 </div>
-
               </div>
-
             </div>
 
-            {/* ==============================
-                ERROR DEL SERVIDOR
-            ============================== */}
+            {/* ERROR DEL SERVIDOR */}
 
             {errorServidor && (
               <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 text-sm font-medium text-red-600">
-
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-red-500 text-xs font-bold">
-                  !
-                </span>
-
-                <span>{errorServidor}</span>
-
-              </div>
-            )}
-
-            {/* ==============================
-                ERROR GENERAL
-            ============================== */}
-
-            {Object.values(errores).some(Boolean) && (
-              <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 text-sm font-medium text-red-600">
-
                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-red-500 text-xs font-bold">
                   !
                 </span>
 
                 <span>
-                  Revisa los campos marcados antes de crear tu cuenta.
+                  {errorServidor}
                 </span>
-
               </div>
             )}
 
-            {/* ==============================
-                BOTONES
-            ============================== */}
+            {/* ERROR GENERAL */}
+
+            {Object.values(errores).some(
+              Boolean
+            ) && (
+              <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 text-sm font-medium text-red-600">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-red-500 text-xs font-bold">
+                  !
+                </span>
+
+                <span>
+                  Revisa los campos marcados
+                  antes de crear tu cuenta.
+                </span>
+              </div>
+            )}
+
+            {/* BOTONES */}
 
             <div
               className={`flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:justify-end ${
@@ -1171,9 +1173,6 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                   : 'border-gray-100'
               }`}
             >
-
-              {/* CANCELAR */}
-
               <button
                 type="button"
                 onClick={cerrarModal}
@@ -1191,8 +1190,6 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                 Cancelar
               </button>
 
-              {/* CREAR CUENTA */}
-
               <button
                 type="submit"
                 disabled={cargando}
@@ -1206,15 +1203,10 @@ function RegisterModal({ modoOscuro, cerrarModal }) {
                   ? 'Creando cuenta...'
                   : 'Crear cuenta'}
               </button>
-
             </div>
-
           </form>
-
         </div>
-
       </div>
-
     </div>
   )
 }
