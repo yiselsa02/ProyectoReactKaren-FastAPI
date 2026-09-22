@@ -40,39 +40,184 @@ def crear_pedido(
         require_roles(2)
     ),
 ):
-    total = sum(
-        item.precio_unitario * item.cantidad
-        for item in data.items
-    )
-
-    pedido = Pedido(
-        usuario_id=usuario.id_usuario,
-        total=total,
-        estado="pagado",
-    )
-
-    pedido.detalles = [
-        DetallePedido(
-            **item.model_dump()
+    try:
+        print("========================================")
+        print("INICIANDO CREACION DE PEDIDO")
+        print(
+            "USUARIO:",
+            usuario.id_usuario,
         )
-        for item in data.items
-    ]
-
-    db.add(pedido)
-    db.commit()
-    db.refresh(pedido)
-
-    return (
-        db.query(Pedido)
-        .options(
-            joinedload(Pedido.detalles)
+        print(
+            "ITEMS RECIBIDOS:",
+            data.items,
         )
-        .filter(
-            Pedido.id_pedido
-            == pedido.id_pedido
+
+        if not data.items:
+            raise HTTPException(
+                status_code=400,
+                detail="El pedido no contiene productos.",
+            )
+
+        # ----------------------------------------------------
+        # CALCULAR TOTAL
+        # ----------------------------------------------------
+
+        total = sum(
+            item.precio_unitario * item.cantidad
+            for item in data.items
         )
-        .first()
-    )
+
+        print(
+            "TOTAL CALCULADO:",
+            total,
+        )
+
+        # ----------------------------------------------------
+        # CREAR PEDIDO
+        # ----------------------------------------------------
+
+        pedido = Pedido(
+            usuario_id=usuario.id_usuario,
+            total=total,
+            estado="pagado",
+        )
+
+        db.add(pedido)
+
+        # Necesitamos obtener id_pedido antes
+        # de crear los detalles.
+        db.flush()
+
+        print(
+            "PEDIDO CREADO:",
+            pedido.id_pedido,
+        )
+
+        # ----------------------------------------------------
+        # CREAR DETALLES
+        # ----------------------------------------------------
+
+        for item in data.items:
+
+            producto_id = int(
+                item.producto_id
+            )
+
+            cantidad = int(
+                item.cantidad
+            )
+
+            precio = int(
+                item.precio_unitario
+            )
+
+            nombre = str(
+                item.nombre_producto
+            ).strip()
+
+            print(
+                "AGREGANDO DETALLE:",
+                {
+                    "producto_id": producto_id,
+                    "nombre_producto": nombre,
+                    "precio_unitario": precio,
+                    "cantidad": cantidad,
+                },
+            )
+
+            detalle = DetallePedido(
+                pedido_id=pedido.id_pedido,
+                producto_id=producto_id,
+                nombre_producto=nombre,
+                precio_unitario=precio,
+                cantidad=cantidad,
+            )
+
+            pedido.detalles.append(
+                detalle
+            )
+
+        # ----------------------------------------------------
+        # GUARDAR TODO
+        # ----------------------------------------------------
+
+        db.commit()
+
+        print(
+            "PEDIDO GUARDADO CORRECTAMENTE:",
+            pedido.id_pedido,
+        )
+
+        # ----------------------------------------------------
+        # RECUPERAR PEDIDO
+        # ----------------------------------------------------
+
+        pedido_guardado = (
+            db.query(Pedido)
+            .options(
+                joinedload(
+                    Pedido.detalles
+                )
+            )
+            .filter(
+                Pedido.id_pedido
+                == pedido.id_pedido
+            )
+            .first()
+        )
+
+        if not pedido_guardado:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "El pedido fue creado "
+                    "pero no pudo recuperarse."
+                ),
+            )
+
+        print(
+            "PEDIDO DEVUELTO:",
+            pedido_guardado.id_pedido,
+        )
+
+        print("========================================")
+
+        return pedido_guardado
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception as error:
+        db.rollback()
+
+        import traceback
+
+        print("========================================")
+        print("ERROR REAL CREANDO PEDIDO")
+        print(
+            "TIPO:",
+            type(error).__name__,
+        )
+        print(
+            "ERROR:",
+            str(error),
+        )
+        print(
+            "REPR:",
+            repr(error),
+        )
+        print("TRACEBACK:")
+        traceback.print_exc()
+        print("========================================")
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Error creando el pedido: "
+                f"{str(error)}"
+            ),
+        )
 
 
 # ============================================================
@@ -93,7 +238,9 @@ def listar_mis_pedidos(
     pedidos = (
         db.query(Pedido)
         .options(
-            joinedload(Pedido.detalles)
+            joinedload(
+                Pedido.detalles
+            )
         )
         .filter(
             Pedido.usuario_id
@@ -116,7 +263,9 @@ def listar_mis_pedidos(
 # Administrador y empleado
 # ============================================================
 
-@router.get("/historial")
+@router.get(
+    "/historial"
+)
 def historial_ventas(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(
@@ -126,8 +275,12 @@ def historial_ventas(
     pedidos = (
         db.query(Pedido)
         .options(
-            joinedload(Pedido.detalles),
-            joinedload(Pedido.usuario),
+            joinedload(
+                Pedido.detalles
+            ),
+            joinedload(
+                Pedido.usuario
+            ),
         )
         .order_by(
             Pedido.creado_en.desc()
@@ -138,9 +291,11 @@ def historial_ventas(
     ventas = []
 
     for pedido in pedidos:
+
         productos = []
 
         for detalle in pedido.detalles:
+
             subtotal = (
                 detalle.precio_unitario
                 * detalle.cantidad
@@ -148,21 +303,28 @@ def historial_ventas(
 
             productos.append(
                 {
-                    "producto_id": detalle.producto_id,
+                    "producto_id": (
+                        detalle.producto_id
+                    ),
                     "nombre_producto": (
                         detalle.nombre_producto
                     ),
                     "precio_unitario": (
                         detalle.precio_unitario
                     ),
-                    "cantidad": detalle.cantidad,
+                    "cantidad": (
+                        detalle.cantidad
+                    ),
                     "subtotal": subtotal,
                 }
             )
 
-        nombre_cliente = "Cliente no disponible"
+        nombre_cliente = (
+            "Cliente no disponible"
+        )
 
         if pedido.usuario:
+
             nombres = (
                 getattr(
                     pedido.usuario,
@@ -183,10 +345,10 @@ def historial_ventas(
 
             nombre_cliente = (
                 f"{nombres} {apellidos}"
-                .strip()
-            )
+            ).strip()
 
             if not nombre_cliente:
+
                 nombre_cliente = (
                     getattr(
                         pedido.usuario,
@@ -198,13 +360,27 @@ def historial_ventas(
 
         ventas.append(
             {
-                "id_pedido": pedido.id_pedido,
-                "usuario_id": pedido.usuario_id,
-                "cliente": nombre_cliente,
-                "fecha": pedido.creado_en,
-                "estado": pedido.estado,
-                "total": pedido.total,
-                "productos": productos,
+                "id_pedido": (
+                    pedido.id_pedido
+                ),
+                "usuario_id": (
+                    pedido.usuario_id
+                ),
+                "cliente": (
+                    nombre_cliente
+                ),
+                "fecha": (
+                    pedido.creado_en
+                ),
+                "estado": (
+                    pedido.estado
+                ),
+                "total": (
+                    pedido.total
+                ),
+                "productos": (
+                    productos
+                ),
             }
         )
 
@@ -220,12 +396,15 @@ def historial_ventas(
 # Administrador y empleado
 # ============================================================
 
-@router.get("/reporte-diario")
+@router.get(
+    "/reporte-diario"
+)
 def reporte_diario(
     fecha: date = Query(
         ...,
         description=(
-            "Fecha del reporte en formato YYYY-MM-DD"
+            "Fecha del reporte "
+            "en formato YYYY-MM-DD"
         ),
     ),
     db: Session = Depends(get_db),
@@ -246,8 +425,12 @@ def reporte_diario(
     pedidos = (
         db.query(Pedido)
         .options(
-            joinedload(Pedido.detalles),
-            joinedload(Pedido.usuario),
+            joinedload(
+                Pedido.detalles
+            ),
+            joinedload(
+                Pedido.usuario
+            ),
         )
         .filter(
             Pedido.creado_en >= inicio_dia,
@@ -265,35 +448,48 @@ def reporte_diario(
     total_unidades = 0
 
     for pedido in pedidos:
+
         productos = []
 
         for detalle in pedido.detalles:
+
             subtotal = (
                 detalle.precio_unitario
                 * detalle.cantidad
             )
 
-            total_unidades += detalle.cantidad
+            total_unidades += (
+                detalle.cantidad
+            )
 
             productos.append(
                 {
-                    "producto_id": detalle.producto_id,
+                    "producto_id": (
+                        detalle.producto_id
+                    ),
                     "nombre_producto": (
                         detalle.nombre_producto
                     ),
                     "precio_unitario": (
                         detalle.precio_unitario
                     ),
-                    "cantidad": detalle.cantidad,
+                    "cantidad": (
+                        detalle.cantidad
+                    ),
                     "subtotal": subtotal,
                 }
             )
 
-        total_vendido += pedido.total or 0
+        total_vendido += (
+            pedido.total or 0
+        )
 
-        nombre_cliente = "Cliente no disponible"
+        nombre_cliente = (
+            "Cliente no disponible"
+        )
 
         if pedido.usuario:
+
             nombres = (
                 getattr(
                     pedido.usuario,
@@ -314,10 +510,10 @@ def reporte_diario(
 
             nombre_cliente = (
                 f"{nombres} {apellidos}"
-                .strip()
-            )
+            ).strip()
 
             if not nombre_cliente:
+
                 nombre_cliente = (
                     getattr(
                         pedido.usuario,
@@ -329,13 +525,27 @@ def reporte_diario(
 
         ventas.append(
             {
-                "id_pedido": pedido.id_pedido,
-                "usuario_id": pedido.usuario_id,
-                "cliente": nombre_cliente,
-                "fecha": pedido.creado_en,
-                "estado": pedido.estado,
-                "total": pedido.total,
-                "productos": productos,
+                "id_pedido": (
+                    pedido.id_pedido
+                ),
+                "usuario_id": (
+                    pedido.usuario_id
+                ),
+                "cliente": (
+                    nombre_cliente
+                ),
+                "fecha": (
+                    pedido.creado_en
+                ),
+                "estado": (
+                    pedido.estado
+                ),
+                "total": (
+                    pedido.total
+                ),
+                "productos": (
+                    productos
+                ),
             }
         )
 
@@ -343,9 +553,15 @@ def reporte_diario(
         "success": True,
         "fecha": fecha,
         "resumen": {
-            "ventas_realizadas": len(ventas),
-            "unidades_vendidas": total_unidades,
-            "total_vendido": total_vendido,
+            "ventas_realizadas": (
+                len(ventas)
+            ),
+            "unidades_vendidas": (
+                total_unidades
+            ),
+            "total_vendido": (
+                total_vendido
+            ),
         },
         "ventas": ventas,
     }
@@ -356,13 +572,25 @@ def reporte_diario(
 # Administrador y empleado
 # ============================================================
 
-@router.get("/estadisticas")
+@router.get(
+    "/estadisticas"
+)
 def estadisticas_dashboard(
-    fecha_inicio: date | None = Query(None),
-    fecha_fin: date | None = Query(None),
-    producto: str | None = Query(None),
-    estado: str | None = Query(None),
-    cliente_id: int | None = Query(None),
+    fecha_inicio: date | None = Query(
+        None
+    ),
+    fecha_fin: date | None = Query(
+        None
+    ),
+    producto: str | None = Query(
+        None
+    ),
+    estado: str | None = Query(
+        None
+    ),
+    cliente_id: int | None = Query(
+        None
+    ),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(
         require_roles(1, 3)
@@ -376,8 +604,8 @@ def estadisticas_dashboard(
         raise HTTPException(
             status_code=400,
             detail=(
-                "La fecha inicial no puede ser "
-                "posterior a la fecha final."
+                "La fecha inicial no puede "
+                "ser posterior a la fecha final."
             ),
         )
 
@@ -399,9 +627,16 @@ def estadisticas_dashboard(
         else None
     )
 
-    consulta = db.query(Pedido).options(
-        joinedload(Pedido.detalles),
-        joinedload(Pedido.usuario),
+    consulta = (
+        db.query(Pedido)
+        .options(
+            joinedload(
+                Pedido.detalles
+            ),
+            joinedload(
+                Pedido.usuario
+            ),
+        )
     )
 
     if inicio:
@@ -421,12 +656,15 @@ def estadisticas_dashboard(
 
     if cliente_id:
         consulta = consulta.filter(
-            Pedido.usuario_id == cliente_id
+            Pedido.usuario_id
+            == cliente_id
         )
 
     pedidos = (
         consulta
-        .order_by(Pedido.creado_en.asc())
+        .order_by(
+            Pedido.creado_en.asc()
+        )
         .all()
     )
 
@@ -462,14 +700,19 @@ def estadisticas_dashboard(
     )
 
     for pedido in pedidos:
+
         detalles = pedido.detalles
 
         if producto_filtro:
+
             detalles = [
                 detalle
                 for detalle in detalles
                 if producto_filtro
-                in detalle.nombre_producto.lower()
+                in (
+                    detalle.nombre_producto
+                    or ""
+                ).lower()
             ]
 
             if not detalles:
@@ -498,8 +741,14 @@ def estadisticas_dashboard(
         )
 
         ventas_filtradas += 1
-        total_unidades += unidades_pedido
-        total_vendido += total_pedido
+
+        total_unidades += (
+            unidades_pedido
+        )
+
+        total_vendido += (
+            total_pedido
+        )
 
         ventas_por_dia[
             fecha_pedido
@@ -518,18 +767,27 @@ def estadisticas_dashboard(
         ]["total"] += total_pedido
 
         for detalle in detalles:
-            producto_data = productos_vendidos[
-                detalle.nombre_producto
-            ]
 
-            producto_data["unidades"] += (
-                detalle.cantidad
+            producto_data = (
+                productos_vendidos[
+                    detalle.nombre_producto
+                ]
             )
 
-            producto_data["total"] += (
+            producto_data[
+                "unidades"
+            ] += detalle.cantidad
+
+            producto_data[
+                "total"
+            ] += (
                 detalle.precio_unitario
                 * detalle.cantidad
             )
+
+    # ========================================================
+    # PQR
+    # ========================================================
 
     pqrs_query = db.query(PQR)
 
@@ -545,7 +803,8 @@ def estadisticas_dashboard(
 
     if cliente_id:
         pqrs_query = pqrs_query.filter(
-            PQR.usuario_id == cliente_id
+            PQR.usuario_id
+            == cliente_id
         )
 
     pqrs = pqrs_query.all()
@@ -564,6 +823,10 @@ def estadisticas_dashboard(
             "atendida",
         }
     )
+
+    # ========================================================
+    # INDICADORES
+    # ========================================================
 
     total_usuarios = (
         db.query(Usuario).count()
@@ -585,21 +848,41 @@ def estadisticas_dashboard(
         "success": True,
         "rol": usuario.rol_id,
         "filtros": {
-            "fecha_inicio": fecha_inicio,
-            "fecha_fin": fecha_fin,
+            "fecha_inicio": (
+                fecha_inicio
+            ),
+            "fecha_fin": (
+                fecha_fin
+            ),
             "producto": producto,
             "estado": estado,
             "cliente_id": cliente_id,
         },
         "indicadores": {
-            "total_usuarios": total_usuarios,
-            "total_clientes": total_clientes,
-            "total_productos": total_productos,
-            "ventas": ventas_filtradas,
-            "unidades_vendidas": total_unidades,
-            "total_facturado": total_vendido,
-            "pqr_recibidas": len(pqrs),
-            "pqr_pendientes": pendientes,
+            "total_usuarios": (
+                total_usuarios
+            ),
+            "total_clientes": (
+                total_clientes
+            ),
+            "total_productos": (
+                total_productos
+            ),
+            "ventas": (
+                ventas_filtradas
+            ),
+            "unidades_vendidas": (
+                total_unidades
+            ),
+            "total_facturado": (
+                total_vendido
+            ),
+            "pqr_recibidas": (
+                len(pqrs)
+            ),
+            "pqr_pendientes": (
+                pendientes
+            ),
         },
         "ventas_por_dia": [
             {
@@ -629,7 +912,8 @@ def estadisticas_dashboard(
             for nombre, valores
             in sorted(
                 productos_vendidos.items(),
-                key=lambda item: item[1]["unidades"],
+                key=lambda item:
+                    item[1]["unidades"],
                 reverse=True,
             )[:10]
         ],
@@ -655,10 +939,13 @@ def obtener_pedido(
     pedido = (
         db.query(Pedido)
         .options(
-            joinedload(Pedido.detalles)
+            joinedload(
+                Pedido.detalles
+            )
         )
         .filter(
-            Pedido.id_pedido == order_id
+            Pedido.id_pedido
+            == order_id
         )
         .first()
     )
@@ -671,7 +958,10 @@ def obtener_pedido(
 
     # El cliente únicamente puede consultar
     # sus propios pedidos.
-    # Administrador y empleado pueden consultar cualquiera.
+    #
+    # Administrador y empleado pueden consultar
+    # cualquiera.
+
     if (
         usuario.rol_id == 2
         and pedido.usuario_id
@@ -679,7 +969,9 @@ def obtener_pedido(
     ):
         raise HTTPException(
             status_code=403,
-            detail="No tienes acceso a este pedido",
+            detail=(
+                "No tienes acceso a este pedido"
+            ),
         )
 
     return pedido
