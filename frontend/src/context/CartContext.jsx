@@ -7,6 +7,8 @@ import {
   useState,
 } from 'react'
 
+import { API_URL } from '../config'
+
 const CartContext = createContext(null)
 
 // =====================================================
@@ -347,7 +349,7 @@ export function CartProvider({ children }) {
 
     const response =
       await fetch(
-        'http://127.0.0.1:8000/api/pedidos',
+        '${API_URL}/api/pedidos',
         {
           method: 'POST',
 

@@ -3,7 +3,6 @@ import { Bot, Send, X } from 'lucide-react'
 import { API_URL } from '../config'
 
 
-const API_URL = (import.meta.env.VITE_API_URL || '${API_URL}').replace(/\/$/, '')
 
 const SUGGESTIONS = [
   'Quiero saber más de los productos',

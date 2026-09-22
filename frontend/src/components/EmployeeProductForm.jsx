@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { API_URL } from '../config'
 
-const API_URL = (import.meta.env.VITE_API_URL || '${API_URL}').replace(/\/$/, '')
 
 const initial = {
   nombre: '',

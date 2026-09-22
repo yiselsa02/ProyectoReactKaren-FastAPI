@@ -4,7 +4,6 @@ import logoDark from '../assets/logo-dark.png'
 import whatsapp from '../assets/whatsapp.png'
 import { API_URL } from '../config'
 
-const API_URL = (import.meta.env.VITE_API_URL || '${API_URL}').replace(/\/$/, '')
 
 function Contacto({ modoOscuro }) {
   const [mensajeEnviado, setMensajeEnviado] = useState(false)
