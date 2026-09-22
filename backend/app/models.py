@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
 )
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 from .database import Base
 
@@ -127,6 +128,11 @@ class Usuario(Base):
 
     pqrs = relationship(
         "PQR",
+        back_populates="usuario"
+    )
+
+    pedidos = relationship(
+        "Pedido",
         back_populates="usuario"
     )
 
@@ -348,7 +354,8 @@ class PQR(Base):
 
     creado_en = Column(
         DateTime,
-        nullable=False
+        nullable=False,
+        default=datetime.utcnow
     )
 
     actualizado_en = Column(
@@ -360,4 +367,92 @@ class PQR(Base):
         "Usuario",
         back_populates="pqrs",
         foreign_keys=[usuario_id]
+    )
+
+
+# ============================================================
+# PEDIDO
+# ============================================================
+
+class Pedido(Base):
+    __tablename__ = "pedidos"
+
+    id_pedido = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    usuario_id = Column(
+        Integer,
+        ForeignKey("usuarios.id_usuario"),
+        nullable=False
+    )
+
+    total = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    estado = Column(
+        String(50),
+        nullable=False,
+        default="pagado"
+    )
+
+    creado_en = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow
+    )
+
+    usuario = relationship(
+        "Usuario",
+        back_populates="pedidos"
+    )
+
+    detalles = relationship(
+        "DetallePedido",
+        back_populates="pedido",
+        cascade="all, delete-orphan"
+    )
+
+
+# ============================================================
+# DETALLE DEL PEDIDO
+# ============================================================
+
+class DetallePedido(Base):
+    __tablename__ = "detalle_pedidos"
+
+    pedido_id = Column(
+        Integer,
+        ForeignKey("pedidos.id_pedido"),
+        primary_key=True
+    )
+
+    producto_id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    nombre_producto = Column(
+        String(150),
+        nullable=False
+    )
+
+    precio_unitario = Column(
+        Integer,
+        nullable=False
+    )
+
+    cantidad = Column(
+        Integer,
+        nullable=False
+    )
+
+    pedido = relationship(
+        "Pedido",
+        back_populates="detalles"
     )

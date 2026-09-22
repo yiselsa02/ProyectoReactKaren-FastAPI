@@ -11,9 +11,10 @@ import { API_URL } from '../config'
 
 const CartContext = createContext(null)
 
-// =====================================================
-// OBTENER ID DEL USUARIO ACTUAL
-// =====================================================
+
+// ============================================================
+// OBTENER ID DEL USUARIO
+// ============================================================
 
 const obtenerUsuarioId = () => {
   try {
@@ -35,18 +36,17 @@ const obtenerUsuarioId = () => {
     }
 
     return String(usuario.id_usuario)
-
   } catch {
     return null
   }
 }
 
-// =====================================================
-// OBTENER CLAVE DEL CARRITO
-// =====================================================
+
+// ============================================================
+// CLAVE DEL CARRITO
+// ============================================================
 
 const obtenerClaveCarrito = (usuarioId) => {
-
   if (!usuarioId) {
     return 'cellworld_cart_guest'
   }
@@ -54,14 +54,13 @@ const obtenerClaveCarrito = (usuarioId) => {
   return `cellworld_cart_${usuarioId}`
 }
 
-// =====================================================
+
+// ============================================================
 // OBTENER CARRITO GUARDADO
-// =====================================================
+// ============================================================
 
 const obtenerCarritoGuardado = (usuarioId) => {
-
   try {
-
     const clave =
       obtenerClaveCarrito(usuarioId)
 
@@ -78,15 +77,15 @@ const obtenerCarritoGuardado = (usuarioId) => {
     return Array.isArray(datos)
       ? datos
       : []
-
   } catch {
     return []
   }
 }
 
-// =====================================================
+
+// ============================================================
 // PROVIDER
-// =====================================================
+// ============================================================
 
 export function CartProvider({ children }) {
 
@@ -101,23 +100,17 @@ export function CartProvider({ children }) {
       )
   )
 
-  // ===================================================
+
+  // ==========================================================
   // GUARDAR CARRITO
-  // ===================================================
+  // ==========================================================
 
   useEffect(() => {
-
     const clave =
       obtenerClaveCarrito(usuarioId)
 
-    /*
-     * Si el carrito está vacío,
-     * eliminamos la clave de localStorage.
-     */
     if (items.length === 0) {
-
       localStorage.removeItem(clave)
-
       return
     }
 
@@ -125,12 +118,12 @@ export function CartProvider({ children }) {
       clave,
       JSON.stringify(items)
     )
-
   }, [items, usuarioId])
 
-  // ===================================================
+
+  // ==========================================================
   // CAMBIO DE USUARIO
-  // ===================================================
+  // ==========================================================
 
   useEffect(() => {
 
@@ -147,68 +140,112 @@ export function CartProvider({ children }) {
           ? null
           : String(nuevoUsuarioId)
 
-      /*
-       * Cambiamos primero el usuario actual.
-       */
       setUsuarioId(nuevoId)
 
-      /*
-       * Cargamos únicamente el carrito
-       * correspondiente al nuevo usuario.
-       */
       const nuevoCarrito =
         obtenerCarritoGuardado(nuevoId)
 
       setItems(nuevoCarrito)
     }
 
+
     window.addEventListener(
       'usuarioCambio',
       manejarCambioUsuario
     )
 
-    return () => {
 
+    return () => {
       window.removeEventListener(
         'usuarioCambio',
         manejarCambioUsuario
       )
-
     }
 
   }, [])
 
-  // ===================================================
+
+  // ==========================================================
   // AGREGAR PRODUCTO
-  // ===================================================
+  // ==========================================================
 
   const addItem = useCallback((product) => {
+
+    const productoId =
+      product?.id_producto ??
+      product?.id ??
+      product?.producto_id
+
+    const nombreProducto =
+      product?.nombre ??
+      product?.name ??
+      product?.nombre_producto ??
+      'Producto'
+
+    const precioProducto =
+      Number(
+        product?.precio ??
+        product?.price ??
+        product?.precio_unitario ??
+        0
+      )
+
 
     setItems((current) => {
 
       const existing =
-        current.find(
-          (item) =>
-            item.id === product.id
-        )
+        current.find((item) => {
+
+          const idExistente =
+            item?.id_producto ??
+            item?.id ??
+            item?.producto_id
+
+          return String(idExistente) ===
+            String(productoId)
+        })
+
 
       if (existing) {
 
-        return current.map((item) =>
-          item.id === product.id
-            ? {
-                ...item,
-                quantity:
-                  item.quantity + 1,
-              }
-            : item
-        )
+        return current.map((item) => {
+
+          const idExistente =
+            item?.id_producto ??
+            item?.id ??
+            item?.producto_id
+
+          if (
+            String(idExistente) !==
+            String(productoId)
+          ) {
+            return item
+          }
+
+          return {
+            ...item,
+            quantity:
+              Number(item.quantity || 0) + 1,
+          }
+
+        })
       }
+
 
       return [
         ...current,
         {
           ...product,
+
+          id_producto:
+            Number(productoId),
+
+          nombre:
+            nombreProducto,
+
+          precio:
+            precioProducto,
+
           quantity: 1,
         },
       ]
@@ -216,136 +253,235 @@ export function CartProvider({ children }) {
 
   }, [])
 
-  // ===================================================
+
+  // ==========================================================
   // ELIMINAR PRODUCTO
-  // ===================================================
+  // ==========================================================
 
   const removeItem = useCallback((id) => {
 
     setItems((current) =>
-      current.filter(
-        (item) =>
-          item.id !== id
-      )
+      current.filter((item) => {
+
+        const itemId =
+          item?.id_producto ??
+          item?.id ??
+          item?.producto_id
+
+        return String(itemId) !==
+          String(id)
+      })
     )
 
   }, [])
 
-  // ===================================================
+
+  // ==========================================================
   // ACTUALIZAR CANTIDAD
-  // ===================================================
+  // ==========================================================
 
   const updateQuantity = useCallback(
     (id, quantity) => {
 
+      const nuevaCantidad =
+        Number(quantity)
+
       setItems((current) =>
         current
-          .map((item) =>
-            item.id === id
-              ? {
-                  ...item,
-                  quantity,
-                }
-              : item
-          )
+          .map((item) => {
+
+            const itemId =
+              item?.id_producto ??
+              item?.id ??
+              item?.producto_id
+
+            if (
+              String(itemId) !==
+              String(id)
+            ) {
+              return item
+            }
+
+            return {
+              ...item,
+              quantity: nuevaCantidad,
+            }
+          })
           .filter(
             (item) =>
-              item.quantity > 0
+              Number(item.quantity) > 0
           )
       )
-
     },
     []
   )
 
-  // ===================================================
-  // VACIAR CARRITO
-  // ===================================================
+
+  // ==========================================================
+  // LIMPIAR CARRITO
+  // ==========================================================
 
   const clearCart = useCallback(() => {
 
     setItems([])
 
-    /*
-     * Eliminamos directamente el carrito
-     * del usuario que está conectado.
-     */
     const idActual =
       obtenerUsuarioId()
 
     if (idActual) {
-
       localStorage.removeItem(
         obtenerClaveCarrito(idActual)
       )
-
     }
 
   }, [])
 
-  // ===================================================
-  // CERRAR SESIÓN
-  // ===================================================
+
+  // ==========================================================
+  // LIMPIAR AL CERRAR SESIÓN
+  // ==========================================================
 
   const clearCartOnLogout = useCallback(() => {
 
-    /*
-     * IMPORTANTE:
-     * obtenemos el usuario ANTES de borrar
-     * usuario del localStorage.
-     */
     const idActual =
       obtenerUsuarioId()
 
     if (idActual) {
-
       localStorage.removeItem(
         obtenerClaveCarrito(idActual)
       )
-
     }
 
-    /*
-     * También eliminamos el carrito de invitado
-     * por seguridad.
-     */
     localStorage.removeItem(
       'cellworld_cart_guest'
     )
 
-    /*
-     * Estado React vacío inmediatamente.
-     */
     setItems([])
-
     setUsuarioId(null)
 
   }, [])
 
-  // ===================================================
+
+  // ==========================================================
   // CHECKOUT
-  // ===================================================
+  // ==========================================================
 
   const checkout = useCallback(async () => {
 
     const token =
       localStorage.getItem('token')
 
-    if (!token) {
 
+    if (!token) {
       throw new Error(
         'Debes iniciar sesión para comprar.'
       )
-
     }
 
-    if (items.length === 0) {
 
+    if (items.length === 0) {
       throw new Error(
         'El carrito está vacío.'
       )
-
     }
+
+
+    // --------------------------------------------------------
+    // CONSTRUIR ITEMS DEL PEDIDO
+    // --------------------------------------------------------
+
+    const pedidoItems =
+      items.map((item) => {
+
+        let productoId =
+          item?.id_producto ??
+          item?.id ??
+          item?.producto_id
+
+
+        // Por si algún carrito antiguo tiene
+        // valores como "bd-5".
+        if (
+          typeof productoId === 'string'
+        ) {
+          productoId =
+            productoId.replace(
+              /^bd-/,
+              ''
+            )
+        }
+
+
+        productoId =
+          Number(productoId)
+
+
+        const nombreProducto =
+          item?.nombre ??
+          item?.name ??
+          item?.nombre_producto
+
+
+        const precioUnitario =
+          Number(
+            item?.precio ??
+            item?.price ??
+            item?.precio_unitario ??
+            0
+          )
+
+
+        const cantidad =
+          Number(
+            item?.quantity ??
+            item?.cantidad ??
+            0
+          )
+
+
+        return {
+          producto_id: productoId,
+          nombre_producto:
+            nombreProducto,
+          precio_unitario:
+            precioUnitario,
+          cantidad,
+        }
+      })
+
+
+    // --------------------------------------------------------
+    // VALIDAR ANTES DE ENVIAR
+    // --------------------------------------------------------
+
+    const itemInvalido =
+      pedidoItems.find(
+        (item) =>
+          !Number.isInteger(
+            item.producto_id
+          ) ||
+          item.producto_id < 1 ||
+          !item.nombre_producto ||
+          item.precio_unitario < 0 ||
+          item.cantidad < 1
+      )
+
+
+    if (itemInvalido) {
+      console.error(
+        'Producto inválido enviado al checkout:',
+        itemInvalido
+      )
+
+      throw new Error(
+        'Uno de los productos del carrito no tiene información válida. Elimina el producto del carrito y vuelve a agregarlo.'
+      )
+    }
+
+
+    // --------------------------------------------------------
+    // PETICIÓN
+    // --------------------------------------------------------
 
     const response =
       await fetch(
@@ -362,92 +498,107 @@ export function CartProvider({ children }) {
           },
 
           body: JSON.stringify({
-            items: items.map(
-              (item) => ({
-                producto_id:
-                  Number(
-                    String(item.id)
-                      .replace(
-                        'bd-',
-                        ''
-                      )
-                  ) || 0,
-
-                nombre_producto:
-                  item.name,
-
-                precio_unitario:
-                  item.price,
-
-                cantidad:
-                  item.quantity,
-              })
-            ),
+            items: pedidoItems,
           }),
         }
       )
 
-    const data =
-      await response.json()
+
+    let data
+
+    try {
+      data =
+        await response.json()
+    } catch {
+      data = null
+    }
+
+
+    // --------------------------------------------------------
+    // ERROR DEL BACKEND
+    // --------------------------------------------------------
 
     if (!response.ok) {
 
-      throw new Error(
-        data.detail ||
-          'No se pudo completar la compra.'
+      console.error(
+        'Error creando pedido:',
+        {
+          status: response.status,
+          data,
+        }
       )
 
+      throw new Error(
+        data?.detail ||
+        'No se pudo completar la compra.'
+      )
     }
 
-    /*
-     * Compra exitosa:
-     * vaciar carrito y eliminarlo
-     * del localStorage.
-     */
+
+    // --------------------------------------------------------
+    // COMPRA EXITOSA
+    // --------------------------------------------------------
+
     setItems([])
+
 
     const idActual =
       obtenerUsuarioId()
 
     if (idActual) {
-
       localStorage.removeItem(
         obtenerClaveCarrito(idActual)
       )
-
     }
+
 
     return data
 
   }, [items])
 
-  // ===================================================
-  // CANTIDAD TOTAL
-  // ===================================================
+
+  // ============================================================
+  // CONTADORES
+  // ============================================================
 
   const count =
     items.reduce(
       (total, item) =>
-        total + item.quantity,
+        total +
+        Number(
+          item.quantity || 0
+        ),
       0
     )
 
-  // ===================================================
-  // PRECIO TOTAL
-  // ===================================================
 
   const total =
     items.reduce(
-      (sum, item) =>
-        sum +
-        Number(item.price) *
-          item.quantity,
+      (sum, item) => {
+
+        const precio =
+          Number(
+            item?.precio ??
+            item?.price ??
+            item?.precio_unitario ??
+            0
+          )
+
+        return (
+          sum +
+          precio *
+          Number(
+            item.quantity || 0
+          )
+        )
+      },
       0
     )
 
-  // ===================================================
-  // CONTEXT VALUE
-  // ===================================================
+
+  // ============================================================
+  // VALOR DEL CONTEXTO
+  // ============================================================
 
   const value = useMemo(
     () => ({
@@ -461,6 +612,7 @@ export function CartProvider({ children }) {
       count,
       total,
     }),
+
     [
       items,
       addItem,
@@ -474,29 +626,30 @@ export function CartProvider({ children }) {
     ]
   )
 
+
   return (
-    <CartContext.Provider value={value}>
+    <CartContext.Provider
+      value={value}
+    >
       {children}
     </CartContext.Provider>
   )
 }
 
-// =====================================================
-// HOOK
-// =====================================================
 
-// oxlint-disable-next-line react/only-export-components
+// ============================================================
+// HOOK
+// ============================================================
+
 export function useCart() {
 
   const context =
     useContext(CartContext)
 
   if (!context) {
-
     throw new Error(
       'useCart debe usarse dentro de CartProvider'
     )
-
   }
 
   return context
