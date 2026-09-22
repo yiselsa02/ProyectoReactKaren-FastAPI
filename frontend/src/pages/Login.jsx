@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import RegisterModal from '../components/RegisterModal'
 
+import logo from '../assets/logo.png'
+import logoDark from '../assets/logo-dark.png'
+
 function Login({ modoOscuro }) {
   const navigate = useNavigate()
 
@@ -158,7 +161,7 @@ function Login({ modoOscuro }) {
       }
 
       // ========================================================
-      // LIMPIAR CARRITO DEL USUARIO ANTERIOR
+      // LIMPIAR CARRITO ANTERIOR
       // ========================================================
 
       localStorage.removeItem('cellworld_cart')
@@ -182,7 +185,7 @@ function Login({ modoOscuro }) {
       )
 
       // ========================================================
-      // AVISAR AL RESTO DE LA APLICACIÓN
+      // AVISAR CAMBIO DE USUARIO
       // ========================================================
 
       window.dispatchEvent(
@@ -257,27 +260,33 @@ function Login({ modoOscuro }) {
         }`}
       >
         <div
-          className={`w-full max-w-md rounded-3xl border p-7 shadow-xl sm:p-8 transition-colors duration-300 ${
+          className={`w-full max-w-md rounded-3xl border p-6 shadow-xl transition-colors duration-300 sm:p-8 ${
             modoOscuro
               ? 'border-slate-700 bg-[#0f1a2b]'
               : 'border-gray-200 bg-white'
           }`}
         >
           {/* ==================================================
-              LOGO / ENCABEZADO
+              LOGO ORIGINAL
           ================================================== */}
 
-          <div className="mb-8 text-center">
-            <div
-              className={`mb-4 text-3xl font-extrabold tracking-tight ${
+          <div className="mb-7 flex justify-center">
+            <img
+              src={
                 modoOscuro
-                  ? 'text-white'
-                  : 'text-blue-600'
-              }`}
-            >
-              CELLWORLD
-            </div>
+                  ? logoDark
+                  : logo
+              }
+              alt="CellWorld"
+              className="h-auto w-44 object-contain sm:w-52"
+            />
+          </div>
 
+          {/* ==================================================
+              TÍTULO
+          ================================================== */}
+
+          <div className="mb-7 text-center">
             <h1
               className={`text-2xl font-bold ${
                 modoOscuro
@@ -345,7 +354,7 @@ function Login({ modoOscuro }) {
             {/* CONTRASEÑA */}
 
             <div>
-              <div className="mb-2 flex items-center justify-between">
+              <div className="mb-2 flex items-center justify-between gap-3">
                 <label
                   htmlFor="password"
                   className={`block text-sm font-semibold ${
@@ -357,10 +366,6 @@ function Login({ modoOscuro }) {
                   Contraseña
                 </label>
 
-                {/* ==========================================
-                    RECUPERAR CONTRASEÑA
-                ========================================== */}
-
                 <button
                   type="button"
                   onClick={() =>
@@ -368,7 +373,7 @@ function Login({ modoOscuro }) {
                       '/recuperar-contrasena'
                     )
                   }
-                  className="text-sm font-semibold text-blue-600 transition hover:text-blue-700 hover:underline"
+                  className="text-right text-sm font-semibold text-blue-600 transition hover:text-blue-700 hover:underline"
                 >
                   ¿Olvidaste tu contraseña?
                 </button>
@@ -412,7 +417,7 @@ function Login({ modoOscuro }) {
             )}
 
             {/* ==================================================
-                BOTÓN INICIAR SESIÓN
+                BOTÓN
             ================================================== */}
 
             <button
