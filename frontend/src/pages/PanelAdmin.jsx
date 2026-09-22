@@ -373,45 +373,39 @@ function PanelAdmin({ modoOscuro }) {
       setCargandoVentas(false)
     }
   }
+const cargarPqrs = async () => {
+  setCargandoPqrs(true)
+  setErrorPqrs('')
 
-  const cargarPqrs = async () => {
-    setCargandoPqrs(true)
-    setErrorPqrs('')
+  try {
+    const token = obtenerToken()
 
-    try {
-      const token = obtenerToken()
-      const rutas = ['/api/pqr', '/api/pqr']
-      let respuesta
+    const respuesta = await fetch(`${API_URL}/api/pqr`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
 
-      for (const ruta of rutas) {
-        const intento = await fetch(`${API_URL}${ruta}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+    if (manejarRespuestaNoAutorizada(respuesta)) return
 
-        if (manejarRespuestaNoAutorizada(intento)) return
-        if (intento.ok) {
-          respuesta = intento
-          break
-        }
-      }
-
-      if (!respuesta) {
-        throw new Error('No se pudieron cargar las PQR.')
-      }
-
-      const data = await respuesta.json()
-      setPqrs(
-        Array.isArray(data)
-          ? data
-          : data.pqrs || data.pqr || data.solicitudes || []
-      )
-    } catch (error) {
-      console.error(error)
-      setErrorPqrs(error.message || 'No se pudieron cargar las PQR.')
-    } finally {
-      setCargandoPqrs(false)
+    if (!respuesta.ok) {
+      throw new Error('No se pudieron cargar las PQR.')
     }
+
+    const data = await respuesta.json()
+
+    setPqrs(
+      Array.isArray(data)
+        ? data
+        : data.pqrs || data.pqr || data.solicitudes || []
+    )
+  } catch (error) {
+    console.error(error)
+    setErrorPqrs(error.message || 'No se pudieron cargar las PQR.')
+  } finally {
+    setCargandoPqrs(false)
   }
+}
 
   const abrirResponderPqr = (pqr) => {
     setPqrEditando(pqr)
