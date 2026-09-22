@@ -42,7 +42,6 @@ from ..schemas import (
 
 
 router = APIRouter(
-    prefix="/api/auth",
     tags=["Autenticación"]
 )
 
@@ -56,6 +55,7 @@ def login(
     credentials: LoginRequest,
     db: Session = Depends(get_db)
 ):
+
     # =================================================
     # BUSCAR USUARIO POR CORREO
     # =================================================
@@ -204,6 +204,7 @@ def login_swagger(
 def perfil(
     usuario: Usuario = Depends(get_current_user),
 ):
+
     return {
         "success": True,
         "usuario": UsuarioResponse.model_validate(usuario),
