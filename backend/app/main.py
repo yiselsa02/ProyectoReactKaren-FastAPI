@@ -14,7 +14,7 @@ Base.metadata.create_all(bind=engine)
 allowed_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://cellworld-flax.vercel.app",
+    "https://cellworld-evo96ywsi-yiselsa02.vercel.app/",
 ]
 
 frontend_url = os.getenv("FRONTEND_URL")
