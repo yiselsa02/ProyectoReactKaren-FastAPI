@@ -1,3 +1,4 @@
+```python
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,6 +14,34 @@ app = FastAPI(
     title="CellWorld API",
     description="API para el sistema CellWorld",
     version="1.0.0"
+)
+
+
+# ============================================================
+# CORS
+# ============================================================
+
+app.add_middleware(
+    CORSMiddleware,
+
+    allow_origins=[
+        # Desarrollo local
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+
+        # Dominio principal del frontend
+        "https://cellworld-flax.vercel.app",
+    ],
+
+    # Permite los deployments de Vercel del proyecto CellWorld.
+    # Ejemplo:
+    # https://cellworld-nb6jwxuoa-yiselsa02.vercel.app
+    # https://cellworld-3m9dvsyq4-yiselsa02.vercel.app
+    allow_origin_regex=r"https://cellworld-[a-z0-9]+-yiselsa02\.vercel\.app",
+
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -67,31 +96,4 @@ def inicio():
         "success": True,
         "message": "Bienvenido a la API de CellWorld"
     }
-
-
-# ============================================================
-# CORS
-# ============================================================
-
-app.add_middleware(
-    CORSMiddleware,
-
-    allow_origins=[
-        # Desarrollo local
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-
-        # Dominio principal del frontend
-        "https://cellworld-flax.vercel.app",
-    ],
-
-    # Permite los deployments generados por Vercel
-    # Ejemplo:
-    # cellworld-3m9dvsyq4-yiselsa02.vercel.app
-    # cellworld-52dpcsvi3-yiselsa02.vercel.app
-    allow_origin_regex=r"https://cellworld-[a-z0-9]+-yiselsa02\.vercel\.app$",
-
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+```
