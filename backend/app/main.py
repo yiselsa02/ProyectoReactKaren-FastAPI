@@ -83,6 +83,7 @@ app = CORSMiddleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://cellworld-flax.vercel.app",
+        "https://cellworld-amu7ahzzo-yiselsa02.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
