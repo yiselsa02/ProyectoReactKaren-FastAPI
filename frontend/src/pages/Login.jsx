@@ -9,13 +9,12 @@ function Login({ modoOscuro }) {
   const navigate = useNavigate()
 
   // ==========================================================
-  // URL DEL BACKEND
+  // BACKEND DE PRODUCCIÓN
+  // Se fija directamente para evitar que VITE_API_URL
+  // esté apuntando a otra dirección en el deploy.
   // ==========================================================
 
-  const API_URL = (
-    import.meta.env.VITE_API_URL ||
-    'https://cellworld-backend.vercel.app'
-  ).replace(/\/$/, '')
+  const API_URL = 'https://cellworld-backend.vercel.app'
 
   const [formData, setFormData] = useState({
     correo: '',
@@ -85,7 +84,7 @@ function Login({ modoOscuro }) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email: formData.correo.trim(),
+            email: formData.correo.trim().toLowerCase(),
             password: formData.password,
           }),
         }
@@ -197,8 +196,7 @@ function Login({ modoOscuro }) {
           'usuarioCambio',
           {
             detail: {
-              userId:
-                usuarioLogin.id_usuario,
+              userId: usuarioLogin.id_usuario,
             },
           }
         )
@@ -270,9 +268,7 @@ function Login({ modoOscuro }) {
               : 'border-gray-200 bg-white'
           }`}
         >
-          {/* ==================================================
-              LOGO ORIGINAL
-          ================================================== */}
+          {/* LOGO */}
 
           <div className="mb-7 flex justify-center">
             <img
@@ -286,9 +282,7 @@ function Login({ modoOscuro }) {
             />
           </div>
 
-          {/* ==================================================
-              TÍTULO
-          ================================================== */}
+          {/* TÍTULO */}
 
           <div className="mb-7 text-center">
             <h1
@@ -312,9 +306,7 @@ function Login({ modoOscuro }) {
             </p>
           </div>
 
-          {/* ==================================================
-              FORMULARIO
-          ================================================== */}
+          {/* FORMULARIO */}
 
           <form
             onSubmit={handleSubmit}
@@ -404,9 +396,7 @@ function Login({ modoOscuro }) {
               />
             </div>
 
-            {/* ==================================================
-                ERROR
-            ================================================== */}
+            {/* ERROR */}
 
             {error && (
               <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
@@ -420,9 +410,7 @@ function Login({ modoOscuro }) {
               </div>
             )}
 
-            {/* ==================================================
-                BOTÓN
-            ================================================== */}
+            {/* BOTÓN */}
 
             <button
               type="submit"
@@ -439,9 +427,7 @@ function Login({ modoOscuro }) {
             </button>
           </form>
 
-          {/* ==================================================
-              REGISTRO
-          ================================================== */}
+          {/* REGISTRO */}
 
           <div
             className={`mt-7 border-t pt-6 text-center ${
@@ -474,9 +460,7 @@ function Login({ modoOscuro }) {
         </div>
       </div>
 
-      {/* ======================================================
-          MODAL DE REGISTRO
-      ====================================================== */}
+      {/* MODAL DE REGISTRO */}
 
       {mostrarRegistro && (
         <RegisterModal
@@ -494,4 +478,3 @@ function Login({ modoOscuro }) {
 }
 
 export default Login
-
