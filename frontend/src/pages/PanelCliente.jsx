@@ -1290,7 +1290,6 @@ export default function PanelCliente({
                     {/* =================================================
                         COMPRA SELECCIONADA
                     ================================================= */}
-```jsx
 import { useEffect, useState } from 'react'
 import {
   Heart,
@@ -2160,9 +2159,7 @@ export default function PanelCliente({
                         : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <LayoutDashboard
-                    size={19}
-                  />
+                  <LayoutDashboard size={19} />
                   <span>Resumen</span>
                 </button>
 
@@ -2179,9 +2176,7 @@ export default function PanelCliente({
                         : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <ShoppingBag
-                    size={19}
-                  />
+                  <ShoppingBag size={19} />
 
                   <span>Mis compras</span>
 
@@ -2304,9 +2299,7 @@ export default function PanelCliente({
                             : 'bg-blue-50 text-blue-600'
                         }`}
                       >
-                        <ShoppingBag
-                          size={23}
-                        />
+                        <ShoppingBag size={23} />
                       </div>
 
                     </div>
@@ -2416,9 +2409,7 @@ export default function PanelCliente({
                       }}
                       className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
                     >
-                      <ShoppingCart
-                        size={18}
-                      />
+                      <ShoppingCart size={18} />
                       Ver productos
                     </button>
 
@@ -2501,9 +2492,7 @@ export default function PanelCliente({
                       }}
                       className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
                     >
-                      <ShoppingCart
-                        size={18}
-                      />
+                      <ShoppingCart size={18} />
                       Ir al catálogo
                     </button>
 
@@ -2547,9 +2536,7 @@ export default function PanelCliente({
 
                               <div className="flex items-center gap-2">
 
-                                <ShoppingBag
-                                  size={16}
-                                />
+                                <ShoppingBag size={16} />
 
                                 <span className="font-semibold">
                                   Compra #
@@ -2707,7 +2694,6 @@ export default function PanelCliente({
                                 <FileText
                                   size={17}
                                 />
-
                                 Factura
                               </button>
 
@@ -3477,12 +3463,14 @@ export default function PanelCliente({
                             </span>
 
                             <span className="font-medium text-emerald-600">
+
                               -
                               {formatearPrecio(
                                 obtenerDescuentoCompra(
                                   compraSeleccionada
                                 )
                               )}
+
                             </span>
 
                           </div>
