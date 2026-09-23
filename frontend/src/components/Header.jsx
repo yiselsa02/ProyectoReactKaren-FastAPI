@@ -27,11 +27,20 @@ function Header({
   cambiarModoOscuro
 }) {
 
-  const [menuAbierto, setMenuAbierto] = useState(false)
-  const [usuario, setUsuario] = useState(null)
-  const [menuUsuario, setMenuUsuario] = useState(false)
-  const [carritoAbierto, setCarritoAbierto] = useState(false)
-  const [comprando, setComprando] = useState(false)
+  const [menuAbierto, setMenuAbierto] =
+    useState(false)
+
+  const [usuario, setUsuario] =
+    useState(null)
+
+  const [menuUsuario, setMenuUsuario] =
+    useState(false)
+
+  const [carritoAbierto, setCarritoAbierto] =
+    useState(false)
+
+  const [comprando, setComprando] =
+    useState(false)
 
   // =====================================================
   // CARRITO
@@ -47,13 +56,16 @@ function Header({
     clearCartOnLogout
   } = useCart()
 
-  // Protección contra undefined
-  const carrito = Array.isArray(carritoContexto)
-    ? carritoContexto
-    : []
+  const carrito =
+    Array.isArray(carritoContexto)
+      ? carritoContexto
+      : []
 
-  const count = Number(countContexto) || 0
-  const total = Number(totalContexto) || 0
+  const count =
+    Number(countContexto) || 0
+
+  const total =
+    Number(totalContexto) || 0
 
   const location = useLocation()
   const navigate = useNavigate()
@@ -81,6 +93,7 @@ function Header({
 
         const usuarioNormalizado = {
           ...usuarioParseado,
+
           rol_id: Number(
             usuarioParseado.rol_id ??
             usuarioParseado.rolId ??
@@ -88,7 +101,9 @@ function Header({
           )
         }
 
-        setUsuario(usuarioNormalizado)
+        setUsuario(
+          usuarioNormalizado
+        )
 
       } catch (error) {
 
@@ -106,7 +121,7 @@ function Header({
   }, [location])
 
   // =====================================================
-  // OBTENER RUTA DEL PANEL
+  // RUTA DEL PANEL
   // =====================================================
 
   const obtenerRutaPanel = () => {
@@ -115,7 +130,8 @@ function Header({
       return '/login'
     }
 
-    const rolId = Number(usuario.rol_id)
+    const rolId =
+      Number(usuario.rol_id)
 
     if (rolId === 1) {
       return '/admin'
@@ -138,19 +154,25 @@ function Header({
 
   const cerrarSesion = () => {
 
-    // Primero limpiar carrito mientras todavía
-    // existe el usuario en localStorage
     try {
+
       clearCartOnLogout()
+
     } catch (error) {
+
       console.error(
         'Error limpiando carrito:',
         error
       )
     }
 
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
+    localStorage.removeItem(
+      'token'
+    )
+
+    localStorage.removeItem(
+      'usuario'
+    )
 
     setUsuario(null)
     setMenuUsuario(false)
@@ -175,113 +197,84 @@ function Header({
   // COMPRAR CARRITO
   // =====================================================
 
-  const comprarCarrito = async () => {
+  const comprarCarrito =
+    async () => {
 
-    if (comprando) {
-      return
-    }
-
-    if (carrito.length === 0) {
-      alert('Tu carrito está vacío.')
-      return
-    }
-
-    if (!usuario) {
-      alert('Debes iniciar sesión para realizar una compra.')
-      setCarritoAbierto(false)
-      navigate('/login')
-      return
-    }
-
-    setComprando(true)
-
-    try {
-
-      const pedido = await checkout()
-
-      if (!pedido) {
-        throw new Error(
-          'No se recibió la información de la compra.'
-        )
+      if (comprando) {
+        return
       }
 
-      const idPedido =
-        pedido.id_pedido ??
-        pedido.id ??
-        pedido.pedido_id
+      if (carrito.length === 0) {
+        alert(
+          'Tu carrito está vacío.'
+        )
 
-      const totalPedido =
-        Number(
-          pedido.total ?? total
-        ) || 0
+        return
+      }
 
-      const estadoPedido =
-        pedido.estado ?? 'pagado'
+      if (!usuario) {
 
-      const invoice = `CELLWORLD
-================================
-FACTURA DE COMPRA
-================================
+        alert(
+          'Debes iniciar sesión para realizar una compra.'
+        )
 
-Factura #${idPedido ?? 'N/A'}
+        setCarritoAbierto(false)
 
-Total: $${totalPedido.toLocaleString('es-CO')}
+        navigate('/login')
 
-Estado: ${estadoPedido}
+        return
+      }
 
-================================
-Gracias por comprar en CellWorld
-================================`
+      setComprando(true)
 
-      const blob = new Blob(
-        [invoice],
-        {
-          type: 'text/plain;charset=utf-8'
+      try {
+
+        // checkout:
+        // 1. registra el pedido
+        // 2. recibe el pedido real
+        // 3. genera la factura PDF
+        // 4. limpia el carrito
+
+        const pedido =
+          await checkout()
+
+        if (!pedido) {
+          throw new Error(
+            'No se recibió la información de la compra.'
+          )
         }
-      )
 
-      const url =
-        URL.createObjectURL(blob)
+        setCarritoAbierto(
+          false
+        )
 
-      const link =
-        document.createElement('a')
+        const idPedido =
+          pedido.id_pedido ??
+          pedido.id ??
+          pedido.pedido_id ??
+          'N/A'
 
-      link.href = url
+        alert(
+          `Compra realizada correctamente.\n\nFactura #${idPedido} fue descargada en PDF.`
+        )
 
-      link.download =
-        `factura-cellworld-${idPedido ?? Date.now()}.txt`
+      } catch (error) {
 
-      document.body.appendChild(link)
+        console.error(
+          'Error realizando compra:',
+          error
+        )
 
-      link.click()
+        alert(
+          error?.message ||
+          'No se pudo realizar la compra.'
+        )
 
-      document.body.removeChild(link)
+      } finally {
 
-      URL.revokeObjectURL(url)
-
-      setCarritoAbierto(false)
-
-      alert(
-        'Compra realizada. La factura fue descargada.'
-      )
-
-    } catch (error) {
-
-      console.error(
-        'Error realizando compra:',
-        error
-      )
-
-      alert(
-        error?.message ||
-        'No se pudo realizar la compra.'
-      )
-
-    } finally {
-
-      setComprando(false)
+        setComprando(false)
+      }
     }
-  }
 
   // =====================================================
   // ENLACES
@@ -341,7 +334,7 @@ Gracias por comprar en CellWorld
   }
 
   // =====================================================
-  // OBTENER DATOS SEGUROS DEL PRODUCTO
+  // DATOS DEL PRODUCTO
   // =====================================================
 
   const obtenerIdProducto = (item) => {
@@ -394,9 +387,7 @@ Gracias por comprar en CellWorld
 
       <div className="relative mx-auto flex h-20 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
 
-        {/* =====================================================
-            LOGO
-        ===================================================== */}
+        {/* LOGO */}
 
         <Link
           to="/"
@@ -448,9 +439,7 @@ Gracias por comprar en CellWorld
 
         </Link>
 
-        {/* =====================================================
-            BOTÓN HAMBURGUESA
-        ===================================================== */}
+        {/* BOTÓN HAMBURGUESA */}
 
         <button
           type="button"
@@ -480,9 +469,7 @@ Gracias por comprar en CellWorld
 
         </button>
 
-        {/* =====================================================
-            CARRITO MOBILE
-        ===================================================== */}
+        {/* CARRITO MOBILE */}
 
         <button
           type="button"
@@ -507,50 +494,49 @@ Gracias por comprar en CellWorld
 
         </button>
 
-        {/* =====================================================
-            NAVEGACIÓN DESKTOP
-        ===================================================== */}
+        {/* NAVEGACIÓN DESKTOP */}
 
         <nav className="hidden items-center gap-6 md:flex lg:gap-8">
 
-          {enlaces.map((enlace) => {
+          {enlaces.map(
+            (enlace) => {
 
-            const activo =
-              esActivo(enlace.ruta)
+              const activo =
+                esActivo(
+                  enlace.ruta
+                )
 
-            return (
+              return (
 
-              <Link
-                key={enlace.ruta}
-                to={enlace.ruta}
-                className={`group relative py-2 text-sm font-semibold transition-colors duration-200 ${
-                  activo
-                    ? 'text-blue-600'
-                    : modoOscuro
-                      ? 'text-slate-300 hover:text-blue-400'
-                      : 'text-gray-600 hover:text-blue-600'
-                }`}
-              >
-
-                {enlace.nombre}
-
-                <span
-                  className={`absolute bottom-0 left-0 h-0.5 rounded-full bg-blue-600 transition-all duration-300 ${
+                <Link
+                  key={enlace.ruta}
+                  to={enlace.ruta}
+                  className={`group relative py-2 text-sm font-semibold transition-colors duration-200 ${
                     activo
-                      ? 'w-full'
-                      : 'w-0 group-hover:w-full'
+                      ? 'text-blue-600'
+                      : modoOscuro
+                        ? 'text-slate-300 hover:text-blue-400'
+                        : 'text-gray-600 hover:text-blue-600'
                   }`}
-                />
+                >
 
-              </Link>
+                  {enlace.nombre}
 
-            )
+                  <span
+                    className={`absolute bottom-0 left-0 h-0.5 rounded-full bg-blue-600 transition-all duration-300 ${
+                      activo
+                        ? 'w-full'
+                        : 'w-0 group-hover:w-full'
+                    }`}
+                  />
 
-          })}
+                </Link>
 
-          {/* =====================================================
-              USUARIO DESKTOP
-          ===================================================== */}
+              )
+            }
+          )}
+
+          {/* USUARIO DESKTOP */}
 
           {usuario ? (
 
@@ -560,7 +546,8 @@ Gracias por comprar en CellWorld
                 type="button"
                 onClick={() =>
                   setMenuUsuario(
-                    (actual) => !actual
+                    (actual) =>
+                      !actual
                   )
                 }
                 className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all duration-200 ${
@@ -587,10 +574,8 @@ Gracias por comprar en CellWorld
                   <Link
                     to={obtenerRutaPanel()}
                     onClick={() => {
-
                       setMenuUsuario(false)
                       setMenuAbierto(false)
-
                     }}
                     className={`block px-4 py-2 text-sm font-medium transition-colors ${
                       modoOscuro
@@ -640,9 +625,7 @@ Gracias por comprar en CellWorld
 
           )}
 
-          {/* =====================================================
-              CARRITO DESKTOP
-          ===================================================== */}
+          {/* CARRITO DESKTOP */}
 
           <button
             type="button"
@@ -667,9 +650,7 @@ Gracias por comprar en CellWorld
 
           </button>
 
-          {/* =====================================================
-              MODO OSCURO
-          ===================================================== */}
+          {/* MODO OSCURO */}
 
           <button
             type="button"
@@ -687,19 +668,15 @@ Gracias por comprar en CellWorld
           >
 
             {modoOscuro ? (
-
               <Sun
                 size={19}
                 strokeWidth={2}
               />
-
             ) : (
-
               <Moon
                 size={19}
                 strokeWidth={2}
               />
-
             )}
 
           </button>
@@ -708,9 +685,7 @@ Gracias por comprar en CellWorld
 
       </div>
 
-      {/* =====================================================
-          CARRITO
-      ===================================================== */}
+      {/* CARRITO */}
 
       {carritoAbierto && (
 
@@ -740,10 +715,6 @@ Gracias por comprar en CellWorld
 
           </div>
 
-          {/* =====================================================
-              CARRITO VACÍO
-          ===================================================== */}
-
           {carrito.length === 0 ? (
 
             <p
@@ -760,174 +731,177 @@ Gracias por comprar en CellWorld
 
             <div className="space-y-3">
 
-              {carrito.map((item, index) => {
+              {carrito.map(
+                (item, index) => {
 
-                if (!item) {
-                  return null
-                }
+                  if (!item) {
+                    return null
+                  }
 
-                const idProducto =
-                  obtenerIdProducto(item)
+                  const idProducto =
+                    obtenerIdProducto(
+                      item
+                    )
 
-                const nombreProducto =
-                  obtenerNombreProducto(item)
+                  const nombreProducto =
+                    obtenerNombreProducto(
+                      item
+                    )
 
-                const precioProducto =
-                  obtenerPrecioProducto(item)
+                  const precioProducto =
+                    obtenerPrecioProducto(
+                      item
+                    )
 
-                const cantidadProducto =
-                  obtenerCantidadProducto(item)
+                  const cantidadProducto =
+                    obtenerCantidadProducto(
+                      item
+                    )
 
-                return (
+                  return (
 
-                  <div
-                    key={
-                      idProducto ??
-                      `producto-${index}`
-                    }
-                    className={`flex items-center gap-3 border-b pb-3 ${
-                      modoOscuro
-                        ? 'border-slate-700'
-                        : 'border-gray-100'
-                    }`}
-                  >
+                    <div
+                      key={
+                        idProducto ??
+                        `producto-${index}`
+                      }
+                      className={`flex items-center gap-3 border-b pb-3 ${
+                        modoOscuro
+                          ? 'border-slate-700'
+                          : 'border-gray-100'
+                      }`}
+                    >
 
-                    {/* =================================================
-                        INFORMACIÓN PRODUCTO
-                    ================================================= */}
+                      <div className="min-w-0 flex-1">
 
-                    <div className="min-w-0 flex-1">
+                        <p
+                          className={`truncate text-sm font-bold ${
+                            modoOscuro
+                              ? 'text-white'
+                              : 'text-gray-900'
+                          }`}
+                        >
+                          {nombreProducto}
+                        </p>
 
-                      <p
-                        className={`truncate text-sm font-bold ${
-                          modoOscuro
-                            ? 'text-white'
-                            : 'text-gray-900'
-                        }`}
-                      >
-                        {nombreProducto}
-                      </p>
+                        <p className="text-sm font-semibold text-blue-600">
+                          $
+                          {precioProducto.toLocaleString(
+                            'es-CO'
+                          )}
+                        </p>
 
-                      <p className="text-sm font-semibold text-blue-600">
-                        $
-                        {precioProducto.toLocaleString(
-                          'es-CO'
-                        )}
-                      </p>
+                      </div>
 
-                    </div>
+                      <div className="flex shrink-0 items-center gap-1">
 
-                    {/* =================================================
-                        CONTROLES
-                    ================================================= */}
+                        <button
+                          type="button"
+                          onClick={() => {
 
-                    <div className="flex shrink-0 items-center gap-1">
+                            if (
+                              idProducto ===
+                                undefined ||
+                              idProducto ===
+                                null
+                            ) {
+                              return
+                            }
 
-                      {/* RESTAR */}
-
-                      <button
-                        type="button"
-                        onClick={() => {
-
-                          if (
-                            idProducto === undefined ||
-                            idProducto === null
-                          ) {
-                            return
-                          }
-
-                          updateQuantity(
-                            idProducto,
-                            Math.max(
-                              1,
-                              cantidadProducto - 1
+                            updateQuantity(
+                              idProducto,
+                              Math.max(
+                                1,
+                                cantidadProducto -
+                                  1
+                              )
                             )
-                          )
-                        }}
-                        aria-label="Disminuir cantidad"
-                        className={`rounded border p-1 transition ${
-                          modoOscuro
-                            ? 'border-slate-600 text-slate-200 hover:bg-slate-700'
-                            : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        <Minus size={13} />
-                      </button>
+                          }}
+                          aria-label="Disminuir cantidad"
+                          className={`rounded border p-1 transition ${
+                            modoOscuro
+                              ? 'border-slate-600 text-slate-200 hover:bg-slate-700'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <Minus
+                            size={13}
+                          />
+                        </button>
 
-                      {/* CANTIDAD */}
+                        <span
+                          className={`w-6 text-center text-sm font-bold ${
+                            modoOscuro
+                              ? 'text-white'
+                              : 'text-gray-900'
+                          }`}
+                        >
+                          {cantidadProducto}
+                        </span>
 
-                      <span
-                        className={`w-6 text-center text-sm font-bold ${
-                          modoOscuro
-                            ? 'text-white'
-                            : 'text-gray-900'
-                        }`}
-                      >
-                        {cantidadProducto}
-                      </span>
+                        <button
+                          type="button"
+                          onClick={() => {
 
-                      {/* SUMAR */}
+                            if (
+                              idProducto ===
+                                undefined ||
+                              idProducto ===
+                                null
+                            ) {
+                              return
+                            }
 
-                      <button
-                        type="button"
-                        onClick={() => {
+                            updateQuantity(
+                              idProducto,
+                              cantidadProducto +
+                                1
+                            )
+                          }}
+                          aria-label="Aumentar cantidad"
+                          className={`rounded border p-1 transition ${
+                            modoOscuro
+                              ? 'border-slate-600 text-slate-200 hover:bg-slate-700'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <Plus
+                            size={13}
+                          />
+                        </button>
 
-                          if (
-                            idProducto === undefined ||
-                            idProducto === null
-                          ) {
-                            return
-                          }
+                        <button
+                          type="button"
+                          onClick={() => {
 
-                          updateQuantity(
-                            idProducto,
-                            cantidadProducto + 1
-                          )
-                        }}
-                        aria-label="Aumentar cantidad"
-                        className={`rounded border p-1 transition ${
-                          modoOscuro
-                            ? 'border-slate-600 text-slate-200 hover:bg-slate-700'
-                            : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        <Plus size={13} />
-                      </button>
+                            if (
+                              idProducto ===
+                                undefined ||
+                              idProducto ===
+                                null
+                            ) {
+                              return
+                            }
 
-                      {/* ELIMINAR */}
+                            removeItem(
+                              idProducto
+                            )
+                          }}
+                          aria-label={`Eliminar ${nombreProducto} del carrito`}
+                          className="ml-1 rounded p-1 text-red-500 transition hover:bg-red-500/10 hover:text-red-600"
+                        >
+                          <Trash2
+                            size={15}
+                          />
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-
-                          if (
-                            idProducto === undefined ||
-                            idProducto === null
-                          ) {
-                            return
-                          }
-
-                          removeItem(
-                            idProducto
-                          )
-                        }}
-                        aria-label={`Eliminar ${nombreProducto} del carrito`}
-                        className="ml-1 rounded p-1 text-red-500 transition hover:bg-red-500/10 hover:text-red-600"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      </div>
 
                     </div>
 
-                  </div>
-
-                )
-
-              })}
-
-              {/* =====================================================
-                  TOTAL
-              ===================================================== */}
+                  )
+                }
+              )}
 
               <div
                 className={`flex justify-between pt-2 font-extrabold ${
@@ -950,17 +924,15 @@ Gracias por comprar en CellWorld
 
               </div>
 
-              {/* =====================================================
-                  COMPRAR
-              ===================================================== */}
-
               <button
                 type="button"
                 disabled={
                   comprando ||
                   carrito.length === 0
                 }
-                onClick={comprarCarrito}
+                onClick={
+                  comprarCarrito
+                }
                 className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {comprando
@@ -976,9 +948,7 @@ Gracias por comprar en CellWorld
 
       )}
 
-      {/* =====================================================
-          MENÚ MOBILE
-      ===================================================== */}
+      {/* MENÚ MOBILE */}
 
       {menuAbierto && (
 
@@ -992,47 +962,48 @@ Gracias por comprar en CellWorld
 
           <nav className="mx-auto flex max-w-7xl flex-col px-4 py-4 sm:px-6">
 
-            {enlaces.map((enlace) => {
+            {enlaces.map(
+              (enlace) => {
 
-              const activo =
-                esActivo(enlace.ruta)
+                const activo =
+                  esActivo(
+                    enlace.ruta
+                  )
 
-              return (
+                return (
 
-                <Link
-                  key={enlace.ruta}
-                  to={enlace.ruta}
-                  onClick={cerrarMenu}
-                  className={`group relative rounded-lg px-3 py-3 text-sm font-semibold transition-all duration-200 ${
-                    activo
-                      ? modoOscuro
-                        ? 'bg-blue-500/10 text-blue-400'
-                        : 'bg-blue-50 text-blue-600'
-                      : modoOscuro
-                        ? 'text-slate-300 hover:bg-blue-500/10 hover:text-blue-400'
-                        : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-                  }`}
-                >
-
-                  {enlace.nombre}
-
-                  <span
-                    className={`absolute bottom-1 left-3 h-0.5 rounded-full bg-blue-600 transition-all duration-300 ${
+                  <Link
+                    key={enlace.ruta}
+                    to={enlace.ruta}
+                    onClick={cerrarMenu}
+                    className={`group relative rounded-lg px-3 py-3 text-sm font-semibold transition-all duration-200 ${
                       activo
-                        ? 'w-10'
-                        : 'w-0 group-hover:w-10'
+                        ? modoOscuro
+                          ? 'bg-blue-500/10 text-blue-400'
+                          : 'bg-blue-50 text-blue-600'
+                        : modoOscuro
+                          ? 'text-slate-300 hover:bg-blue-500/10 hover:text-blue-400'
+                          : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
                     }`}
-                  />
+                  >
 
-                </Link>
+                    {enlace.nombre}
 
-              )
+                    <span
+                      className={`absolute bottom-1 left-3 h-0.5 rounded-full bg-blue-600 transition-all duration-300 ${
+                        activo
+                          ? 'w-10'
+                          : 'w-0 group-hover:w-10'
+                      }`}
+                    />
 
-            })}
+                  </Link>
 
-            {/* =====================================================
-                USUARIO MOBILE
-            ===================================================== */}
+                )
+              }
+            )}
+
+            {/* USUARIO MOBILE */}
 
             {usuario ? (
 
@@ -1060,7 +1031,9 @@ Gracias por comprar en CellWorld
                   }`}
                 >
 
-                  <LogOut size={18} />
+                  <LogOut
+                    size={18}
+                  />
 
                   Cerrar sesión
 
@@ -1084,9 +1057,7 @@ Gracias por comprar en CellWorld
 
             )}
 
-            {/* =====================================================
-                MODO OSCURO MOBILE
-            ===================================================== */}
+            {/* MODO OSCURO MOBILE */}
 
             <button
               type="button"
@@ -1101,14 +1072,18 @@ Gracias por comprar en CellWorld
               {modoOscuro ? (
 
                 <>
-                  <Sun size={18} />
+                  <Sun
+                    size={18}
+                  />
                   Modo claro
                 </>
 
               ) : (
 
                 <>
-                  <Moon size={18} />
+                  <Moon
+                    size={18}
+                  />
                   Modo oscuro
                 </>
 
