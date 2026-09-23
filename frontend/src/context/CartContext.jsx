@@ -7,349 +7,263 @@ import {
   useState,
 } from 'react'
 
-import { API_URL } from '../config'
-
 const CartContext = createContext(null)
 
-// ============================================================
-// OBTENER USUARIO ACTUAL
-// ============================================================
+const CART_STORAGE_KEY = 'cellworld_cart'
 
-const obtenerUsuarioId = () => {
+/*
+ * ============================================================
+ * UTILIDADES
+ * ============================================================
+ */
+
+const obtenerUsuarioActual = () => {
   try {
-    const usuarioGuardado =
-      localStorage.getItem('usuario')
+    const usuarioGuardado = localStorage.getItem('usuario')
 
     if (!usuarioGuardado) {
       return null
     }
 
-    const usuario =
-      JSON.parse(usuarioGuardado)
+    const usuario = JSON.parse(usuarioGuardado)
 
-    const id = Number(
-      usuario?.id_usuario ??
-      usuario?.usuario_id ??
-      usuario?.id
-    )
-
-    if (
-      !Number.isInteger(id) ||
-      id <= 0
-    ) {
+    if (!usuario) {
       return null
     }
 
-    return String(id)
-  } catch {
+    return usuario
+  } catch (error) {
+    console.error(
+      'Error leyendo el usuario de localStorage:',
+      error
+    )
+
     return null
   }
 }
 
-// ============================================================
-// CLAVE DEL CARRITO
-// ============================================================
+const obtenerIdUsuario = (usuario) => {
+  if (!usuario) {
+    return null
+  }
 
-const obtenerClaveCarrito = (
-  usuarioId
-) => {
+  const id =
+    usuario.id_usuario ??
+    usuario.usuario_id ??
+    usuario.id ??
+    usuario.user_id
+
+  if (
+    id === null ||
+    id === undefined ||
+    id === ''
+  ) {
+    return null
+  }
+
+  return String(id)
+}
+
+const crearClaveCarrito = (usuarioId) => {
   if (!usuarioId) {
-    return 'cellworld_cart_guest'
-  }
-
-  return `cellworld_cart_${usuarioId}`
-}
-
-// ============================================================
-// OBTENER ID DEL PRODUCTO
-// ============================================================
-
-const obtenerProductoId = (
-  producto
-) => {
-  if (!producto) {
     return null
   }
 
-  let id =
+  return `${CART_STORAGE_KEY}_${usuarioId}`
+}
+
+const normalizarProducto = (producto) => {
+  if (!producto || typeof producto !== 'object') {
+    return null
+  }
+
+  const id =
     producto.id_producto ??
     producto.producto_id ??
     producto.id
 
   if (
-    typeof id === 'string'
-  ) {
-    id = id
-      .trim()
-      .replace(/^bd-/, '')
-  }
-
-  const numero = Number(id)
-
-  if (
-    !Number.isInteger(numero) ||
-    numero <= 0
+    id === null ||
+    id === undefined ||
+    id === ''
   ) {
     return null
   }
 
-  return numero
-}
-
-// ============================================================
-// NOMBRE
-// ============================================================
-
-const obtenerNombreProducto = (
-  producto
-) => {
   const nombre =
-    producto?.nombre ??
-    producto?.name ??
-    producto?.titulo ??
-    producto?.nombre_producto ??
+    producto.nombre_producto ??
+    producto.nombre ??
+    'Producto'
+
+  const precio =
+    Number(
+      producto.precio ??
+      producto.precio_unitario ??
+      producto.precio_venta ??
+      0
+    ) || 0
+
+  const imagen =
+    producto.imagen ??
+    producto.imagen_url ??
+    producto.url_imagen ??
     ''
-
-  return String(nombre).trim()
-}
-
-// ============================================================
-// PRECIO
-// ============================================================
-
-const obtenerPrecioProducto = (
-  producto
-) => {
-  const precio =
-    producto?.precio ??
-    producto?.price ??
-    producto?.precio_unitario ??
-    0
-
-  if (
-    typeof precio === 'number'
-  ) {
-    return Number.isFinite(precio)
-      ? precio
-      : 0
-  }
-
-  const numero = Number(
-    String(precio)
-      .replace(/[^0-9.-]/g, '')
-  )
-
-  return Number.isFinite(numero)
-    ? numero
-    : 0
-}
-
-// ============================================================
-// CANTIDAD
-// ============================================================
-
-const obtenerCantidad = (
-  producto
-) => {
-  const cantidad =
-    producto?.quantity ??
-    producto?.cantidad ??
-    1
-
-  const numero = Number(cantidad)
-
-  return Number.isInteger(numero) &&
-    numero > 0
-    ? numero
-    : 1
-}
-
-// ============================================================
-// NORMALIZAR PRODUCTO
-// ============================================================
-
-const normalizarProducto = (
-  producto,
-  cantidad = 1
-) => {
-  const id =
-    obtenerProductoId(producto)
-
-  const nombre =
-    obtenerNombreProducto(producto)
-
-  const precio =
-    obtenerPrecioProducto(producto)
-
-  if (
-    !id ||
-    !nombre
-  ) {
-    return null
-  }
-
-  const cantidadNormalizada =
-    Number(cantidad)
 
   return {
     ...producto,
-
-    id,
-    id_producto: id,
-
-    name: nombre,
-    nombre,
-
-    price: precio,
+    id_producto: Number(id),
+    nombre_producto: String(nombre),
     precio,
-
-    image:
-      producto?.image ??
-      producto?.imagen ??
-      null,
-
-    imagen:
-      producto?.imagen ??
-      producto?.image ??
-      null,
-
-    quantity:
-      Number.isInteger(
-        cantidadNormalizada
-      ) &&
-      cantidadNormalizada > 0
-        ? cantidadNormalizada
-        : 1,
+    imagen,
   }
 }
 
-// ============================================================
-// OBTENER CARRITO GUARDADO
-// ============================================================
-
-const obtenerCarritoGuardado = (
-  usuarioId
-) => {
-  try {
-    const clave =
-      obtenerClaveCarrito(
-        usuarioId
-      )
-
-    const carritoGuardado =
-      localStorage.getItem(clave)
-
-    if (!carritoGuardado) {
-      return []
-    }
-
-    const datos =
-      JSON.parse(carritoGuardado)
-
-    if (!Array.isArray(datos)) {
-      return []
-    }
-
-    return datos
-      .map((item) =>
-        normalizarProducto(
-          item,
-          obtenerCantidad(item)
-        )
-      )
-      .filter(Boolean)
-  } catch (error) {
-    console.error(
-      'Error leyendo el carrito:',
-      error
-    )
-
+const normalizarCarrito = (carrito) => {
+  if (!Array.isArray(carrito)) {
     return []
   }
+
+  return carrito
+    .map((item) => {
+      const producto = normalizarProducto(item)
+
+      if (!producto) {
+        return null
+      }
+
+      const cantidad =
+        Number(item.cantidad) || 1
+
+      return {
+        ...producto,
+        cantidad:
+          Math.max(1, Math.floor(cantidad)),
+      }
+    })
+    .filter(Boolean)
 }
 
-// ============================================================
-// PROVIDER
-// ============================================================
+/*
+ * ============================================================
+ * PROVIDER
+ * ============================================================
+ */
 
-export function CartProvider({
-  children,
-}) {
-  const [usuarioId, setUsuarioId] =
-    useState(() =>
-      obtenerUsuarioId()
+export function CartProvider({ children }) {
+  const [carrito, setCarrito] = useState([])
+  const [usuarioId, setUsuarioId] = useState(() => {
+    return obtenerIdUsuario(
+      obtenerUsuarioActual()
     )
+  })
 
-  const [items, setItems] =
-    useState(() =>
-      obtenerCarritoGuardado(
-        obtenerUsuarioId()
-      )
-    )
+  const [comprando, setComprando] =
+    useState(false)
 
-  // ==========================================================
-  // GUARDAR CARRITO
-  // ==========================================================
+  /*
+   * ==========================================================
+   * CARGAR CARRITO DEL USUARIO
+   * ==========================================================
+   */
+
+  const cargarCarritoUsuario = useCallback(
+    (idUsuario) => {
+      if (!idUsuario) {
+        setCarrito([])
+        return
+      }
+
+      const clave =
+        crearClaveCarrito(idUsuario)
+
+      if (!clave) {
+        setCarrito([])
+        return
+      }
+
+      try {
+        const guardado =
+          localStorage.getItem(clave)
+
+        if (!guardado) {
+          setCarrito([])
+          return
+        }
+
+        const carritoParseado =
+          JSON.parse(guardado)
+
+        setCarrito(
+          normalizarCarrito(
+            carritoParseado
+          )
+        )
+      } catch (error) {
+        console.error(
+          'Error cargando el carrito:',
+          error
+        )
+
+        setCarrito([])
+
+        try {
+          localStorage.removeItem(clave)
+        } catch {
+          // No hacer nada si localStorage falla.
+        }
+      }
+    },
+    []
+  )
+
+  /*
+   * ==========================================================
+   * DETECTAR USUARIO INICIAL
+   * ==========================================================
+   */
 
   useEffect(() => {
-    const clave =
-      obtenerClaveCarrito(
-        usuarioId
-      )
+    const usuario =
+      obtenerUsuarioActual()
 
-    if (items.length === 0) {
-      localStorage.removeItem(
-        clave
-      )
-      return
-    }
+    const id =
+      obtenerIdUsuario(usuario)
 
-    localStorage.setItem(
-      clave,
-      JSON.stringify(items)
-    )
-  }, [
-    items,
-    usuarioId,
-  ])
+    setUsuarioId(id)
 
-  // ==========================================================
-  // CAMBIO DE USUARIO
-  // ==========================================================
+    cargarCarritoUsuario(id)
+  }, [cargarCarritoUsuario])
+
+  /*
+   * ==========================================================
+   * ESCUCHAR CAMBIOS DE USUARIO
+   * ==========================================================
+   */
 
   useEffect(() => {
     const manejarCambioUsuario = (
-      event
+      evento
     ) => {
-      const nuevoUsuarioId =
-        event?.detail?.userId !==
-        undefined
-          ? event.detail.userId
-          : obtenerUsuarioId()
+      const usuario =
+        obtenerUsuarioActual()
+
+      const idDesdeEvento =
+        evento?.detail?.userId
 
       const nuevoId =
-        nuevoUsuarioId === null ||
-        nuevoUsuarioId === undefined ||
-        nuevoUsuarioId === ''
-          ? null
-          : String(nuevoUsuarioId)
+        idDesdeEvento !== undefined
+          ? idDesdeEvento
+            ? String(idDesdeEvento)
+            : null
+          : obtenerIdUsuario(usuario)
 
       setUsuarioId(nuevoId)
 
-      setItems(
-        obtenerCarritoGuardado(
-          nuevoId
-        )
-      )
+      cargarCarritoUsuario(nuevoId)
     }
 
     window.addEventListener(
       'usuarioCambio',
-      manejarCambioUsuario
-    )
-
-    window.addEventListener(
-      'storage',
       manejarCambioUsuario
     )
 
@@ -358,484 +272,731 @@ export function CartProvider({
         'usuarioCambio',
         manejarCambioUsuario
       )
+    }
+  }, [cargarCarritoUsuario])
 
-      window.removeEventListener(
-        'storage',
-        manejarCambioUsuario
+  /*
+   * ==========================================================
+   * GUARDAR CARRITO
+   * ==========================================================
+   */
+
+  useEffect(() => {
+    if (!usuarioId) {
+      return
+    }
+
+    const clave =
+      crearClaveCarrito(usuarioId)
+
+    if (!clave) {
+      return
+    }
+
+    try {
+      localStorage.setItem(
+        clave,
+        JSON.stringify(carrito)
+      )
+    } catch (error) {
+      console.error(
+        'Error guardando el carrito:',
+        error
       )
     }
-  }, [])
+  }, [carrito, usuarioId])
 
-  // ==========================================================
-  // AGREGAR PRODUCTO
-  // ==========================================================
+  /*
+   * ==========================================================
+   * AGREGAR PRODUCTO
+   * ==========================================================
+   */
 
-  const addItem = useCallback(
+  const agregarAlCarrito = useCallback(
     (producto) => {
-      const productoNormalizado =
-        normalizarProducto(
-          producto,
-          1
+      const usuario =
+        obtenerUsuarioActual()
+
+      const id =
+        obtenerIdUsuario(usuario)
+
+      if (!id) {
+        throw new Error(
+          'Debes iniciar sesión para agregar productos al carrito.'
         )
+      }
+
+      const productoNormalizado =
+        normalizarProducto(producto)
 
       if (!productoNormalizado) {
         console.error(
-          'No se pudo agregar el producto al carrito:',
+          'Producto inválido:',
           producto
         )
 
-        return false
+        return
       }
 
-      const productoId =
-        productoNormalizado.id
+      setUsuarioId(id)
 
-      setItems((actuales) => {
-        const existe =
-          actuales.some(
+      setCarrito((carritoActual) => {
+        const indice =
+          carritoActual.findIndex(
             (item) =>
-              obtenerProductoId(
-                item
-              ) === productoId
+              Number(
+                item.id_producto
+              ) ===
+              Number(
+                productoNormalizado.id_producto
+              )
           )
 
-        if (existe) {
-          return actuales.map(
-            (item) => {
+        if (indice === -1) {
+          return [
+            ...carritoActual,
+            {
+              ...productoNormalizado,
+              cantidad: 1,
+            },
+          ]
+        }
+
+        return carritoActual.map(
+          (item, index) => {
+            if (index !== indice) {
+              return item
+            }
+
+            return {
+              ...item,
+              cantidad:
+                Number(item.cantidad || 0) +
+                1,
+            }
+          }
+        )
+      })
+    },
+    []
+  )
+
+  /*
+   * ==========================================================
+   * AGREGAR CON CANTIDAD
+   * ==========================================================
+   */
+
+  const agregarProducto = useCallback(
+    (producto, cantidad = 1) => {
+      const usuario =
+        obtenerUsuarioActual()
+
+      const id =
+        obtenerIdUsuario(usuario)
+
+      if (!id) {
+        throw new Error(
+          'Debes iniciar sesión para agregar productos al carrito.'
+        )
+      }
+
+      const productoNormalizado =
+        normalizarProducto(producto)
+
+      if (!productoNormalizado) {
+        return
+      }
+
+      const cantidadNumerica =
+        Math.max(
+          1,
+          Math.floor(
+            Number(cantidad) || 1
+          )
+        )
+
+      setUsuarioId(id)
+
+      setCarrito((carritoActual) => {
+        const existe =
+          carritoActual.some(
+            (item) =>
+              Number(
+                item.id_producto
+              ) ===
+              Number(
+                productoNormalizado.id_producto
+              )
+          )
+
+        if (!existe) {
+          return [
+            ...carritoActual,
+            {
+              ...productoNormalizado,
+              cantidad: cantidadNumerica,
+            },
+          ]
+        }
+
+        return carritoActual.map(
+          (item) => {
+            if (
+              Number(
+                item.id_producto
+              ) !==
+              Number(
+                productoNormalizado.id_producto
+              )
+            ) {
+              return item
+            }
+
+            return {
+              ...item,
+              cantidad:
+                Number(item.cantidad || 0) +
+                cantidadNumerica,
+            }
+          }
+        )
+      })
+    },
+    []
+  )
+
+  /*
+   * ==========================================================
+   * AUMENTAR CANTIDAD
+   * ==========================================================
+   */
+
+  const aumentarCantidad = useCallback(
+    (productoId) => {
+      if (
+        productoId === null ||
+        productoId === undefined
+      ) {
+        return
+      }
+
+      setCarrito((carritoActual) =>
+        carritoActual.map((item) => {
+          if (
+            Number(item.id_producto) !==
+            Number(productoId)
+          ) {
+            return item
+          }
+
+          return {
+            ...item,
+            cantidad:
+              Number(item.cantidad || 0) + 1,
+          }
+        })
+      )
+    },
+    []
+  )
+
+  /*
+   * ==========================================================
+   * DISMINUIR CANTIDAD
+   * ==========================================================
+   */
+
+  const disminuirCantidad =
+    useCallback(
+      (productoId) => {
+        if (
+          productoId === null ||
+          productoId === undefined
+        ) {
+          return
+        }
+
+        setCarrito((carritoActual) =>
+          carritoActual
+            .map((item) => {
               if (
-                obtenerProductoId(
-                  item
-                ) !== productoId
+                Number(item.id_producto) !==
+                Number(productoId)
               ) {
                 return item
               }
 
+              const nuevaCantidad =
+                Number(item.cantidad || 1) -
+                1
+
               return {
                 ...item,
-
-                id: productoId,
-                id_producto:
-                  productoId,
-
-                name:
-                  productoNormalizado.name,
-                nombre:
-                  productoNormalizado.name,
-
-                price:
-                  productoNormalizado.price,
-                precio:
-                  productoNormalizado.price,
-
-                quantity:
-                  obtenerCantidad(
-                    item
-                  ) + 1,
+                cantidad:
+                  nuevaCantidad,
               }
-            }
-          )
-        }
-
-        return [
-          ...actuales,
-          productoNormalizado,
-        ]
-      })
-
-      return true
-    },
-    []
-  )
-
-  // ==========================================================
-  // ELIMINAR PRODUCTO
-  // ==========================================================
-
-  const removeItem = useCallback(
-    (producto) => {
-      const productoId =
-        obtenerProductoId(
-          producto
-        )
-
-      if (!productoId) {
-        return
-      }
-
-      setItems((actuales) =>
-        actuales.filter(
-          (item) =>
-            obtenerProductoId(
-              item
-            ) !== productoId
-        )
-      )
-    },
-    []
-  )
-
-  // ==========================================================
-  // ACTUALIZAR CANTIDAD
-  // ==========================================================
-
-  const updateQuantity =
-    useCallback(
-      (
-        producto,
-        cantidad
-      ) => {
-        const productoId =
-          obtenerProductoId(
-            producto
-          )
-
-        if (!productoId) {
-          return
-        }
-
-        const nuevaCantidad =
-          Number(cantidad)
-
-        if (
-          !Number.isInteger(
-            nuevaCantidad
-          )
-        ) {
-          return
-        }
-
-        if (
-          nuevaCantidad <= 0
-        ) {
-          setItems(
-            (actuales) =>
-              actuales.filter(
-                (item) =>
-                  obtenerProductoId(
-                    item
-                  ) !== productoId
-              )
-          )
-
-          return
-        }
-
-        setItems(
-          (actuales) =>
-            actuales.map(
-              (item) => {
-                if (
-                  obtenerProductoId(
-                    item
-                  ) !== productoId
-                ) {
-                  return item
-                }
-
-                return {
-                  ...item,
-                  quantity:
-                    nuevaCantidad,
-                }
-              }
+            })
+            .filter(
+              (item) =>
+                Number(item.cantidad) > 0
             )
         )
       },
       []
     )
 
-  // ==========================================================
-  // LIMPIAR CARRITO
-  // ==========================================================
+  /*
+   * ==========================================================
+   * ACTUALIZAR CANTIDAD
+   * ==========================================================
+   */
+
+  const actualizarCantidad =
+    useCallback(
+      (productoId, cantidad) => {
+        if (
+          productoId === null ||
+          productoId === undefined
+        ) {
+          return
+        }
+
+        const nuevaCantidad =
+          Math.floor(
+            Number(cantidad)
+          )
+
+        setCarrito((carritoActual) =>
+          carritoActual
+            .map((item) => {
+              if (
+                Number(item.id_producto) !==
+                Number(productoId)
+              ) {
+                return item
+              }
+
+              return {
+                ...item,
+                cantidad:
+                  nuevaCantidad,
+              }
+            })
+            .filter(
+              (item) =>
+                Number(item.cantidad) > 0
+            )
+        )
+      },
+      []
+    )
+
+  /*
+   * ==========================================================
+   * COMPATIBILIDAD CON updateQuantity
+   * ==========================================================
+   */
+
+  const updateQuantity =
+    useCallback(
+      (productoId, cantidad) => {
+        actualizarCantidad(
+          productoId,
+          cantidad
+        )
+      },
+      [actualizarCantidad]
+    )
+
+  /*
+   * ==========================================================
+   * ELIMINAR PRODUCTO
+   * ==========================================================
+   */
+
+  const eliminarDelCarrito =
+    useCallback((productoId) => {
+      if (
+        productoId === null ||
+        productoId === undefined
+      ) {
+        return
+      }
+
+      setCarrito((carritoActual) =>
+        carritoActual.filter(
+          (item) =>
+            Number(item.id_producto) !==
+            Number(productoId)
+        )
+      )
+    }, [])
+
+  /*
+   * ==========================================================
+   * COMPATIBILIDAD CON removeItem
+   * ==========================================================
+   */
+
+  const removeItem =
+    useCallback(
+      (productoId) => {
+        eliminarDelCarrito(
+          productoId
+        )
+      },
+      [eliminarDelCarrito]
+    )
+
+  /*
+   * ==========================================================
+   * LIMPIAR CARRITO
+   * ==========================================================
+   */
+
+  const limpiarCarrito =
+    useCallback(() => {
+      setCarrito([])
+    }, [])
+
+  /*
+   * ==========================================================
+   * COMPATIBILIDAD CON clearCart
+   * ==========================================================
+   */
 
   const clearCart =
     useCallback(() => {
-      setItems([])
+      limpiarCarrito()
+    }, [limpiarCarrito])
 
-      const usuarioActual =
-        obtenerUsuarioId()
-
-      localStorage.removeItem(
-        obtenerClaveCarrito(
-          usuarioActual
-        )
-      )
-
-      localStorage.removeItem(
-        'cellworld_cart_guest'
-      )
-    }, [])
-
-  // ==========================================================
-  // LIMPIAR AL CERRAR SESIÓN
-  // ==========================================================
+  /*
+   * ==========================================================
+   * LIMPIAR CARRITO AL CERRAR SESIÓN
+   * ==========================================================
+   */
 
   const clearCartOnLogout =
     useCallback(() => {
-      const usuarioActual =
-        obtenerUsuarioId()
+      const usuario =
+        obtenerUsuarioActual()
 
-      if (usuarioActual) {
-        localStorage.removeItem(
-          obtenerClaveCarrito(
-            usuarioActual
+      const id =
+        obtenerIdUsuario(usuario)
+
+      if (id) {
+        const clave =
+          crearClaveCarrito(id)
+
+        try {
+          localStorage.removeItem(
+            clave
           )
-        )
+        } catch (error) {
+          console.error(
+            'Error limpiando carrito:',
+            error
+          )
+        }
       }
 
-      localStorage.removeItem(
-        'cellworld_cart_guest'
-      )
-
-      setItems([])
+      setCarrito([])
       setUsuarioId(null)
     }, [])
 
-  // ==========================================================
-  // CHECKOUT
-  // ==========================================================
+  /*
+   * ==========================================================
+   * CANTIDAD TOTAL
+   * ==========================================================
+   */
 
-  const checkout =
-    useCallback(async () => {
-      const token =
-        localStorage.getItem(
-          'token'
+  const count = useMemo(() => {
+    return carrito.reduce(
+      (total, item) =>
+        total +
+        Number(item.cantidad || 0),
+      0
+    )
+  }, [carrito])
+
+  /*
+   * ==========================================================
+   * TOTAL DEL CARRITO
+   * ==========================================================
+   */
+
+  const total = useMemo(() => {
+    return carrito.reduce(
+      (suma, item) => {
+        const precio =
+          Number(item.precio) || 0
+
+        const cantidad =
+          Number(item.cantidad) || 0
+
+        return (
+          suma +
+          precio * cantidad
         )
+      },
+      0
+    )
+  }, [carrito])
 
-      if (!token) {
+  /*
+   * ==========================================================
+   * TOTAL DE UN PRODUCTO
+   * ==========================================================
+   */
+
+  const obtenerSubtotal = useCallback(
+    (item) => {
+      if (!item) {
+        return 0
+      }
+
+      return (
+        (Number(item.precio) || 0) *
+        (Number(item.cantidad) || 0)
+      )
+    },
+    []
+  )
+
+  /*
+   * ==========================================================
+   * CHECKOUT
+   * ==========================================================
+   */
+
+  const checkout = useCallback(
+    async () => {
+      if (comprando) {
         throw new Error(
-          'Debes iniciar sesión para comprar.'
+          'Ya se está procesando una compra.'
         )
       }
 
-      if (
-        items.length === 0
-      ) {
+      const usuario =
+        obtenerUsuarioActual()
+
+      const idUsuario =
+        obtenerIdUsuario(usuario)
+
+      if (!idUsuario) {
+        throw new Error(
+          'Debes iniciar sesión para realizar la compra.'
+        )
+      }
+
+      if (!carrito.length) {
         throw new Error(
           'El carrito está vacío.'
         )
       }
 
-      const pedidoItems =
-        items.map((item) => {
-          const productoId =
-            obtenerProductoId(
-              item
-            )
+      const token =
+        localStorage.getItem('token')
 
-          const nombreProducto =
-            obtenerNombreProducto(
-              item
-            )
-
-          const precioUnitario =
-            obtenerPrecioProducto(
-              item
-            )
-
-          const cantidad =
-            obtenerCantidad(
-              item
-            )
-
-          return {
-            producto_id:
-              productoId,
-            nombre_producto:
-              nombreProducto,
-            precio_unitario:
-              precioUnitario,
-            cantidad,
-          }
-        })
-
-      const productoInvalido =
-        pedidoItems.find(
-          (item) =>
-            !Number.isInteger(
-              item.producto_id
-            ) ||
-            item.producto_id <= 0 ||
-            !item.nombre_producto ||
-            !Number.isFinite(
-              item.precio_unitario
-            ) ||
-            item.precio_unitario < 0 ||
-            !Number.isInteger(
-              item.cantidad
-            ) ||
-            item.cantidad <= 0
-        )
-
-      if (productoInvalido) {
-        console.error(
-          'Producto inválido enviado al checkout:',
-          productoInvalido
-        )
-
+      if (!token) {
         throw new Error(
-          'Uno de los productos del carrito tiene información inválida.'
+          'Tu sesión ha expirado. Inicia sesión nuevamente.'
         )
       }
 
-      console.log(
-        'Enviando pedido:',
-        pedidoItems
-      )
-
-      let response
+      setComprando(true)
 
       try {
-        response =
+        const detalle = carrito.map(
+          (item) => ({
+            producto_id:
+              Number(
+                item.id_producto
+              ),
+
+            nombre_producto:
+              item.nombre_producto,
+
+            precio_unitario:
+              Number(item.precio) || 0,
+
+            cantidad:
+              Number(item.cantidad) || 1,
+          })
+        )
+
+        const respuesta =
           await fetch(
-            `${API_URL}/api/pedidos`,
+            'http://127.0.0.1:8000/api/pedidos',
             {
               method: 'POST',
 
               headers: {
-                Authorization:
-                  `Bearer ${token}`,
-
                 'Content-Type':
                   'application/json',
+
+                Authorization:
+                  `Bearer ${token}`,
               },
 
               body: JSON.stringify({
-                items:
-                  pedidoItems,
+                usuario_id:
+                  Number(idUsuario),
+
+                total:
+                  Number(total),
+
+                estado: 'pagado',
+
+                productos:
+                  detalle,
               }),
             }
           )
-      } catch (error) {
-        console.error(
-          'Error de conexión con el backend:',
-          error
-        )
 
-        throw new Error(
-          'No se pudo conectar con el servidor. Intenta nuevamente.'
-        )
+        let data = null
+
+        try {
+          data =
+            await respuesta.json()
+        } catch {
+          data = null
+        }
+
+        if (!respuesta.ok) {
+          throw new Error(
+            data?.detail ||
+              data?.message ||
+              'No se pudo realizar la compra.'
+          )
+        }
+
+        /*
+         * Solo vaciamos el carrito después
+         * de que el backend confirme la compra.
+         */
+
+        setCarrito([])
+
+        const clave =
+          crearClaveCarrito(idUsuario)
+
+        try {
+          localStorage.removeItem(
+            clave
+          )
+        } catch (error) {
+          console.error(
+            'No se pudo limpiar localStorage:',
+            error
+          )
+        }
+
+        return data
+      } finally {
+        setComprando(false)
       }
+    },
+    [
+      carrito,
+      comprando,
+      total,
+    ]
+  )
 
-      let data = null
+  /*
+   * ==========================================================
+   * VALORES DEL CONTEXTO
+   * ==========================================================
+   */
 
-      try {
-        data =
-          await response.json()
-      } catch {
-        data = null
-      }
+  const value = useMemo(
+    () => ({
+      carrito,
 
-      if (!response.ok) {
-        console.error(
-          'Error creando pedido:',
-          {
-            status:
-              response.status,
-            data,
-          }
-        )
+      cart: carrito,
 
-        throw new Error(
-          data?.detail ||
-          `No se pudo completar la compra. Código: ${response.status}`
-        )
-      }
+      usuarioId,
 
-      setItems([])
+      count,
 
-      const usuarioActual =
-        obtenerUsuarioId()
+      total,
 
-      localStorage.removeItem(
-        obtenerClaveCarrito(
-          usuarioActual
-        )
-      )
+      comprando,
 
-      return data
-    }, [items])
+      agregarAlCarrito,
 
-  // ==========================================================
-  // CONTADOR
-  // ==========================================================
+      agregarProducto,
 
-  const count =
-    items.reduce(
-      (total, item) =>
-        total +
-        obtenerCantidad(item),
-      0
-    )
+      aumentarCantidad,
 
-  // ==========================================================
-  // TOTAL
-  // ==========================================================
+      disminuirCantidad,
 
-  const total =
-    items.reduce(
-      (suma, item) =>
-        suma +
-        obtenerPrecioProducto(
-          item
-        ) *
-          obtenerCantidad(item),
-      0
-    )
+      actualizarCantidad,
 
-  // ==========================================================
-  // CONTEXTO
-  // ==========================================================
+      updateQuantity,
 
-  const value =
-    useMemo(
-      () => ({
-        items,
-        addItem,
-        removeItem,
-        updateQuantity,
-        clearCart,
-        clearCartOnLogout,
-        checkout,
-        count,
-        total,
-      }),
-      [
-        items,
-        addItem,
-        removeItem,
-        updateQuantity,
-        clearCart,
-        clearCartOnLogout,
-        checkout,
-        count,
-        total,
-      ]
-    )
+      eliminarDelCarrito,
+
+      removeItem,
+
+      limpiarCarrito,
+
+      clearCart,
+
+      clearCartOnLogout,
+
+      obtenerSubtotal,
+
+      checkout,
+    }),
+    [
+      carrito,
+      usuarioId,
+      count,
+      total,
+      comprando,
+      agregarAlCarrito,
+      agregarProducto,
+      aumentarCantidad,
+      disminuirCantidad,
+      actualizarCantidad,
+      updateQuantity,
+      eliminarDelCarrito,
+      removeItem,
+      limpiarCarrito,
+      clearCart,
+      clearCartOnLogout,
+      obtenerSubtotal,
+      checkout,
+    ]
+  )
 
   return (
-    <CartContext.Provider
-      value={value}
-    >
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   )
 }
 
-// ============================================================
-// HOOK
-// ============================================================
+/*
+ * ============================================================
+ * HOOK
+ * ============================================================
+ */
 
 export function useCart() {
-  const context =
+  const contexto =
     useContext(CartContext)
 
-  if (!context) {
+  if (!contexto) {
     throw new Error(
-      'useCart debe usarse dentro de CartProvider'
+      'useCart debe utilizarse dentro de CartProvider.'
     )
   }
 
-  return context
+  return contexto
 }
 
+export default CartContext
