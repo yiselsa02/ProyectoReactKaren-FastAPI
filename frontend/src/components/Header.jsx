@@ -33,15 +33,27 @@ function Header({
   const [carritoAbierto, setCarritoAbierto] = useState(false)
   const [comprando, setComprando] = useState(false)
 
+  // =====================================================
+  // CARRITO
+  // =====================================================
+
   const {
-    items,
-    count,
-    total,
+    carrito: carritoContexto,
+    count: countContexto,
+    total: totalContexto,
     updateQuantity,
     removeItem,
     checkout,
     clearCartOnLogout
   } = useCart()
+
+  // Protección contra undefined
+  const carrito = Array.isArray(carritoContexto)
+    ? carritoContexto
+    : []
+
+  const count = Number(countContexto) || 0
+  const total = Number(totalContexto) || 0
 
   const location = useLocation()
   const navigate = useNavigate()
@@ -57,33 +69,33 @@ function Header({
       const usuarioGuardado =
         localStorage.getItem('usuario')
 
-      if (usuarioGuardado) {
+      if (!usuarioGuardado) {
+        setUsuario(null)
+        return
+      }
 
-        try {
+      try {
 
-          const usuarioParseado =
-            JSON.parse(usuarioGuardado)
+        const usuarioParseado =
+          JSON.parse(usuarioGuardado)
 
-          const usuarioNormalizado = {
-            ...usuarioParseado,
-            rol_id: Number(
-              usuarioParseado.rol_id
-            )
-          }
-
-          setUsuario(usuarioNormalizado)
-
-        } catch (error) {
-
-          console.error(
-            'Error al parsear usuario:',
-            error
+        const usuarioNormalizado = {
+          ...usuarioParseado,
+          rol_id: Number(
+            usuarioParseado.rol_id ??
+            usuarioParseado.rolId ??
+            usuarioParseado.role_id
           )
-
-          setUsuario(null)
         }
 
-      } else {
+        setUsuario(usuarioNormalizado)
+
+      } catch (error) {
+
+        console.error(
+          'Error al parsear usuario:',
+          error
+        )
 
         setUsuario(null)
       }
@@ -126,7 +138,16 @@ function Header({
 
   const cerrarSesion = () => {
 
-    clearCartOnLogout()
+    // Primero limpiar carrito mientras todavía
+    // existe el usuario en localStorage
+    try {
+      clearCartOnLogout()
+    } catch (error) {
+      console.error(
+        'Error limpiando carrito:',
+        error
+      )
+    }
 
     localStorage.removeItem('token')
     localStorage.removeItem('usuario')
@@ -156,18 +177,61 @@ function Header({
 
   const comprarCarrito = async () => {
 
+    if (comprando) {
+      return
+    }
+
+    if (carrito.length === 0) {
+      alert('Tu carrito está vacío.')
+      return
+    }
+
+    if (!usuario) {
+      alert('Debes iniciar sesión para realizar una compra.')
+      setCarritoAbierto(false)
+      navigate('/login')
+      return
+    }
+
     setComprando(true)
 
     try {
 
       const pedido = await checkout()
 
+      if (!pedido) {
+        throw new Error(
+          'No se recibió la información de la compra.'
+        )
+      }
+
+      const idPedido =
+        pedido.id_pedido ??
+        pedido.id ??
+        pedido.pedido_id
+
+      const totalPedido =
+        Number(
+          pedido.total ?? total
+        ) || 0
+
+      const estadoPedido =
+        pedido.estado ?? 'pagado'
+
       const invoice = `CELLWORLD
-Factura #${pedido.id_pedido}
-Total: $${Number(
-        pedido.total
-      ).toLocaleString('es-CO')}
-Estado: ${pedido.estado}`
+================================
+FACTURA DE COMPRA
+================================
+
+Factura #${idPedido ?? 'N/A'}
+
+Total: $${totalPedido.toLocaleString('es-CO')}
+
+Estado: ${estadoPedido}
+
+================================
+Gracias por comprar en CellWorld
+================================`
 
       const blob = new Blob(
         [invoice],
@@ -185,7 +249,7 @@ Estado: ${pedido.estado}`
       link.href = url
 
       link.download =
-        `factura-cellworld-${pedido.id_pedido}.txt`
+        `factura-cellworld-${idPedido ?? Date.now()}.txt`
 
       document.body.appendChild(link)
 
@@ -202,6 +266,11 @@ Estado: ${pedido.estado}`
       )
 
     } catch (error) {
+
+      console.error(
+        'Error realizando compra:',
+        error
+      )
 
       alert(
         error?.message ||
@@ -259,6 +328,54 @@ Estado: ${pedido.estado}`
 
   const cambiarTema = () => {
     cambiarModoOscuro()
+  }
+
+  // =====================================================
+  // TOGGLE CARRITO
+  // =====================================================
+
+  const toggleCarrito = () => {
+    setCarritoAbierto(
+      (actual) => !actual
+    )
+  }
+
+  // =====================================================
+  // OBTENER DATOS SEGUROS DEL PRODUCTO
+  // =====================================================
+
+  const obtenerIdProducto = (item) => {
+    return (
+      item?.id_producto ??
+      item?.id ??
+      item?.producto_id
+    )
+  }
+
+  const obtenerNombreProducto = (item) => {
+    return (
+      item?.nombre_producto ??
+      item?.name ??
+      item?.nombre ??
+      'Producto'
+    )
+  }
+
+  const obtenerPrecioProducto = (item) => {
+    return Number(
+      item?.precio ??
+      item?.price ??
+      item?.precio_unitario ??
+      0
+    ) || 0
+  }
+
+  const obtenerCantidadProducto = (item) => {
+    return Number(
+      item?.cantidad ??
+      item?.quantity ??
+      1
+    ) || 1
   }
 
   // =====================================================
@@ -338,7 +455,9 @@ Estado: ${pedido.estado}`
         <button
           type="button"
           onClick={() =>
-            setMenuAbierto(!menuAbierto)
+            setMenuAbierto(
+              (actual) => !actual
+            )
           }
           aria-label={
             menuAbierto
@@ -367,11 +486,7 @@ Estado: ${pedido.estado}`
 
         <button
           type="button"
-          onClick={() =>
-            setCarritoAbierto(
-              !carritoAbierto
-            )
-          }
+          onClick={toggleCarrito}
           aria-label="Abrir carrito"
           className={`relative mr-2 flex h-10 w-10 items-center justify-center rounded-xl border md:hidden ${
             modoOscuro
@@ -445,7 +560,7 @@ Estado: ${pedido.estado}`
                 type="button"
                 onClick={() =>
                   setMenuUsuario(
-                    !menuUsuario
+                    (actual) => !actual
                   )
                 }
                 className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all duration-200 ${
@@ -455,7 +570,7 @@ Estado: ${pedido.estado}`
                 }`}
               >
 
-                👤 {usuario.nombres}
+                👤 {usuario.nombres || usuario.nombre || 'Usuario'}
 
               </button>
 
@@ -531,11 +646,7 @@ Estado: ${pedido.estado}`
 
           <button
             type="button"
-            onClick={() =>
-              setCarritoAbierto(
-                !carritoAbierto
-              )
-            }
+            onClick={toggleCarrito}
             aria-label="Abrir carrito"
             className={`relative flex h-10 w-10 items-center justify-center rounded-xl border transition ${
               modoOscuro
@@ -629,7 +740,11 @@ Estado: ${pedido.estado}`
 
           </div>
 
-          {items.length === 0 ? (
+          {/* =====================================================
+              CARRITO VACÍO
+          ===================================================== */}
+
+          {carrito.length === 0 ? (
 
             <p
               className={`py-6 text-center text-sm ${
@@ -645,100 +760,174 @@ Estado: ${pedido.estado}`
 
             <div className="space-y-3">
 
-              {items.map((item) => (
+              {carrito.map((item, index) => {
 
-                <div
-                  key={item.id}
-                  className={`flex items-center gap-3 border-b pb-3 ${
-                    modoOscuro
-                      ? 'border-slate-700'
-                      : 'border-gray-100'
-                  }`}
-                >
+                if (!item) {
+                  return null
+                }
 
-                  <div className="min-w-0 flex-1">
+                const idProducto =
+                  obtenerIdProducto(item)
 
-                    <p
-                      className={`truncate text-sm font-bold ${
-                        modoOscuro
-                          ? 'text-white'
-                          : 'text-gray-900'
-                      }`}
-                    >
-                      {item.name}
-                    </p>
+                const nombreProducto =
+                  obtenerNombreProducto(item)
 
-                    <p className="text-sm font-semibold text-blue-600">
-                      $
-                      {Number(
-                        item.price
-                      ).toLocaleString('es-CO')}
-                    </p>
+                const precioProducto =
+                  obtenerPrecioProducto(item)
+
+                const cantidadProducto =
+                  obtenerCantidadProducto(item)
+
+                return (
+
+                  <div
+                    key={
+                      idProducto ??
+                      `producto-${index}`
+                    }
+                    className={`flex items-center gap-3 border-b pb-3 ${
+                      modoOscuro
+                        ? 'border-slate-700'
+                        : 'border-gray-100'
+                    }`}
+                  >
+
+                    {/* =================================================
+                        INFORMACIÓN PRODUCTO
+                    ================================================= */}
+
+                    <div className="min-w-0 flex-1">
+
+                      <p
+                        className={`truncate text-sm font-bold ${
+                          modoOscuro
+                            ? 'text-white'
+                            : 'text-gray-900'
+                        }`}
+                      >
+                        {nombreProducto}
+                      </p>
+
+                      <p className="text-sm font-semibold text-blue-600">
+                        $
+                        {precioProducto.toLocaleString(
+                          'es-CO'
+                        )}
+                      </p>
+
+                    </div>
+
+                    {/* =================================================
+                        CONTROLES
+                    ================================================= */}
+
+                    <div className="flex shrink-0 items-center gap-1">
+
+                      {/* RESTAR */}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+
+                          if (
+                            idProducto === undefined ||
+                            idProducto === null
+                          ) {
+                            return
+                          }
+
+                          updateQuantity(
+                            idProducto,
+                            Math.max(
+                              1,
+                              cantidadProducto - 1
+                            )
+                          )
+                        }}
+                        aria-label="Disminuir cantidad"
+                        className={`rounded border p-1 transition ${
+                          modoOscuro
+                            ? 'border-slate-600 text-slate-200 hover:bg-slate-700'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Minus size={13} />
+                      </button>
+
+                      {/* CANTIDAD */}
+
+                      <span
+                        className={`w-6 text-center text-sm font-bold ${
+                          modoOscuro
+                            ? 'text-white'
+                            : 'text-gray-900'
+                        }`}
+                      >
+                        {cantidadProducto}
+                      </span>
+
+                      {/* SUMAR */}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+
+                          if (
+                            idProducto === undefined ||
+                            idProducto === null
+                          ) {
+                            return
+                          }
+
+                          updateQuantity(
+                            idProducto,
+                            cantidadProducto + 1
+                          )
+                        }}
+                        aria-label="Aumentar cantidad"
+                        className={`rounded border p-1 transition ${
+                          modoOscuro
+                            ? 'border-slate-600 text-slate-200 hover:bg-slate-700'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Plus size={13} />
+                      </button>
+
+                      {/* ELIMINAR */}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+
+                          if (
+                            idProducto === undefined ||
+                            idProducto === null
+                          ) {
+                            return
+                          }
+
+                          removeItem(
+                            idProducto
+                          )
+                        }}
+                        aria-label={`Eliminar ${nombreProducto} del carrito`}
+                        className="ml-1 rounded p-1 text-red-500 transition hover:bg-red-500/10 hover:text-red-600"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+
+                    </div>
 
                   </div>
 
-                  <div className="flex items-center gap-1">
+                )
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateQuantity(
-                          item.id,
-                          item.quantity - 1
-                        )
-                      }
-                      className={`rounded border p-1 ${
-                        modoOscuro
-                          ? 'border-slate-600 text-slate-200'
-                          : 'text-gray-700'
-                      }`}
-                    >
-                      <Minus size={13} />
-                    </button>
+              })}
 
-                    <span
-                      className={`w-5 text-center text-sm font-bold ${
-                        modoOscuro
-                          ? 'text-white'
-                          : 'text-gray-900'
-                      }`}
-                    >
-                      {item.quantity}
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateQuantity(
-                          item.id,
-                          item.quantity + 1
-                        )
-                      }
-                      className={`rounded border p-1 ${
-                        modoOscuro
-                          ? 'border-slate-600 text-slate-200'
-                          : 'text-gray-700'
-                      }`}
-                    >
-                      <Plus size={13} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        removeItem(item.id)
-                      }
-                      aria-label="Eliminar producto"
-                      className="ml-1 p-1 text-red-500"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-
-                  </div>
-
-                </div>
-
-              ))}
+              {/* =====================================================
+                  TOTAL
+              ===================================================== */}
 
               <div
                 className={`flex justify-between pt-2 font-extrabold ${
@@ -754,18 +943,25 @@ Estado: ${pedido.estado}`
 
                 <span className="text-blue-600">
                   $
-                  {Number(
-                    total
-                  ).toLocaleString('es-CO')}
+                  {total.toLocaleString(
+                    'es-CO'
+                  )}
                 </span>
 
               </div>
 
+              {/* =====================================================
+                  COMPRAR
+              ===================================================== */}
+
               <button
                 type="button"
-                disabled={comprando}
+                disabled={
+                  comprando ||
+                  carrito.length === 0
+                }
                 onClick={comprarCarrito}
-                className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {comprando
                   ? 'Procesando...'
@@ -834,7 +1030,9 @@ Estado: ${pedido.estado}`
 
             })}
 
-            {/* USUARIO MOBILE */}
+            {/* =====================================================
+                USUARIO MOBILE
+            ===================================================== */}
 
             {usuario ? (
 
@@ -849,7 +1047,7 @@ Estado: ${pedido.estado}`
                       : 'border-blue-600 bg-blue-600 text-white hover:bg-white hover:text-blue-600'
                   }`}
                 >
-                  👤 {usuario.nombres} - Mi Panel
+                  👤 {usuario.nombres || usuario.nombre || 'Usuario'} - Mi Panel
                 </Link>
 
                 <button
@@ -886,7 +1084,9 @@ Estado: ${pedido.estado}`
 
             )}
 
-            {/* MODO OSCURO MOBILE */}
+            {/* =====================================================
+                MODO OSCURO MOBILE
+            ===================================================== */}
 
             <button
               type="button"
