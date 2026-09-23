@@ -14,6 +14,16 @@ import oppo from '../assets/oppo.jpg'
 import honor from '../assets/honor.jpg'
 import realme from '../assets/realme.jpg'
 
+/*
+ * ============================================================
+ * PRODUCTOS PREDETERMINADOS
+ *
+ * Se muestran en el catálogo únicamente.
+ * NO tienen id_producto de BD.
+ * NO se pueden agregar al carrito.
+ * ============================================================
+ */
+
 const celulares = [
   {
     id: 'vivo',
@@ -147,6 +157,12 @@ const celulares = [
   },
 ]
 
+/*
+ * ============================================================
+ * UTILIDADES
+ * ============================================================
+ */
+
 function obtenerClaveFavoritos(usuario) {
   const idUsuario =
     usuario?.id_usuario ??
@@ -166,6 +182,7 @@ function obtenerNombreProducto(producto) {
   return (
     producto?.titulo ||
     producto?.nombre ||
+    producto?.nombre_producto ||
     'Producto'
   )
 }
@@ -200,75 +217,150 @@ function obtenerImagenProducto(producto) {
   return (
     producto?.imagen ||
     producto?.image ||
+    producto?.imagen_url ||
+    producto?.url_imagen ||
     null
   )
 }
 
-function obtenerIdProducto(
-  producto,
-  indice = 0
-) {
+/*
+ * ============================================================
+ * ID DEL PRODUCTO
+ * ============================================================
+ */
+
+function obtenerIdProducto(producto) {
+  /*
+   * Primero buscamos EXCLUSIVAMENTE el ID real
+   * de la base de datos.
+   */
+
+  const idBD =
+    producto?.id_producto ??
+    producto?.producto_id
+
   if (
-    producto?.id_producto !==
-      undefined &&
-    producto?.id_producto !== null
+    idBD !== undefined &&
+    idBD !== null &&
+    idBD !== ''
   ) {
-    return String(
-      producto.id_producto
-    )
+    const idNumerico =
+      Number(idBD)
+
+    if (
+      Number.isInteger(
+        idNumerico
+      ) &&
+      idNumerico > 0
+    ) {
+      return idNumerico
+    }
   }
+
+  /*
+   * Los productos predeterminados pueden tener
+   * IDs como "vivo", "iphone", etc.
+   *
+   * Los devolvemos solamente para React/favoritos,
+   * pero NO son IDs comprables.
+   */
 
   if (
     producto?.id !== undefined &&
     producto?.id !== null
   ) {
-    return String(producto.id)
+    return String(
+      producto.id
+    )
   }
 
-  const nombre =
-    producto?.titulo ||
-    producto?.nombre ||
-    `producto-${indice}`
-
-  return `catalogo-${String(nombre)
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')}`
+  return null
 }
+
+/*
+ * ============================================================
+ * ¿ES PRODUCTO COMPRABLE?
+ * ============================================================
+ */
+
+function esProductoBD(producto) {
+  const id =
+    producto?.id_producto ??
+    producto?.producto_id
+
+  if (
+    id === undefined ||
+    id === null ||
+    id === ''
+  ) {
+    return false
+  }
+
+  const idNumerico =
+    Number(id)
+
+  return (
+    Number.isInteger(
+      idNumerico
+    ) &&
+    idNumerico > 0
+  )
+}
+
+/*
+ * ============================================================
+ * NORMALIZAR PRODUCTO PARA FAVORITOS
+ * ============================================================
+ */
 
 function normalizarProducto(
   producto,
   indice = 0
 ) {
   const nombre =
-    obtenerNombreProducto(producto)
+    obtenerNombreProducto(
+      producto
+    )
 
   const precio =
-    obtenerPrecioProducto(producto)
+    obtenerPrecioProducto(
+      producto
+    )
 
   const imagen =
-    obtenerImagenProducto(producto)
+    obtenerImagenProducto(
+      producto
+    )
+
+  const id =
+    obtenerIdProducto(
+      producto
+    ) ??
+    `catalogo-${indice}`
 
   return {
     ...producto,
 
-    id: obtenerIdProducto(
-      producto,
-      indice
-    ),
+    id,
 
     nombre,
+
     titulo:
       producto?.titulo ||
       nombre,
 
-    name: nombre,
+    name:
+      nombre,
 
     precio,
-    price: precio,
+
+    price:
+      precio,
 
     imagen,
-    image: imagen,
+
+    image:
+      imagen,
 
     categoria:
       producto?.categoria ||
@@ -276,6 +368,12 @@ function normalizarProducto(
       'Celular',
   }
 }
+
+/*
+ * ============================================================
+ * COMPONENTE
+ * ============================================================
+ */
 
 function Productos({
   modoOscuro,
@@ -315,14 +413,27 @@ function Productos({
     setAgregadoRecientemente,
   ] = useState(null)
 
-  const { addItem } = useCart()
+  /*
+   * ==========================================================
+   * CARRITO
+   * ==========================================================
+   */
+
+  const {
+    agregarAlCarrito:
+      agregarProductoCarrito,
+  } = useCart()
 
   const favoritosKey =
-    obtenerClaveFavoritos(usuario)
+    obtenerClaveFavoritos(
+      usuario
+    )
 
-  // ==========================================================
-  // USUARIO
-  // ==========================================================
+  /*
+   * ==========================================================
+   * USUARIO
+   * ==========================================================
+   */
 
   useEffect(() => {
     const cargarUsuario = () => {
@@ -387,12 +498,16 @@ function Productos({
     }
   }, [])
 
-  // ==========================================================
-  // FAVORITOS
-  // ==========================================================
+  /*
+   * ==========================================================
+   * FAVORITOS
+   * ==========================================================
+   */
 
   useEffect(() => {
-    setFavoritosCargados(false)
+    setFavoritosCargados(
+      false
+    )
 
     try {
       const guardados =
@@ -402,12 +517,16 @@ function Productos({
 
       if (!guardados) {
         setFavoritos([])
-        setFavoritosCargados(true)
+        setFavoritosCargados(
+          true
+        )
         return
       }
 
       const datos =
-        JSON.parse(guardados)
+        JSON.parse(
+          guardados
+        )
 
       setFavoritos(
         Array.isArray(datos)
@@ -422,7 +541,9 @@ function Productos({
 
       setFavoritos([])
     } finally {
-      setFavoritosCargados(true)
+      setFavoritosCargados(
+        true
+      )
     }
   }, [favoritosKey])
 
@@ -450,9 +571,11 @@ function Productos({
     favoritosKey,
   ])
 
-  // ==========================================================
-  // PRODUCTOS BD
-  // ==========================================================
+  /*
+   * ==========================================================
+   * PRODUCTOS BD
+   * ==========================================================
+   */
 
   useEffect(() => {
     cargarProductos()
@@ -481,16 +604,39 @@ function Productos({
             : datos.productos ||
               []
 
+        /*
+         * Solo productos activos.
+         */
+
         const productosActivos =
           listaProductos.filter(
             (producto) =>
               producto.estado ===
                 true ||
-              producto.estado === 1
+              producto.estado === 1 ||
+              producto.estado ===
+                '1' ||
+              producto.estado ===
+                'activo' ||
+              producto.estado ===
+                'Activo'
+          )
+
+        /*
+         * Solo guardamos productos
+         * que tengan ID real de BD.
+         */
+
+        const productosValidos =
+          productosActivos.filter(
+            (producto) =>
+              esProductoBD(
+                producto
+              )
           )
 
         setProductosBD(
-          productosActivos
+          productosValidos
         )
       } catch (error) {
         console.error(
@@ -502,18 +648,22 @@ function Productos({
       }
     }
 
-  // ==========================================================
-  // LISTA COMPLETA
-  // ==========================================================
+  /*
+   * ==========================================================
+   * LISTA COMPLETA
+   * ==========================================================
+   */
 
   const todosLosProductos = [
     ...celulares,
     ...productosBD,
   ]
 
-  // ==========================================================
-  // MARCA
-  // ==========================================================
+  /*
+   * ==========================================================
+   * MARCAS
+   * ==========================================================
+   */
 
   const obtenerMarcaProducto =
     (producto) => {
@@ -526,8 +676,9 @@ function Productos({
       const nombre =
         String(
           producto?.titulo ||
-            producto?.nombre ||
-            ''
+          producto?.nombre ||
+          producto?.nombre_producto ||
+          ''
         ).toLowerCase()
 
       const marcas = [
@@ -578,9 +729,11 @@ function Productos({
         ) === marcaSeleccionada
     )
 
-  // ==========================================================
-  // FAVORITOS
-  // ==========================================================
+  /*
+   * ==========================================================
+   * FAVORITOS
+   * ==========================================================
+   */
 
   const estaSeleccionado = (
     producto,
@@ -588,18 +741,18 @@ function Productos({
   ) => {
     const id =
       obtenerIdProducto(
-        producto,
-        indice
-      )
+        producto
+      ) ?? `catalogo-${indice}`
 
     return favoritos.some(
       (favorito) =>
         String(
           favorito?.id ??
-            favorito?.id_producto ??
-            favorito?.producto_id ??
-            favorito
-        ) === String(id)
+          favorito?.id_producto ??
+          favorito?.producto_id ??
+          favorito
+        ) ===
+        String(id)
     )
   }
 
@@ -629,7 +782,8 @@ function Productos({
         'cellworld-favorites-updated',
         {
           detail: {
-            key: favoritosKey,
+            key:
+              favoritosKey,
           },
         }
       )
@@ -654,10 +808,11 @@ function Productos({
         (favorito) =>
           String(
             favorito?.id ??
-              favorito?.id_producto ??
-              favorito?.producto_id ??
-              favorito
-          ) === String(id)
+            favorito?.id_producto ??
+            favorito?.producto_id ??
+            favorito
+          ) ===
+          String(id)
       )
 
     let nuevosFavoritos
@@ -668,10 +823,11 @@ function Productos({
           (favorito) =>
             String(
               favorito?.id ??
-                favorito?.id_producto ??
-                favorito?.producto_id ??
-                favorito
-            ) !== String(id)
+              favorito?.id_producto ??
+              favorito?.producto_id ??
+              favorito
+            ) !==
+            String(id)
         )
     } else {
       nuevosFavoritos = [
@@ -684,6 +840,12 @@ function Productos({
       nuevosFavoritos
     )
   }
+
+  /*
+   * ==========================================================
+   * ACTUALIZAR FAVORITOS
+   * ==========================================================
+   */
 
   useEffect(() => {
     const actualizarFavoritos =
@@ -760,151 +922,142 @@ function Productos({
     }
   }, [favoritosKey])
 
-  // ==========================================================
-  // AGREGAR AL CARRITO
-  // ==========================================================
+  /*
+   * ==========================================================
+   * AGREGAR AL CARRITO
+   * ==========================================================
+   */
 
   const agregarAlCarrito = (
-    producto,
-    indice
+    producto
   ) => {
-    const productoNormalizado =
-      normalizarProducto(
-        producto,
-        indice
-      )
-
-    // --------------------------------------------------------
-    // 1. Si el producto ya viene de BD,
-    //    usamos su ID real.
-    // --------------------------------------------------------
-
-    let productoBD = null
+    /*
+     * REGLA:
+     * Solo productos de BD.
+     */
 
     if (
-      producto?.id_producto !==
-        undefined &&
-      producto?.id_producto !==
-        null
-    ) {
-      productoBD =
+      !esProductoBD(
         producto
+      )
+    ) {
+      alert(
+        'Este producto es parte del catálogo predeterminado y no está registrado en la base de datos. No se puede agregar al carrito.'
+      )
+
+      return
     }
 
-    // --------------------------------------------------------
-    // 2. Si es un producto del catálogo local,
-    //    buscamos el mismo nombre en la BD.
-    // --------------------------------------------------------
+    const idBD =
+      Number(
+        producto.id_producto ??
+        producto.producto_id
+      )
 
-    if (!productoBD) {
-      const nombreBuscado =
-        obtenerNombreProducto(
+    if (
+      !Number.isInteger(
+        idBD
+      ) ||
+      idBD <= 0
+    ) {
+      alert(
+        'Este producto no tiene un ID válido de base de datos.'
+      )
+
+      return
+    }
+
+    const productoParaCarrito = {
+      ...producto,
+
+      id: idBD,
+
+      id_producto:
+        idBD,
+
+      nombre_producto:
+        producto.nombre_producto ||
+        producto.nombre ||
+        producto.titulo ||
+        'Producto',
+
+      nombre:
+        producto.nombre ||
+        producto.nombre_producto ||
+        producto.titulo ||
+        'Producto',
+
+      titulo:
+        producto.titulo ||
+        producto.nombre ||
+        producto.nombre_producto ||
+        'Producto',
+
+      name:
+        producto.name ||
+        producto.nombre ||
+        producto.nombre_producto ||
+        producto.titulo ||
+        'Producto',
+
+      precio:
+        obtenerPrecioProducto(
           producto
-        )
-          .trim()
-          .toLowerCase()
+        ),
 
-      productoBD =
-        productosBD.find(
-          (productoExistente) =>
-            String(
-              productoExistente?.nombre ||
-                ''
-            )
-              .trim()
-              .toLowerCase() ===
-            nombreBuscado
-        )
+      price:
+        obtenerPrecioProducto(
+          producto
+        ),
+
+      imagen:
+        obtenerImagenProducto(
+          producto
+        ),
+
+      image:
+        obtenerImagenProducto(
+          producto
+        ),
     }
 
-    // --------------------------------------------------------
-    // 3. Si encontramos el producto real en BD,
-    //    usamos su ID numérico.
-    // --------------------------------------------------------
-
-    if (productoBD) {
-      const idBD =
-        Number(
-          productoBD.id_producto
+    try {
+      const resultado =
+        agregarProductoCarrito(
+          productoParaCarrito
         )
 
-      if (
-        Number.isInteger(idBD) &&
-        idBD > 0
-      ) {
-        const agregado =
-          addItem({
-            ...productoNormalizado,
-
-            id: idBD,
-            id_producto: idBD,
-
-            name:
-              obtenerNombreProducto(
-                productoBD
-              ),
-
-            nombre:
-              obtenerNombreProducto(
-                productoBD
-              ),
-
-            price:
-              obtenerPrecioProducto(
-                productoBD
-              ),
-
-            precio:
-              obtenerPrecioProducto(
-                productoBD
-              ),
-
-            image:
-              obtenerImagenProducto(
-                productoBD
-              ) ||
-              productoNormalizado.image,
-
-            imagen:
-              obtenerImagenProducto(
-                productoBD
-              ) ||
-              productoNormalizado.imagen,
-          })
-
-        if (agregado) {
-          setAgregadoRecientemente(
-            idBD
-          )
-
-          setTimeout(() => {
-            setAgregadoRecientemente(
-              null
-            )
-          }, 1200)
-        }
-
+      if (resultado === false) {
         return
       }
+
+      setAgregadoRecientemente(
+        idBD
+      )
+
+      setTimeout(() => {
+        setAgregadoRecientemente(
+          null
+        )
+      }, 1200)
+    } catch (error) {
+      console.error(
+        'Error agregando al carrito:',
+        error
+      )
+
+      alert(
+        error?.message ||
+          'No fue posible agregar el producto al carrito.'
+      )
     }
-
-    // --------------------------------------------------------
-    // 4. Si NO existe en BD, no lo metemos al carrito.
-    // --------------------------------------------------------
-
-    console.error(
-      'Producto sin ID de base de datos:',
-      producto
-    )
-
-    alert(
-      'Este producto no está registrado en la base de datos y no se puede comprar.'
-    )
   }
 
-  // ==========================================================
-  // PRECIO FORMATEADO
-  // ==========================================================
+  /*
+   * ==========================================================
+   * PRECIO
+   * ==========================================================
+   */
 
   const formatearPrecio = (
     precio
@@ -919,9 +1072,11 @@ function Productos({
     ).format(precio)
   }
 
-  // ==========================================================
-  // RENDER
-  // ==========================================================
+  /*
+   * ==========================================================
+   * RENDER
+   * ==========================================================
+   */
 
   return (
     <main
@@ -977,8 +1132,9 @@ function Productos({
                 : 'text-slate-600'
             }`}
           >
-            Encuentra el celular ideal para ti
-            entre nuestras mejores opciones.
+            Encuentra el celular ideal
+            para ti entre nuestras
+            mejores opciones.
           </p>
         </div>
 
@@ -1046,9 +1202,9 @@ function Productos({
             ) => {
               const idProducto =
                 obtenerIdProducto(
-                  celular,
-                  indice
-                )
+                  celular
+                ) ??
+                `catalogo-${indice}`
 
               const nombre =
                 obtenerNombreProducto(
@@ -1069,6 +1225,11 @@ function Productos({
                 estaSeleccionado(
                   celular,
                   indice
+                )
+
+              const comprable =
+                esProductoBD(
+                  celular
                 )
 
               return (
@@ -1278,8 +1439,16 @@ function Productos({
                           Estado
                         </p>
 
-                        <p className="mt-1 text-sm font-bold text-green-500">
-                          Disponible
+                        <p
+                          className={`mt-1 text-sm font-bold ${
+                            comprable
+                              ? 'text-green-500'
+                              : 'text-amber-500'
+                          }`}
+                        >
+                          {comprable
+                            ? 'Disponible'
+                            : 'Catálogo'}
                         </p>
                       </div>
 
@@ -1309,52 +1478,66 @@ function Productos({
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        agregarAlCarrito(
-                          celular,
-                          indice
-                        )
-                      }
-                      className={`group/carrito relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl px-5 py-3 font-bold text-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl active:scale-95 ${
-                        agregadoRecientemente ===
-                        idProducto
-                          ? 'bg-green-500 shadow-lg shadow-green-500/40'
-                          : modoOscuro
-                            ? 'bg-blue-600 hover:bg-blue-500 hover:shadow-blue-500/40'
-                            : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-300/60'
-                      }`}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover/carrito:translate-x-full"
-                      />
+                    {comprable ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          agregarAlCarrito(
+                            celular
+                          )
+                        }
+                        className={`group/carrito relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl px-5 py-3 font-bold text-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl active:scale-95 ${
+                          agregadoRecientemente ===
+                          idProducto
+                            ? 'bg-green-500 shadow-lg shadow-green-500/40'
+                            : modoOscuro
+                              ? 'bg-blue-600 hover:bg-blue-500 hover:shadow-blue-500/40'
+                              : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-300/60'
+                        }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover/carrito:translate-x-full"
+                        />
 
-                      {agregadoRecientemente ===
-                      idProducto ? (
-                        <span className="relative flex items-center gap-2 animate-[bounce_0.5s_ease-in-out]">
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20">
-                            ✓
-                          </span>
+                        {agregadoRecientemente ===
+                        idProducto ? (
+                          <span className="relative flex items-center gap-2">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20">
+                              ✓
+                            </span>
 
-                          ¡Agregado!
-                        </span>
-                      ) : (
-                        <span className="relative flex items-center gap-2">
-                          <span>
-                            Agregar al carrito
+                            ¡Agregado!
                           </span>
+                        ) : (
+                          <span className="relative flex items-center gap-2">
+                            <span>
+                              Agregar al carrito
+                            </span>
 
-                          <span
-                            aria-hidden="true"
-                            className="transition-all duration-300 group-hover/carrito:translate-x-2 group-hover/carrito:scale-125"
-                          >
-                            →
+                            <span
+                              aria-hidden="true"
+                              className="transition-all duration-300 group-hover/carrito:translate-x-2 group-hover/carrito:scale-125"
+                            >
+                              →
+                            </span>
                           </span>
-                        </span>
-                      )}
-                    </button>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        title="Este producto no está registrado en la base de datos"
+                        className={`flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl px-5 py-3 font-bold ${
+                          modoOscuro
+                            ? 'bg-slate-700 text-slate-400'
+                            : 'bg-slate-200 text-slate-500'
+                        }`}
+                      >
+                        No disponible para compra
+                      </button>
+                    )}
 
                   </div>
                 </article>
@@ -1364,7 +1547,8 @@ function Productos({
 
         </div>
 
-        {productosFiltrados.length === 0 && (
+        {productosFiltrados.length ===
+          0 && (
           <div
             className={`mt-8 rounded-2xl border p-8 text-center text-sm ${
               modoOscuro
@@ -1372,7 +1556,8 @@ function Productos({
                 : 'border-slate-200 bg-white text-slate-500'
             }`}
           >
-            No hay productos disponibles para esta marca.
+            No hay productos disponibles
+            para esta marca.
           </div>
         )}
 
@@ -1387,7 +1572,8 @@ function Productos({
               }`}
             >
               <h2 className="text-xl font-bold">
-                No hay productos disponibles
+                No hay productos
+                disponibles
               </h2>
 
               <p
@@ -1397,8 +1583,9 @@ function Productos({
                     : 'text-slate-500'
                 }`}
               >
-                Actualmente no hay celulares
-                disponibles para mostrar.
+                Actualmente no hay
+                celulares disponibles
+                para mostrar.
               </p>
             </div>
           )}

@@ -19,13 +19,15 @@ const CART_STORAGE_KEY = 'cellworld_cart'
 
 const obtenerUsuarioActual = () => {
   try {
-    const usuarioGuardado = localStorage.getItem('usuario')
+    const usuarioGuardado =
+      localStorage.getItem('usuario')
 
     if (!usuarioGuardado) {
       return null
     }
 
-    const usuario = JSON.parse(usuarioGuardado)
+    const usuario =
+      JSON.parse(usuarioGuardado)
 
     if (!usuario) {
       return null
@@ -72,15 +74,38 @@ const crearClaveCarrito = (usuarioId) => {
   return `${CART_STORAGE_KEY}_${usuarioId}`
 }
 
+/*
+ * ============================================================
+ * NORMALIZAR PRODUCTO
+ *
+ * IMPORTANTE:
+ * Solo acepta productos que tengan un ID REAL de BD.
+ * No acepta IDs como "vivo", "iphone", etc.
+ * ============================================================
+ */
+
 const normalizarProducto = (producto) => {
-  if (!producto || typeof producto !== 'object') {
+  if (
+    !producto ||
+    typeof producto !== 'object'
+  ) {
     return null
   }
 
   const id =
     producto.id_producto ??
-    producto.producto_id ??
-    producto.id
+    producto.producto_id
+
+  /*
+   * No usamos producto.id porque los productos
+   * predeterminados del catálogo tienen IDs como:
+   *
+   * "vivo"
+   * "iphone"
+   * "samsung"
+   *
+   * Esos NO son IDs válidos de BD.
+   */
 
   if (
     id === null ||
@@ -90,33 +115,76 @@ const normalizarProducto = (producto) => {
     return null
   }
 
+  const idNumerico = Number(id)
+
+  if (
+    !Number.isInteger(idNumerico) ||
+    idNumerico <= 0
+  ) {
+    return null
+  }
+
   const nombre =
     producto.nombre_producto ??
     producto.nombre ??
+    producto.titulo ??
     'Producto'
 
-  const precio =
-    Number(
-      producto.precio ??
-      producto.precio_unitario ??
-      producto.precio_venta ??
-      0
-    ) || 0
+  const precio = Number(
+    producto.precio ??
+    producto.precio_unitario ??
+    producto.precio_venta ??
+    0
+  )
 
   const imagen =
     producto.imagen ??
     producto.imagen_url ??
     producto.url_imagen ??
+    producto.image ??
     ''
 
   return {
     ...producto,
-    id_producto: Number(id),
-    nombre_producto: String(nombre),
-    precio,
+
+    id: idNumerico,
+
+    id_producto: idNumerico,
+
+    nombre_producto:
+      String(nombre),
+
+    nombre:
+      String(nombre),
+
+    titulo:
+      String(nombre),
+
+    name:
+      String(nombre),
+
+    precio:
+      Number.isFinite(precio)
+        ? precio
+        : 0,
+
+    price:
+      Number.isFinite(precio)
+        ? precio
+        : 0,
+
     imagen,
+
+    image:
+      imagen,
   }
 }
+
+/*
+ * ============================================================
+ * NORMALIZAR CARRITO
+ * ============================================================
+ */
 
 const normalizarCarrito = (carrito) => {
   if (!Array.isArray(carrito)) {
@@ -125,7 +193,8 @@ const normalizarCarrito = (carrito) => {
 
   return carrito
     .map((item) => {
-      const producto = normalizarProducto(item)
+      const producto =
+        normalizarProducto(item)
 
       if (!producto) {
         return null
@@ -136,8 +205,11 @@ const normalizarCarrito = (carrito) => {
 
       return {
         ...producto,
-        cantidad:
-          Math.max(1, Math.floor(cantidad)),
+
+        cantidad: Math.max(
+          1,
+          Math.floor(cantidad)
+        ),
       }
     })
     .filter(Boolean)
@@ -149,16 +221,27 @@ const normalizarCarrito = (carrito) => {
  * ============================================================
  */
 
-export function CartProvider({ children }) {
-  const [carrito, setCarrito] = useState([])
-  const [usuarioId, setUsuarioId] = useState(() => {
+export function CartProvider({
+  children,
+}) {
+  const [
+    carrito,
+    setCarrito,
+  ] = useState([])
+
+  const [
+    usuarioId,
+    setUsuarioId,
+  ] = useState(() => {
     return obtenerIdUsuario(
       obtenerUsuarioActual()
     )
   })
 
-  const [comprando, setComprando] =
-    useState(false)
+  const [
+    comprando,
+    setComprando,
+  ] = useState(false)
 
   /*
    * ==========================================================
@@ -166,55 +249,62 @@ export function CartProvider({ children }) {
    * ==========================================================
    */
 
-  const cargarCarritoUsuario = useCallback(
-    (idUsuario) => {
-      if (!idUsuario) {
-        setCarrito([])
-        return
-      }
-
-      const clave =
-        crearClaveCarrito(idUsuario)
-
-      if (!clave) {
-        setCarrito([])
-        return
-      }
-
-      try {
-        const guardado =
-          localStorage.getItem(clave)
-
-        if (!guardado) {
+  const cargarCarritoUsuario =
+    useCallback(
+      (idUsuario) => {
+        if (!idUsuario) {
           setCarrito([])
           return
         }
 
-        const carritoParseado =
-          JSON.parse(guardado)
-
-        setCarrito(
-          normalizarCarrito(
-            carritoParseado
+        const clave =
+          crearClaveCarrito(
+            idUsuario
           )
-        )
-      } catch (error) {
-        console.error(
-          'Error cargando el carrito:',
-          error
-        )
 
-        setCarrito([])
+        if (!clave) {
+          setCarrito([])
+          return
+        }
 
         try {
-          localStorage.removeItem(clave)
-        } catch {
-          // No hacer nada si localStorage falla.
+          const guardado =
+            localStorage.getItem(
+              clave
+            )
+
+          if (!guardado) {
+            setCarrito([])
+            return
+          }
+
+          const carritoParseado =
+            JSON.parse(guardado)
+
+          setCarrito(
+            normalizarCarrito(
+              carritoParseado
+            )
+          )
+        } catch (error) {
+          console.error(
+            'Error cargando el carrito:',
+            error
+          )
+
+          setCarrito([])
+
+          try {
+            localStorage.removeItem(
+              clave
+            )
+          } catch {
+            // No hacer nada.
+          }
         }
-      }
-    },
-    []
-  )
+      },
+      []
+    )
 
   /*
    * ==========================================================
@@ -241,26 +331,29 @@ export function CartProvider({ children }) {
    */
 
   useEffect(() => {
-    const manejarCambioUsuario = (
-      evento
-    ) => {
-      const usuario =
-        obtenerUsuarioActual()
+    const manejarCambioUsuario =
+      (evento) => {
+        const usuario =
+          obtenerUsuarioActual()
 
-      const idDesdeEvento =
-        evento?.detail?.userId
+        const idDesdeEvento =
+          evento?.detail?.userId
 
-      const nuevoId =
-        idDesdeEvento !== undefined
-          ? idDesdeEvento
-            ? String(idDesdeEvento)
-            : null
-          : obtenerIdUsuario(usuario)
+        const nuevoId =
+          idDesdeEvento !== undefined
+            ? idDesdeEvento
+              ? String(idDesdeEvento)
+              : null
+            : obtenerIdUsuario(
+                usuario
+              )
 
-      setUsuarioId(nuevoId)
+        setUsuarioId(nuevoId)
 
-      cargarCarritoUsuario(nuevoId)
-    }
+        cargarCarritoUsuario(
+          nuevoId
+        )
+      }
 
     window.addEventListener(
       'usuarioCambio',
@@ -287,7 +380,9 @@ export function CartProvider({ children }) {
     }
 
     const clave =
-      crearClaveCarrito(usuarioId)
+      crearClaveCarrito(
+        usuarioId
+      )
 
     if (!clave) {
       return
@@ -304,82 +399,126 @@ export function CartProvider({ children }) {
         error
       )
     }
-  }, [carrito, usuarioId])
+  }, [
+    carrito,
+    usuarioId,
+  ])
 
   /*
    * ==========================================================
-   * AGREGAR PRODUCTO
+   * AGREGAR AL CARRITO
    * ==========================================================
    */
 
-  const agregarAlCarrito = useCallback(
-    (producto) => {
-      const usuario =
-        obtenerUsuarioActual()
+  const agregarAlCarrito =
+    useCallback(
+      (producto) => {
+        const usuario =
+          obtenerUsuarioActual()
 
-      const id =
-        obtenerIdUsuario(usuario)
-
-      if (!id) {
-        throw new Error(
-          'Debes iniciar sesión para agregar productos al carrito.'
-        )
-      }
-
-      const productoNormalizado =
-        normalizarProducto(producto)
-
-      if (!productoNormalizado) {
-        console.error(
-          'Producto inválido:',
-          producto
-        )
-
-        return
-      }
-
-      setUsuarioId(id)
-
-      setCarrito((carritoActual) => {
-        const indice =
-          carritoActual.findIndex(
-            (item) =>
-              Number(
-                item.id_producto
-              ) ===
-              Number(
-                productoNormalizado.id_producto
-              )
+        const idUsuario =
+          obtenerIdUsuario(
+            usuario
           )
 
-        if (indice === -1) {
-          return [
-            ...carritoActual,
-            {
-              ...productoNormalizado,
-              cantidad: 1,
-            },
-          ]
+        if (!idUsuario) {
+          throw new Error(
+            'Debes iniciar sesión para agregar productos al carrito.'
+          )
         }
 
-        return carritoActual.map(
-          (item, index) => {
-            if (index !== indice) {
-              return item
+        const productoNormalizado =
+          normalizarProducto(
+            producto
+          )
+
+        /*
+         * BLOQUEO PRINCIPAL:
+         * Si no tiene id_producto numérico,
+         * no entra al carrito.
+         */
+
+        if (!productoNormalizado) {
+          console.error(
+            'Producto rechazado: no tiene un id_producto válido de la base de datos.',
+            producto
+          )
+
+          throw new Error(
+            'Este producto no está registrado en la base de datos y no se puede agregar al carrito.'
+          )
+        }
+
+        setUsuarioId(
+          idUsuario
+        )
+
+        setCarrito(
+          (carritoActual) => {
+            const indice =
+              carritoActual.findIndex(
+                (item) =>
+                  Number(
+                    item.id_producto
+                  ) ===
+                  Number(
+                    productoNormalizado.id_producto
+                  )
+              )
+
+            if (indice === -1) {
+              return [
+                ...carritoActual,
+                {
+                  ...productoNormalizado,
+                  cantidad: 1,
+                },
+              ]
             }
 
-            return {
-              ...item,
-              cantidad:
-                Number(item.cantidad || 0) +
-                1,
-            }
+            return carritoActual.map(
+              (item, index) => {
+                if (
+                  index !== indice
+                ) {
+                  return item
+                }
+
+                return {
+                  ...item,
+
+                  cantidad:
+                    Number(
+                      item.cantidad || 0
+                    ) + 1,
+                }
+              }
+            )
           }
         )
-      })
-    },
-    []
-  )
+
+        return true
+      },
+      []
+    )
+
+  /*
+   * ==========================================================
+   * ALIAS addItem
+   *
+   * Compatibilidad con componentes antiguos.
+   * ==========================================================
+   */
+
+  const addItem =
+    useCallback(
+      (producto) => {
+        return agregarAlCarrito(
+          producto
+        )
+      },
+      [agregarAlCarrito]
+    )
 
   /*
    * ==========================================================
@@ -387,123 +526,154 @@ export function CartProvider({ children }) {
    * ==========================================================
    */
 
-  const agregarProducto = useCallback(
-    (producto, cantidad = 1) => {
-      const usuario =
-        obtenerUsuarioActual()
+  const agregarProducto =
+    useCallback(
+      (
+        producto,
+        cantidad = 1
+      ) => {
+        const usuario =
+          obtenerUsuarioActual()
 
-      const id =
-        obtenerIdUsuario(usuario)
-
-      if (!id) {
-        throw new Error(
-          'Debes iniciar sesión para agregar productos al carrito.'
-        )
-      }
-
-      const productoNormalizado =
-        normalizarProducto(producto)
-
-      if (!productoNormalizado) {
-        return
-      }
-
-      const cantidadNumerica =
-        Math.max(
-          1,
-          Math.floor(
-            Number(cantidad) || 1
-          )
-        )
-
-      setUsuarioId(id)
-
-      setCarrito((carritoActual) => {
-        const existe =
-          carritoActual.some(
-            (item) =>
-              Number(
-                item.id_producto
-              ) ===
-              Number(
-                productoNormalizado.id_producto
-              )
+        const idUsuario =
+          obtenerIdUsuario(
+            usuario
           )
 
-        if (!existe) {
-          return [
-            ...carritoActual,
-            {
-              ...productoNormalizado,
-              cantidad: cantidadNumerica,
-            },
-          ]
+        if (!idUsuario) {
+          throw new Error(
+            'Debes iniciar sesión para agregar productos al carrito.'
+          )
         }
 
-        return carritoActual.map(
-          (item) => {
-            if (
-              Number(
-                item.id_producto
-              ) !==
-              Number(
-                productoNormalizado.id_producto
+        const productoNormalizado =
+          normalizarProducto(
+            producto
+          )
+
+        if (!productoNormalizado) {
+          throw new Error(
+            'Este producto no está registrado en la base de datos y no se puede agregar al carrito.'
+          )
+        }
+
+        const cantidadNumerica =
+          Math.max(
+            1,
+            Math.floor(
+              Number(cantidad) || 1
+            )
+          )
+
+        setUsuarioId(
+          idUsuario
+        )
+
+        setCarrito(
+          (carritoActual) => {
+            const existe =
+              carritoActual.some(
+                (item) =>
+                  Number(
+                    item.id_producto
+                  ) ===
+                  Number(
+                    productoNormalizado.id_producto
+                  )
               )
-            ) {
-              return item
+
+            if (!existe) {
+              return [
+                ...carritoActual,
+                {
+                  ...productoNormalizado,
+                  cantidad:
+                    cantidadNumerica,
+                },
+              ]
             }
 
-            return {
-              ...item,
-              cantidad:
-                Number(item.cantidad || 0) +
-                cantidadNumerica,
-            }
+            return carritoActual.map(
+              (item) => {
+                if (
+                  Number(
+                    item.id_producto
+                  ) !==
+                  Number(
+                    productoNormalizado.id_producto
+                  )
+                ) {
+                  return item
+                }
+
+                return {
+                  ...item,
+
+                  cantidad:
+                    Number(
+                      item.cantidad || 0
+                    ) +
+                    cantidadNumerica,
+                }
+              }
+            )
           }
         )
-      })
-    },
-    []
-  )
+
+        return true
+      },
+      []
+    )
 
   /*
    * ==========================================================
-   * AUMENTAR CANTIDAD
+   * AUMENTAR
    * ==========================================================
    */
 
-  const aumentarCantidad = useCallback(
-    (productoId) => {
-      if (
-        productoId === null ||
-        productoId === undefined
-      ) {
-        return
-      }
+  const aumentarCantidad =
+    useCallback(
+      (productoId) => {
+        if (
+          productoId === null ||
+          productoId === undefined
+        ) {
+          return
+        }
 
-      setCarrito((carritoActual) =>
-        carritoActual.map((item) => {
-          if (
-            Number(item.id_producto) !==
-            Number(productoId)
-          ) {
-            return item
-          }
+        setCarrito(
+          (carritoActual) =>
+            carritoActual.map(
+              (item) => {
+                if (
+                  Number(
+                    item.id_producto
+                  ) !==
+                  Number(
+                    productoId
+                  )
+                ) {
+                  return item
+                }
 
-          return {
-            ...item,
-            cantidad:
-              Number(item.cantidad || 0) + 1,
-          }
-        })
-      )
-    },
-    []
-  )
+                return {
+                  ...item,
+
+                  cantidad:
+                    Number(
+                      item.cantidad || 0
+                    ) + 1,
+                }
+              }
+            )
+        )
+      },
+      []
+    )
 
   /*
    * ==========================================================
-   * DISMINUIR CANTIDAD
+   * DISMINUIR
    * ==========================================================
    */
 
@@ -517,30 +687,36 @@ export function CartProvider({ children }) {
           return
         }
 
-        setCarrito((carritoActual) =>
-          carritoActual
-            .map((item) => {
-              if (
-                Number(item.id_producto) !==
-                Number(productoId)
-              ) {
-                return item
-              }
+        setCarrito(
+          (carritoActual) =>
+            carritoActual
+              .map((item) => {
+                if (
+                  Number(
+                    item.id_producto
+                  ) !==
+                  Number(
+                    productoId
+                  )
+                ) {
+                  return item
+                }
 
-              const nuevaCantidad =
-                Number(item.cantidad || 1) -
-                1
+                return {
+                  ...item,
 
-              return {
-                ...item,
-                cantidad:
-                  nuevaCantidad,
-              }
-            })
-            .filter(
-              (item) =>
-                Number(item.cantidad) > 0
-            )
+                  cantidad:
+                    Number(
+                      item.cantidad || 1
+                    ) - 1,
+                }
+              })
+              .filter(
+                (item) =>
+                  Number(
+                    item.cantidad
+                  ) > 0
+              )
         )
       },
       []
@@ -554,7 +730,10 @@ export function CartProvider({ children }) {
 
   const actualizarCantidad =
     useCallback(
-      (productoId, cantidad) => {
+      (
+        productoId,
+        cantidad
+      ) => {
         if (
           productoId === null ||
           productoId === undefined
@@ -567,26 +746,34 @@ export function CartProvider({ children }) {
             Number(cantidad)
           )
 
-        setCarrito((carritoActual) =>
-          carritoActual
-            .map((item) => {
-              if (
-                Number(item.id_producto) !==
-                Number(productoId)
-              ) {
-                return item
-              }
+        setCarrito(
+          (carritoActual) =>
+            carritoActual
+              .map((item) => {
+                if (
+                  Number(
+                    item.id_producto
+                  ) !==
+                  Number(
+                    productoId
+                  )
+                ) {
+                  return item
+                }
 
-              return {
-                ...item,
-                cantidad:
-                  nuevaCantidad,
-              }
-            })
-            .filter(
-              (item) =>
-                Number(item.cantidad) > 0
-            )
+                return {
+                  ...item,
+
+                  cantidad:
+                    nuevaCantidad,
+                }
+              })
+              .filter(
+                (item) =>
+                  Number(
+                    item.cantidad
+                  ) > 0
+              )
         )
       },
       []
@@ -594,13 +781,16 @@ export function CartProvider({ children }) {
 
   /*
    * ==========================================================
-   * COMPATIBILIDAD CON updateQuantity
+   * COMPATIBILIDAD updateQuantity
    * ==========================================================
    */
 
   const updateQuantity =
     useCallback(
-      (productoId, cantidad) => {
+      (
+        productoId,
+        cantidad
+      ) => {
         actualizarCantidad(
           productoId,
           cantidad
@@ -616,26 +806,34 @@ export function CartProvider({ children }) {
    */
 
   const eliminarDelCarrito =
-    useCallback((productoId) => {
-      if (
-        productoId === null ||
-        productoId === undefined
-      ) {
-        return
-      }
+    useCallback(
+      (productoId) => {
+        if (
+          productoId === null ||
+          productoId === undefined
+        ) {
+          return
+        }
 
-      setCarrito((carritoActual) =>
-        carritoActual.filter(
-          (item) =>
-            Number(item.id_producto) !==
-            Number(productoId)
+        setCarrito(
+          (carritoActual) =>
+            carritoActual.filter(
+              (item) =>
+                Number(
+                  item.id_producto
+                ) !==
+                Number(
+                  productoId
+                )
+            )
         )
-      )
-    }, [])
+      },
+      []
+    )
 
   /*
    * ==========================================================
-   * COMPATIBILIDAD CON removeItem
+   * COMPATIBILIDAD removeItem
    * ==========================================================
    */
 
@@ -660,12 +858,6 @@ export function CartProvider({ children }) {
       setCarrito([])
     }, [])
 
-  /*
-   * ==========================================================
-   * COMPATIBILIDAD CON clearCart
-   * ==========================================================
-   */
-
   const clearCart =
     useCallback(() => {
       limpiarCarrito()
@@ -673,7 +865,7 @@ export function CartProvider({ children }) {
 
   /*
    * ==========================================================
-   * LIMPIAR CARRITO AL CERRAR SESIÓN
+   * LIMPIAR AL CERRAR SESIÓN
    * ==========================================================
    */
 
@@ -683,7 +875,9 @@ export function CartProvider({ children }) {
         obtenerUsuarioActual()
 
       const id =
-        obtenerIdUsuario(usuario)
+        obtenerIdUsuario(
+          usuario
+        )
 
       if (id) {
         const clave =
@@ -715,14 +909,16 @@ export function CartProvider({ children }) {
     return carrito.reduce(
       (total, item) =>
         total +
-        Number(item.cantidad || 0),
+        Number(
+          item.cantidad || 0
+        ),
       0
     )
   }, [carrito])
 
   /*
    * ==========================================================
-   * TOTAL DEL CARRITO
+   * TOTAL
    * ==========================================================
    */
 
@@ -730,10 +926,14 @@ export function CartProvider({ children }) {
     return carrito.reduce(
       (suma, item) => {
         const precio =
-          Number(item.precio) || 0
+          Number(
+            item.precio
+          ) || 0
 
         const cantidad =
-          Number(item.cantidad) || 0
+          Number(
+            item.cantidad
+          ) || 0
 
         return (
           suma +
@@ -746,23 +946,28 @@ export function CartProvider({ children }) {
 
   /*
    * ==========================================================
-   * TOTAL DE UN PRODUCTO
+   * SUBTOTAL
    * ==========================================================
    */
 
-  const obtenerSubtotal = useCallback(
-    (item) => {
-      if (!item) {
-        return 0
-      }
+  const obtenerSubtotal =
+    useCallback(
+      (item) => {
+        if (!item) {
+          return 0
+        }
 
-      return (
-        (Number(item.precio) || 0) *
-        (Number(item.cantidad) || 0)
-      )
-    },
-    []
-  )
+        return (
+          (Number(
+            item.precio
+          ) || 0) *
+          (Number(
+            item.cantidad
+          ) || 0)
+        )
+      },
+      []
+    )
 
   /*
    * ==========================================================
@@ -770,144 +975,189 @@ export function CartProvider({ children }) {
    * ==========================================================
    */
 
-  const checkout = useCallback(
-    async () => {
-      if (comprando) {
-        throw new Error(
-          'Ya se está procesando una compra.'
-        )
-      }
-
-      const usuario =
-        obtenerUsuarioActual()
-
-      const idUsuario =
-        obtenerIdUsuario(usuario)
-
-      if (!idUsuario) {
-        throw new Error(
-          'Debes iniciar sesión para realizar la compra.'
-        )
-      }
-
-      if (!carrito.length) {
-        throw new Error(
-          'El carrito está vacío.'
-        )
-      }
-
-      const token =
-        localStorage.getItem('token')
-
-      if (!token) {
-        throw new Error(
-          'Tu sesión ha expirado. Inicia sesión nuevamente.'
-        )
-      }
-
-      setComprando(true)
-
-      try {
-        const detalle = carrito.map(
-          (item) => ({
-            producto_id:
-              Number(
-                item.id_producto
-              ),
-
-            nombre_producto:
-              item.nombre_producto,
-
-            precio_unitario:
-              Number(item.precio) || 0,
-
-            cantidad:
-              Number(item.cantidad) || 1,
-          })
-        )
-
-        const respuesta =
-          await fetch(
-            'http://127.0.0.1:8000/api/pedidos',
-            {
-              method: 'POST',
-
-              headers: {
-                'Content-Type':
-                  'application/json',
-
-                Authorization:
-                  `Bearer ${token}`,
-              },
-
-              body: JSON.stringify({
-                usuario_id:
-                  Number(idUsuario),
-
-                total:
-                  Number(total),
-
-                estado: 'pagado',
-
-                productos:
-                  detalle,
-              }),
-            }
+  const checkout =
+    useCallback(
+      async () => {
+        if (comprando) {
+          throw new Error(
+            'Ya se está procesando una compra.'
           )
-
-        let data = null
-
-        try {
-          data =
-            await respuesta.json()
-        } catch {
-          data = null
         }
 
-        if (!respuesta.ok) {
+        const usuario =
+          obtenerUsuarioActual()
+
+        const idUsuario =
+          obtenerIdUsuario(
+            usuario
+          )
+
+        if (!idUsuario) {
           throw new Error(
-            data?.detail ||
-              data?.message ||
-              'No se pudo realizar la compra.'
+            'Debes iniciar sesión para realizar la compra.'
+          )
+        }
+
+        if (!carrito.length) {
+          throw new Error(
+            'El carrito está vacío.'
           )
         }
 
         /*
-         * Solo vaciamos el carrito después
-         * de que el backend confirme la compra.
+         * Verificación adicional:
+         * ningún producto sin ID real puede
+         * llegar al checkout.
          */
 
-        setCarrito([])
+        const carritoValido =
+          carrito.every(
+            (item) => {
+              const id =
+                Number(
+                  item.id_producto
+                )
 
-        const clave =
-          crearClaveCarrito(idUsuario)
-
-        try {
-          localStorage.removeItem(
-            clave
+              return (
+                Number.isInteger(id) &&
+                id > 0
+              )
+            }
           )
-        } catch (error) {
-          console.error(
-            'No se pudo limpiar localStorage:',
-            error
+
+        if (!carritoValido) {
+          throw new Error(
+            'El carrito contiene un producto inválido.'
           )
         }
 
-        return data
-      } finally {
-        setComprando(false)
-      }
-    },
-    [
-      carrito,
-      comprando,
-      total,
-    ]
-  )
+        const token =
+          localStorage.getItem(
+            'token'
+          )
+
+        if (!token) {
+          throw new Error(
+            'Tu sesión ha expirado. Inicia sesión nuevamente.'
+          )
+        }
+
+        setComprando(true)
+
+        try {
+          const detalle =
+            carrito.map(
+              (item) => ({
+                producto_id:
+                  Number(
+                    item.id_producto
+                  ),
+
+                nombre_producto:
+                  item.nombre_producto,
+
+                precio_unitario:
+                  Number(
+                    item.precio
+                  ) || 0,
+
+                cantidad:
+                  Number(
+                    item.cantidad
+                  ) || 1,
+              })
+            )
+
+          const respuesta =
+            await fetch(
+              'http://127.0.0.1:8000/api/pedidos',
+              {
+                method: 'POST',
+
+                headers: {
+                  'Content-Type':
+                    'application/json',
+
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+
+                body:
+                  JSON.stringify({
+                    usuario_id:
+                      Number(
+                        idUsuario
+                      ),
+
+                    total:
+                      Number(
+                        total
+                      ),
+
+                    estado:
+                      'pagado',
+
+                    productos:
+                      detalle,
+                  }),
+              }
+            )
+
+          let data = null
+
+          try {
+            data =
+              await respuesta.json()
+          } catch {
+            data = null
+          }
+
+          if (!respuesta.ok) {
+            throw new Error(
+              data?.detail ||
+                data?.message ||
+                'No se pudo realizar la compra.'
+            )
+          }
+
+          /*
+           * Solo limpiar después de
+           * confirmar la compra.
+           */
+
+          setCarrito([])
+
+          const clave =
+            crearClaveCarrito(
+              idUsuario
+            )
+
+          try {
+            localStorage.removeItem(
+              clave
+            )
+          } catch (error) {
+            console.error(
+              'No se pudo limpiar localStorage:',
+              error
+            )
+          }
+
+          return data
+        } finally {
+          setComprando(false)
+        }
+      },
+      [
+        carrito,
+        comprando,
+        total,
+      ]
+    )
 
   /*
    * ==========================================================
-   * VALORES DEL CONTEXTO
+   * VALOR DEL CONTEXTO
    * ==========================================================
    */
 
@@ -915,7 +1165,12 @@ export function CartProvider({ children }) {
     () => ({
       carrito,
 
+      /*
+       * Alias para componentes
+       * diferentes.
+       */
       cart: carrito,
+      items: carrito,
 
       usuarioId,
 
@@ -928,6 +1183,8 @@ export function CartProvider({ children }) {
       agregarAlCarrito,
 
       agregarProducto,
+
+      addItem,
 
       aumentarCantidad,
 
@@ -959,6 +1216,7 @@ export function CartProvider({ children }) {
       comprando,
       agregarAlCarrito,
       agregarProducto,
+      addItem,
       aumentarCantidad,
       disminuirCantidad,
       actualizarCantidad,
@@ -974,7 +1232,9 @@ export function CartProvider({ children }) {
   )
 
   return (
-    <CartContext.Provider value={value}>
+    <CartContext.Provider
+      value={value}
+    >
       {children}
     </CartContext.Provider>
   )
