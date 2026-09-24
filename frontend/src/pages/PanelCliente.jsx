@@ -16,8 +16,8 @@ import { useCart } from '../context/CartContext'
 import { API_URL } from '../config'
 
 
-const FAVORITOS_KEY = 'cellworld_favorites'
-const COMPRAS_KEY = 'cellworld_compras'
+const FAVORITOS_KEY = 'obtenerClaveFavoritos(usuario)'
+const COMPRAS_KEY = 'obtenerClaveCompras(usuario)'
 
 function obtenerIdProducto(producto) {
   return (
