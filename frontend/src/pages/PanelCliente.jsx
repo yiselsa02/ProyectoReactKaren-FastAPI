@@ -7,18 +7,12 @@ import {
   X,
   Package,
   CalendarDays,
+  CreditCard,
+  Eye,
   Trash2,
   ShoppingCart,
-  FileText,
-  Download,
 } from 'lucide-react'
-
-import {
-  useCart,
-  generarFacturaPDF,
-} from '../context/CartContext'
-
-import { API_URL } from '../config'
+import { useCart } from '../context/CartContext'
 
 const FAVORITOS_KEY = 'cellworld_favorites'
 const COMPRAS_KEY = 'cellworld_compras'
@@ -47,11 +41,11 @@ function obtenerNombreProducto(producto) {
 function obtenerPrecioProducto(producto) {
   return Number(
     producto?.precio_unitario ??
-      producto?.precio ??
-      producto?.price ??
-      producto?.producto?.precio ??
-      producto?.producto?.price ??
-      0
+    producto?.precio ??
+    producto?.price ??
+    producto?.producto?.precio ??
+    producto?.producto?.price ??
+    0
   )
 }
 
@@ -87,35 +81,19 @@ function formatearPrecio(valor) {
 }
 
 function formatearFecha(fecha) {
-  if (!fecha) {
-    return 'Fecha no disponible'
-  }
+  if (!fecha) return 'Fecha no disponible'
 
   const fechaObjeto = new Date(fecha)
 
   if (Number.isNaN(fechaObjeto.getTime())) {
-    return String(fecha)
+    return 'Fecha no disponible'
   }
 
-  return fechaObjeto.toLocaleString('es-CO', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+  return fechaObjeto.toLocaleDateString('es-CO', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
   })
-}
-
-function obtenerTextoSeguro(valor, fallback = '—') {
-  const texto = String(valor ?? '').trim()
-
-  return texto || fallback
-}
-
-function obtenerMensajeApi(data, fallback) {
-  return (
-    data?.detail ||
-    data?.message ||
-    data?.error ||
-    fallback
-  )
 }
 
 function obtenerProductosCompra(compra) {
@@ -147,10 +125,7 @@ function obtenerProductosCompra(compra) {
 }
 
 function obtenerTotalCompra(compra) {
-  if (
-    compra?.total !== undefined &&
-    compra?.total !== null
-  ) {
+  if (compra?.total !== undefined && compra?.total !== null) {
     return Number(compra.total) || 0
   }
 
@@ -158,192 +133,20 @@ function obtenerTotalCompra(compra) {
 
   return productos.reduce((total, producto) => {
     const precio = obtenerPrecioProducto(producto)
-
-    const cantidad = Number(
-      producto?.cantidad ??
-        producto?.quantity ??
-        1
-    )
+    const cantidad = Number(producto?.cantidad ?? producto?.quantity ?? 1)
 
     return total + precio * cantidad
   }, 0)
-}
-
-function obtenerSubtotalCompra(compra) {
-  if (
-    compra?.subtotal !== undefined &&
-    compra?.subtotal !== null
-  ) {
-    return Number(compra.subtotal) || 0
-  }
-
-  const productos = obtenerProductosCompra(compra)
-
-  return productos.reduce((total, producto) => {
-    const precio = obtenerPrecioProducto(producto)
-
-    const cantidad = Number(
-      producto?.cantidad ??
-        producto?.quantity ??
-        1
-    )
-
-    return total + precio * cantidad
-  }, 0)
-}
-
-function obtenerDescuentoCompra(compra) {
-  return (
-    Number(
-      compra?.descuento ??
-        compra?.discount ??
-        0
-    ) || 0
-  )
-}
-
-function obtenerIvaCompra(compra) {
-  return (
-    Number(
-      compra?.iva ??
-        compra?.impuesto ??
-        compra?.impuestos ??
-        0
-    ) || 0
-  )
 }
 
 function obtenerFechaCompra(compra) {
   return (
     compra?.creado_en ??
-    compra?.fecha_pedido ??
     compra?.fecha ??
+    compra?.fecha_pedido ??
     compra?.created_at ??
-    compra?.fecha_creacion ??
     compra?.createdAt ??
     null
-  )
-}
-
-function obtenerIdCompra(compra) {
-  return (
-    compra?.id_pedido ??
-    compra?.id ??
-    compra?.pedido_id ??
-    compra?.numero_pedido ??
-    null
-  )
-}
-
-function obtenerEstadoCompra(compra) {
-  return (
-    compra?.estado ??
-    compra?.status ??
-    'pagado'
-  )
-}
-
-function obtenerTextoEstado(compra) {
-  const estado = String(
-    obtenerEstadoCompra(compra)
-  ).toLowerCase()
-
-  const estados = {
-    pagado: 'Pagado',
-    pendiente: 'Pendiente',
-    procesando: 'Procesando',
-    enviado: 'Enviado',
-    entregado: 'Entregado',
-    cancelado: 'Cancelado',
-    completado: 'Completado',
-    cerrado: 'Cerrado',
-  }
-
-  return (
-    estados[estado] ||
-    obtenerTextoSeguro(
-      obtenerEstadoCompra(compra),
-      'Sin estado'
-    )
-  )
-}
-
-function obtenerEstiloEstado(compra, modoOscuro) {
-  const estado = String(
-    obtenerEstadoCompra(compra)
-  ).toLowerCase()
-
-  if (
-    estado === 'pagado' ||
-    estado === 'completado' ||
-    estado === 'entregado'
-  ) {
-    return modoOscuro
-      ? 'bg-emerald-500/10 text-emerald-400'
-      : 'bg-emerald-50 text-emerald-700'
-  }
-
-  if (
-    estado === 'pendiente' ||
-    estado === 'procesando'
-  ) {
-    return modoOscuro
-      ? 'bg-amber-500/10 text-amber-400'
-      : 'bg-amber-50 text-amber-700'
-  }
-
-  if (estado === 'cancelado') {
-    return modoOscuro
-      ? 'bg-red-500/10 text-red-400'
-      : 'bg-red-50 text-red-700'
-  }
-
-  return modoOscuro
-    ? 'bg-slate-800 text-slate-300'
-    : 'bg-slate-100 text-slate-600'
-}
-
-function obtenerNombreUsuario(usuario) {
-  if (!usuario) {
-    return 'Cliente'
-  }
-
-  const nombreCompleto = [
-    usuario?.nombres,
-    usuario?.apellidos,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .trim()
-
-  return (
-    nombreCompleto ||
-    usuario?.nombre ||
-    usuario?.name ||
-    usuario?.usuario ||
-    usuario?.username ||
-    usuario?.correo ||
-    usuario?.email ||
-    'Cliente'
-  )
-}
-
-function obtenerCorreoUsuario(usuario) {
-  return (
-    usuario?.correo ||
-    usuario?.email ||
-    usuario?.correo_electronico ||
-    ''
-  )
-}
-
-function obtenerClaveFavoritos(usuario) {
-  return (
-    usuario?.id ??
-    usuario?.id_usuario ??
-    usuario?.correo ??
-    usuario?.email ??
-    'cliente'
   )
 }
 
@@ -354,128 +157,60 @@ export default function PanelCliente({
   const { addItem } = useCart()
 
   const [seccion, setSeccion] = useState('resumen')
-
   const [favoritos, setFavoritos] = useState([])
-
   const [compras, setCompras] = useState([])
-
-  const [compraActual, setCompraActual] = useState(0)
-
-  const [compraSeleccionada, setCompraSeleccionada] =
-    useState(null)
-
-  const [mostrarFactura, setMostrarFactura] =
-    useState(false)
-
-  const [cargandoCompras, setCargandoCompras] =
-    useState(false)
-
-  const [cargandoPqrs, setCargandoPqrs] =
-    useState(false)
-
-  const [pqrs, setPqrs] = useState([])
+  const [mostrarDetalles, setMostrarDetalles] = useState(false)
+  const [compraSeleccionada, setCompraSeleccionada] = useState(null)
+  const [cargandoCompras, setCargandoCompras] = useState(false)
 
   const [perfil, setPerfil] = useState({
     nombres: usuario?.nombres || '',
     apellidos: usuario?.apellidos || '',
-    email:
-      usuario?.email ||
-      usuario?.correo ||
-      '',
+    email: usuario?.email || '',
     telefono: usuario?.telefono || '',
   })
 
-  const fondoPrincipal = modoOscuro
-    ? 'bg-slate-950 text-white'
-    : 'bg-gray-100 text-gray-900'
-
-  const fondoTarjeta = modoOscuro
-    ? 'bg-slate-900 border-slate-800'
-    : 'bg-white border-gray-200'
-
-  const textoPrincipal = modoOscuro
-    ? 'text-white'
-    : 'text-gray-900'
-
-  const textoSecundario = modoOscuro
-    ? 'text-gray-400'
-    : 'text-gray-500'
-
-  const bordeTarjeta = modoOscuro
-    ? 'border-slate-800'
-    : 'border-gray-200'
-
   useEffect(() => {
     try {
-      const clave = obtenerClaveFavoritos(usuario)
-
       const guardados = JSON.parse(
-        localStorage.getItem(
-          `cellworld_favorites_${clave}`
-        ) ||
-          localStorage.getItem(FAVORITOS_KEY) ||
-          '[]'
+        localStorage.getItem(FAVORITOS_KEY)
       )
 
-      setFavoritos(
-        Array.isArray(guardados)
-          ? guardados
-          : []
-      )
+      if (Array.isArray(guardados)) {
+        setFavoritos(guardados)
+      }
     } catch {
       setFavoritos([])
     }
-  }, [usuario])
+  }, [])
 
   useEffect(() => {
     if (usuario) {
       setPerfil({
         nombres: usuario?.nombres || '',
         apellidos: usuario?.apellidos || '',
-        email:
-          usuario?.email ||
-          usuario?.correo ||
-          '',
+        email: usuario?.email || '',
         telefono: usuario?.telefono || '',
       })
     }
   }, [usuario])
 
   useEffect(() => {
-    try {
-      const clave = obtenerClaveFavoritos(usuario)
-
-      localStorage.setItem(
-        `cellworld_favorites_${clave}`,
-        JSON.stringify(favoritos)
-      )
-
-      localStorage.setItem(
-        FAVORITOS_KEY,
-        JSON.stringify(favoritos)
-      )
-    } catch {
-      // No hacer nada si localStorage no está disponible.
-    }
-  }, [favoritos, usuario])
+    localStorage.setItem(
+      FAVORITOS_KEY,
+      JSON.stringify(favoritos)
+    )
+  }, [favoritos])
 
   useEffect(() => {
     const actualizarFavoritos = () => {
       try {
-        const clave = obtenerClaveFavoritos(usuario)
-
         const guardados = JSON.parse(
-          localStorage.getItem(
-            `cellworld_favorites_${clave}`
-          ) ||
-            localStorage.getItem(FAVORITOS_KEY) ||
-            '[]'
+          localStorage.getItem(FAVORITOS_KEY)
         )
 
         setFavoritos(
-          Array.isArray(guardados)
-            ? guardados
-            : []
+          Array.isArray(guardados) ? guardados : []
         )
       } catch {
         setFavoritos([])
@@ -513,7 +248,7 @@ export default function PanelCliente({
         actualizarFavoritos
       )
     }
-  }, [usuario])
+  }, [])
 
   useEffect(() => {
     if (seccion === 'compras') {
@@ -522,22 +257,18 @@ export default function PanelCliente({
   }, [seccion])
 
   useEffect(() => {
-    if (seccion === 'pqr') {
-      cargarPqrs()
-    }
-  }, [seccion])
-
-  useEffect(() => {
     const manejarEscape = (evento) => {
       if (evento.key === 'Escape') {
-        setMostrarFactura(false)
+        setMostrarDetalles(false)
       }
     }
 
-    document.addEventListener(
-      'keydown',
-      manejarEscape
-    )
+    if (mostrarDetalles) {
+      document.addEventListener(
+        'keydown',
+        manejarEscape
+      )
+    }
 
     return () => {
       document.removeEventListener(
@@ -545,22 +276,18 @@ export default function PanelCliente({
         manejarEscape
       )
     }
-  }, [])
+  }, [mostrarDetalles])
 
   async function cargarCompras() {
     setCargandoCompras(true)
 
-    const token =
-      localStorage.getItem('token')
+    const token = localStorage.getItem('token')
 
     try {
       if (!token) {
-        const comprasLocales =
-          JSON.parse(
-            localStorage.getItem(
-              COMPRAS_KEY
-            ) || '[]'
-          )
+        const comprasLocales = JSON.parse(
+          localStorage.getItem(COMPRAS_KEY)
+        )
 
         setCompras(
           Array.isArray(comprasLocales)
@@ -568,34 +295,26 @@ export default function PanelCliente({
             : []
         )
 
-        setCompraActual(0)
-
         return
       }
 
       const respuesta = await fetch(
-        `${API_URL}/api/pedidos/mis-pedidos`,
+        'http://127.0.0.1:8000/api/pedidos/mis-pedidos',
         {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type':
-              'application/json',
+            'Content-Type': 'application/json',
           },
         }
       )
 
-      const data =
-        await respuesta.json().catch(
-          () => null
-        )
+      const data = await respuesta.json()
 
       if (!respuesta.ok) {
         throw new Error(
-          obtenerMensajeApi(
-            data,
+          data?.detail ||
             'No se pudieron cargar las compras.'
-          )
         )
       }
 
@@ -603,22 +322,15 @@ export default function PanelCliente({
 
       if (Array.isArray(data)) {
         pedidos = data
-      } else if (
-        Array.isArray(data?.pedidos)
-      ) {
+      } else if (Array.isArray(data?.pedidos)) {
         pedidos = data.pedidos
-      } else if (
-        Array.isArray(data?.data)
-      ) {
+      } else if (Array.isArray(data?.data)) {
         pedidos = data.data
-      } else if (
-        Array.isArray(data?.items)
-      ) {
+      } else if (Array.isArray(data?.items)) {
         pedidos = data.items
       }
 
       setCompras(pedidos)
-      setCompraActual(0)
 
       localStorage.setItem(
         COMPRAS_KEY,
@@ -631,93 +343,20 @@ export default function PanelCliente({
       )
 
       try {
-        const comprasLocales =
-          JSON.parse(
-            localStorage.getItem(
-              COMPRAS_KEY
-            ) || '[]'
-          )
+        const comprasLocales = JSON.parse(
+          localStorage.getItem(COMPRAS_KEY)
+        )
 
         setCompras(
           Array.isArray(comprasLocales)
             ? comprasLocales
             : []
         )
-
-        setCompraActual(0)
       } catch {
         setCompras([])
       }
     } finally {
       setCargandoCompras(false)
-    }
-  }
-
-  async function cargarPqrs() {
-    setCargandoPqrs(true)
-
-    const token =
-      localStorage.getItem('token')
-
-    if (!token) {
-      setPqrs([])
-      setCargandoPqrs(false)
-      return
-    }
-
-    try {
-      const respuesta = await fetch(
-        `${API_URL}/api/pqrs/mis-pqrs`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type':
-              'application/json',
-          },
-        }
-      )
-
-      const data =
-        await respuesta.json().catch(
-          () => null
-        )
-
-      if (!respuesta.ok) {
-        throw new Error(
-          obtenerMensajeApi(
-            data,
-            'No se pudieron cargar las PQR.'
-          )
-        )
-      }
-
-      if (Array.isArray(data)) {
-        setPqrs(data)
-      } else if (
-        Array.isArray(data?.pqrs)
-      ) {
-        setPqrs(data.pqrs)
-      } else if (
-        Array.isArray(data?.data)
-      ) {
-        setPqrs(data.data)
-      } else if (
-        Array.isArray(data?.items)
-      ) {
-        setPqrs(data.items)
-      } else {
-        setPqrs([])
-      }
-    } catch (error) {
-      console.error(
-        'Error cargando PQR:',
-        error
-      )
-
-      setPqrs([])
-    } finally {
-      setCargandoPqrs(false)
     }
   }
 
@@ -732,235 +371,174 @@ export default function PanelCliente({
     )
 
     window.dispatchEvent(
-      new Event(
-        'cellworld-favorites-updated'
-      )
+      new Event('cellworld-favorites-updated')
     )
   }
 
-  function agregarFavoritoAlCarrito(
-    producto
-  ) {
+  function agregarFavoritoAlCarrito(producto) {
     const productoNormalizado =
       normalizarProducto(producto)
 
     addItem(productoNormalizado)
   }
 
-  function abrirFactura(compra) {
+  function abrirDetalles(compra) {
     setCompraSeleccionada(compra)
-    setMostrarFactura(true)
+    setMostrarDetalles(true)
   }
 
-  function descargarFactura(compra) {
-    try {
-      generarFacturaPDF(
-        compra,
-        usuario
-      )
-    } catch (error) {
-      console.error(
-        'Error generando factura:',
-        error
-      )
-
-      alert(
-        'No se pudo generar la factura PDF.'
-      )
-    }
+  function cerrarDetalles() {
+    setMostrarDetalles(false)
+    setCompraSeleccionada(null)
   }
 
   const nombreUsuario =
-    obtenerNombreUsuario(usuario)
+    usuario?.nombres ||
+    perfil.nombres ||
+    'Cliente'
 
-  const totalFavoritos =
-    favoritos.length
+  const totalFavoritos = favoritos.length
+  const totalCompras = compras.length
 
-  const totalCompras =
-    compras.length
+  const fondoPrincipal = modoOscuro
+    ? 'bg-slate-950 text-white'
+    : 'bg-gray-100 text-gray-900'
 
-  const compra =
-    compras[compraActual] || null
+  const fondoTarjeta = modoOscuro
+    ? 'bg-slate-900 border-slate-800'
+    : 'bg-white border-gray-200'
 
-  const botonMenuBase =
-    'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left font-medium transition'
-
-  const botonMenuActivo =
-    'bg-blue-600 text-white shadow-md'
-
-  const botonMenuInactivo = modoOscuro
-    ? 'text-gray-300 hover:bg-slate-800'
-    : 'text-gray-700 hover:bg-gray-100'
+  const textoSecundario = modoOscuro
+    ? 'text-gray-400'
+    : 'text-gray-500'
 
   return (
     <div
       className={`min-h-screen w-full ${fondoPrincipal}`}
     >
-      <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
-
-        {/* =====================================================
-            ENCABEZADO
-        ===================================================== */}
-
-        <div
-          className={`mb-6 rounded-3xl border p-5 shadow-sm sm:p-6 ${fondoTarjeta}`}
+      <div className="flex h-screen w-full overflow-hidden">
+        {/* MENÚ LATERAL FIJO */}
+        <aside
+          className={`fixed inset-y-0 left-0 z-40 hidden w-[245px] shrink-0 flex-col border-r lg:flex ${
+            modoOscuro
+              ? 'border-slate-800 bg-slate-900'
+              : 'border-gray-200 bg-white'
+          }`}
         >
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-
-            <div className="min-w-0">
-              <p
-                className={`mb-1 text-sm font-medium ${textoSecundario}`}
-              >
-                Panel de cliente
-              </p>
-
-              <h1 className="text-2xl font-bold sm:text-3xl">
-                Hola, {nombreUsuario} 👋
-              </h1>
-
-              <p
-                className={`mt-2 text-sm sm:text-base ${textoSecundario}`}
-              >
-                Administra tus compras,
-                productos seleccionados y
-                tu perfil.
-              </p>
+          <div
+            className={`flex h-[78px] shrink-0 items-center border-b px-5 ${
+              modoOscuro ? 'border-slate-800' : 'border-gray-200'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+                <ShoppingCart size={21} />
+              </div>
+              <div className="min-w-0">
+                <h1 className="truncate text-base font-bold">CellWorld</h1>
+                <p className={`text-xs ${textoSecundario}`}>Panel de cliente</p>
+              </div>
             </div>
+          </div>
 
+          <div className="px-4 pt-5">
             <div
-              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${
-                modoOscuro
-                  ? 'bg-blue-500/10 text-blue-400'
-                  : 'bg-blue-50 text-blue-600'
+              className={`flex items-center gap-3 rounded-xl px-3 py-3 ${
+                modoOscuro ? 'bg-slate-950' : 'bg-gray-50'
               }`}
             >
-              <User size={28} />
-            </div>
-
-          </div>
-        </div>
-
-        {/* =====================================================
-            CONTENIDO
-        ===================================================== */}
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)]">
-
-          {/* =====================================================
-              MENÚ LATERAL
-          ===================================================== */}
-
-          <aside className="h-fit lg:sticky lg:top-6">
-            <nav className="flex flex-col gap-1">
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSeccion('resumen')
-                }
-                className={`${botonMenuBase} ${
-                  seccion === 'resumen'
-                    ? botonMenuActivo
-                    : botonMenuInactivo
-                }`}
-              >
-                <LayoutDashboard size={19} />
-                <span>Resumen</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSeccion('compras')
-                }
-                className={`${botonMenuBase} ${
-                  seccion === 'compras'
-                    ? botonMenuActivo
-                    : botonMenuInactivo
-                }`}
-              >
-                <ShoppingBag size={19} />
-
-                <span>Mis compras</span>
-
-                {totalCompras > 0 && (
-                  <span
-                    className={`ml-auto flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs ${
-                      seccion === 'compras'
-                        ? 'bg-white/20 text-white'
-                        : modoOscuro
-                          ? 'bg-slate-700 text-gray-200'
-                          : 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {totalCompras}
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSeccion('seleccionados')
-                }
-                className={`${botonMenuBase} ${
-                  seccion === 'seleccionados'
-                    ? botonMenuActivo
-                    : botonMenuInactivo
-                }`}
-              >
-                <Heart size={19} />
-
-                <span>
-                  Mis seleccionados
-                </span>
-
-                {totalFavoritos > 0 && (
-                  <span
-                    className={`ml-auto flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs ${
-                      seccion === 'seleccionados'
-                        ? 'bg-white/20 text-white'
-                        : modoOscuro
-                          ? 'bg-slate-700 text-gray-200'
-                          : 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {totalFavoritos}
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSeccion('perfil')
-                }
-                className={`${botonMenuBase} ${
-                  seccion === 'perfil'
-                    ? botonMenuActivo
-                    : botonMenuInactivo
+              <div
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                  modoOscuro
+                    ? 'bg-blue-500/10 text-blue-400'
+                    : 'bg-blue-50 text-blue-600'
                 }`}
               >
                 <User size={19} />
-                <span>Mi perfil</span>
-              </button>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{nombreUsuario}</p>
+                <p className={`text-xs ${textoSecundario}`}>Cliente</p>
+              </div>
+            </div>
+          </div>
 
-            </nav>
-          </aside>
+          <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-5">
+            <button type="button" onClick={() => setSeccion('resumen')}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${seccion === 'resumen' ? 'bg-blue-600 text-white' : textoSecundario}`}>
+              <LayoutDashboard size={19} />
+              <span>Resumen</span>
+            </button>
 
-          {/* =====================================================
-              MAIN
-          ===================================================== */}
+            <button type="button" onClick={() => setSeccion('compras')}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${seccion === 'compras' ? 'bg-blue-600 text-white' : textoSecundario}`}>
+              <ShoppingBag size={19} />
+              <span>Mis compras</span>
+              {totalCompras > 0 && (
+                <span className={`ml-auto rounded-full px-2 py-0.5 text-xs ${seccion === 'compras' ? 'bg-white/20 text-white' : modoOscuro ? 'bg-slate-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>{totalCompras}</span>
+              )}
+            </button>
 
-          <main className="min-w-0">
+            <button type="button" onClick={() => setSeccion('seleccionados')}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${seccion === 'seleccionados' ? 'bg-blue-600 text-white' : textoSecundario}`}>
+              <Heart size={19} />
+              <span>Mis seleccionados</span>
+              {totalFavoritos > 0 && (
+                <span className={`ml-auto rounded-full px-2 py-0.5 text-xs ${seccion === 'seleccionados' ? 'bg-white/20 text-white' : modoOscuro ? 'bg-slate-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>{totalFavoritos}</span>
+              )}
+            </button>
 
-            {/* =================================================
-                RESUMEN
-            ================================================= */}
+            <button type="button" onClick={() => setSeccion('perfil')}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${seccion === 'perfil' ? 'bg-blue-600 text-white' : textoSecundario}`}>
+              <User size={19} />
+              <span>Mi perfil</span>
+            </button>
+          </nav>
 
+          <div
+            className={`shrink-0 border-t p-4 ${
+              modoOscuro ? 'border-slate-800' : 'border-gray-200'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/' }}
+              className={`flex w-full items-center justify-center rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+                modoOscuro
+                  ? 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
+                  : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Volver a la tienda
+            </button>
+          </div>
+        </aside>
+
+        {/* ÁREA DE CONTENIDO */}
+        <main className="min-w-0 flex-1 overflow-hidden lg:ml-[245px]">
+          <div className="h-full overflow-y-auto">
+            <header
+              className={`flex min-h-[78px] shrink-0 items-center border-b px-5 sm:px-7 ${
+                modoOscuro ? 'border-slate-800 bg-slate-900' : 'border-gray-200 bg-white'
+              }`}
+            >
+              <div>
+                <p className={`text-xs font-medium uppercase tracking-wide ${textoSecundario}`}>
+                  Panel de cliente
+                </p>
+                <h1 className="mt-1 text-xl font-bold sm:text-2xl">
+                  {seccion === 'resumen' && 'Resumen'}
+                  {seccion === 'compras' && 'Mis compras'}
+                  {seccion === 'seleccionados' && 'Mis seleccionados'}
+                  {seccion === 'perfil' && 'Mi perfil'}
+                </h1>
+              </div>
+            </header>
+
+            <div className="p-5 sm:p-7">
+            {/* RESUMEN */}
             {seccion === 'resumen' && (
               <section>
-
                 <div className="mb-6">
                   <h2 className="text-2xl font-bold">
                     Resumen
@@ -969,14 +547,12 @@ export default function PanelCliente({
                   <p
                     className={`mt-1 ${textoSecundario}`}
                   >
-                    Aquí puedes consultar
-                    rápidamente tu actividad
-                    en CellWorld.
+                    Aquí puedes consultar rápidamente
+                    tu actividad en CellWorld.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-
                   <div
                     className={`rounded-3xl border p-6 shadow-sm ${fondoTarjeta}`}
                   >
@@ -1051,18 +627,15 @@ export default function PanelCliente({
                     </p>
 
                     <p className="mt-1 truncate text-lg font-bold">
-                      {perfil.email ||
-                        'Cliente'}
+                      {perfil.email || 'Cliente'}
                     </p>
                   </div>
-
                 </div>
 
                 <div
                   className={`mt-6 rounded-3xl border p-6 shadow-sm ${fondoTarjeta}`}
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
                     <div>
                       <h3 className="text-lg font-bold">
                         ¿Buscas algo nuevo?
@@ -1071,9 +644,8 @@ export default function PanelCliente({
                       <p
                         className={`mt-1 text-sm ${textoSecundario}`}
                       >
-                        Explora nuestro catálogo
-                        y encuentra tu próximo
-                        celular.
+                        Explora nuestro catálogo y
+                        encuentra tu próximo celular.
                       </p>
                     </div>
 
@@ -1088,20 +660,14 @@ export default function PanelCliente({
                       <ShoppingCart size={18} />
                       Ver productos
                     </button>
-
                   </div>
                 </div>
-
               </section>
             )}
 
-            {/* =================================================
-                MIS COMPRAS
-            ================================================= */}
-
+            {/* COMPRAS */}
             {seccion === 'compras' && (
               <section>
-
                 <div className="mb-6">
                   <h2 className="text-2xl font-bold">
                     Mis compras
@@ -1110,8 +676,8 @@ export default function PanelCliente({
                   <p
                     className={`mt-1 ${textoSecundario}`}
                   >
-                    Consulta el historial de
-                    tus pedidos realizados.
+                    Consulta el historial de tus pedidos
+                    realizados.
                   </p>
                 </div>
 
@@ -1121,9 +687,7 @@ export default function PanelCliente({
                   >
                     <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
 
-                    <p
-                      className={textoSecundario}
-                    >
+                    <p className={textoSecundario}>
                       Cargando tus compras...
                     </p>
                   </div>
@@ -1148,10 +712,9 @@ export default function PanelCliente({
                     <p
                       className={`mx-auto mt-2 max-w-md ${textoSecundario}`}
                     >
-                      Cuando realices una
-                      compra, aparecerá aquí
-                      junto con la información
-                      de la operación.
+                      Cuando realices una compra,
+                      aparecerá aquí junto con todos sus
+                      detalles.
                     </p>
 
                     <button
@@ -1168,273 +731,224 @@ export default function PanelCliente({
                   </div>
                 ) : (
                   <div className="space-y-5">
+                    {compras.map((compra, indice) => {
+                      const productos =
+                        obtenerProductosCompra(compra)
 
-                    {/* PESTAÑAS DE COMPRAS */}
+                      const total =
+                        obtenerTotalCompra(compra)
 
-                    <div
-                      className={`rounded-2xl border p-2 ${fondoTarjeta}`}
-                    >
-                      <div className="flex gap-2 overflow-x-auto">
+                      const fecha =
+                        obtenerFechaCompra(compra)
 
-                        {compras.map(
-                          (item, indice) => (
-                            <button
-                              key={
-                                item?.id_pedido ??
-                                item?.id ??
-                                indice
-                              }
-                              type="button"
-                              onClick={() =>
-                                setCompraActual(
-                                  indice
-                                )
-                              }
-                              className={`min-w-fit rounded-xl px-4 py-3 text-left transition ${
-                                compraActual ===
-                                indice
-                                  ? 'bg-blue-600 text-white'
-                                  : modoOscuro
-                                    ? 'text-slate-300 hover:bg-slate-800'
-                                    : 'text-gray-700 hover:bg-gray-100'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <ShoppingBag size={16} />
+                      const idPedido =
+                        compra?.id_pedido ??
+                        compra?.id ??
+                        indice + 1
 
-                                <span className="font-semibold">
-                                  Compra #
-                                  {obtenerIdCompra(
-                                    item
-                                  ) ??
-                                    indice + 1}
-                                </span>
-                              </div>
+                      return (
+                        <article
+                          key={
+                            compra?.id_pedido ??
+                            compra?.id ??
+                            indice
+                          }
+                          className={`overflow-hidden rounded-3xl border shadow-sm transition hover:shadow-md ${fondoTarjeta}`}
+                        >
+                          <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_320px]">
+                            {/* INFORMACIÓN DEL PEDIDO */}
+                            <div className="min-w-0 p-5 sm:p-6">
+                              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span
+                                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                        modoOscuro
+                                          ? 'bg-blue-500/10 text-blue-400'
+                                          : 'bg-blue-50 text-blue-700'
+                                      }`}
+                                    >
+                                      Pedido #{idPedido}
+                                    </span>
 
-                              <p
-                                className={`mt-1 text-xs ${
-                                  compraActual ===
-                                  indice
-                                    ? 'text-white/80'
-                                    : textoSecundario
-                                }`}
-                              >
-                                {formatearFecha(
-                                  obtenerFechaCompra(
-                                    item
-                                  )
-                                )}
-                              </p>
-                            </button>
-                          )
-                        )}
+                                    <span
+                                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                        modoOscuro
+                                          ? 'bg-green-500/10 text-green-400'
+                                          : 'bg-green-50 text-green-700'
+                                      }`}
+                                    >
+                                      {compra?.estado ||
+                                        'Pagado'}
+                                    </span>
+                                  </div>
 
-                      </div>
-                    </div>
-
-                    {/* COMPRA SELECCIONADA */}
-
-                    {compra && (
-                      <div
-                        className={`${fondoTarjeta} ${bordeTarjeta} rounded-2xl border shadow-sm`}
-                      >
-                        <div className="p-6">
-
-                          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-
-                            <div className="flex items-center gap-4">
-
-                              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-                                <ShoppingBag size={24} />
-                              </div>
-
-                              <div>
-                                <h2
-                                  className={`text-lg font-bold ${textoPrincipal}`}
-                                >
-                                  Compra #
-                                  {obtenerIdCompra(
-                                    compra
-                                  )}
-                                </h2>
-
-                                <div
-                                  className={`mt-2 flex flex-wrap items-center gap-3 text-sm ${textoSecundario}`}
-                                >
-                                  <span className="flex items-center gap-1.5">
-                                    <CalendarDays size={15} />
-
-                                    {formatearFecha(
-                                      obtenerFechaCompra(
-                                        compra
-                                      )
-                                    )}
-                                  </span>
-
-                                  <span
-                                    className={`rounded-full px-3 py-1 text-xs font-semibold ${obtenerEstiloEstado(
-                                      compra,
-                                      modoOscuro
-                                    )}`}
+                                  <div
+                                    className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm ${textoSecundario}`}
                                   >
-                                    {obtenerTextoEstado(
-                                      compra
-                                    )}
-                                  </span>
+                                    <span className="inline-flex items-center gap-2">
+                                      <CalendarDays
+                                        size={16}
+                                      />
+                                      {formatearFecha(
+                                        fecha
+                                      )}
+                                    </span>
+
+                                    <span className="inline-flex items-center gap-2">
+                                      <Package
+                                        size={16}
+                                      />
+                                      {productos.length}{' '}
+                                      {productos.length ===
+                                      1
+                                        ? 'producto'
+                                        : 'productos'}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
 
-                            <div className="flex flex-wrap items-center gap-6">
+                              {/* PRODUCTOS DEL PEDIDO */}
+                              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                {productos
+                                  .slice(0, 4)
+                                  .map(
+                                    (
+                                      producto,
+                                      productoIndex
+                                    ) => {
+                                      const nombre =
+                                        obtenerNombreProducto(
+                                          producto
+                                        )
 
-                              <div>
-                                <p
-                                  className={`text-xs ${textoSecundario}`}
-                                >
-                                  Productos
-                                </p>
+                                      const precio =
+                                        obtenerPrecioProducto(
+                                          producto
+                                        )
 
-                                <p
-                                  className={`mt-1 font-semibold ${textoPrincipal}`}
-                                >
-                                  {
-                                    obtenerProductosCompra(
-                                      compra
-                                    ).length
-                                  }
-                                </p>
-                              </div>
+                                      const cantidad =
+                                        Number(
+                                          producto?.cantidad ??
+                                            producto?.quantity ??
+                                            1
+                                        )
 
-                              <div>
-                                <p
-                                  className={`text-xs ${textoSecundario}`}
-                                >
-                                  Total
-                                </p>
+                                      const imagen =
+                                        obtenerImagenProducto(
+                                          producto
+                                        )
 
-                                <p
-                                  className={`mt-1 text-lg font-bold ${textoPrincipal}`}
-                                >
-                                  {formatearPrecio(
-                                    obtenerTotalCompra(
-                                      compra
-                                    )
+                                      return (
+                                        <div
+                                          key={`${idPedido}-${productoIndex}`}
+                                          className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 ${
+                                            modoOscuro
+                                              ? 'border-slate-800 bg-slate-950'
+                                              : 'border-gray-100 bg-gray-50'
+                                          }`}
+                                        >
+                                          <div
+                                            className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl ${
+                                              modoOscuro
+                                                ? 'bg-slate-900'
+                                                : 'bg-white'
+                                            }`}
+                                          >
+                                            {imagen ? (
+                                              <img
+                                                src={imagen}
+                                                alt={nombre}
+                                                className="h-full w-full object-contain p-2"
+                                              />
+                                            ) : (
+                                              <Package
+                                                size={24}
+                                                className={
+                                                  textoSecundario
+                                                }
+                                              />
+                                            )}
+                                          </div>
+
+                                          <div className="min-w-0 flex-1">
+                                            <p className="truncate font-semibold">
+                                              {nombre}
+                                            </p>
+
+                                            <p
+                                              className={`mt-1 text-sm ${textoSecundario}`}
+                                            >
+                                              Cantidad:{' '}
+                                              {cantidad}
+                                            </p>
+
+                                            <p className="mt-1 text-sm font-semibold">
+                                              {formatearPrecio(
+                                                precio
+                                              )}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      )
+                                    }
                                   )}
+                              </div>
+
+                              {productos.length > 4 && (
+                                <p
+                                  className={`mt-3 text-sm ${textoSecundario}`}
+                                >
+                                  + {productos.length - 4}{' '}
+                                  producto(s) más
+                                </p>
+                              )}
+                            </div>
+
+                            {/* TOTAL Y BOTÓN */}
+                            <div
+                              className={`flex flex-col justify-between gap-5 border-t p-5 sm:p-6 2xl:border-l 2xl:border-t-0 ${
+                                modoOscuro
+                                  ? 'border-slate-800'
+                                  : 'border-gray-200'
+                              }`}
+                            >
+                              <div>
+                                <p
+                                  className={`text-sm ${textoSecundario}`}
+                                >
+                                  Total de la compra
+                                </p>
+
+                                <p className="mt-2 break-words text-2xl font-bold sm:text-3xl">
+                                  {formatearPrecio(total)}
                                 </p>
                               </div>
 
                               <button
                                 type="button"
                                 onClick={() =>
-                                  abrirFactura(
-                                    compra
-                                  )
+                                  abrirDetalles(compra)
                                 }
-                                className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
                               >
-                                <FileText size={17} />
-                                Factura
+                                <Eye size={18} />
+                                Ver detalles
                               </button>
-
                             </div>
                           </div>
-
-                          <div
-                            className={`mt-6 flex items-center justify-between border-t pt-5 ${
-                              modoOscuro
-                                ? 'border-slate-800'
-                                : 'border-slate-200'
-                            }`}
-                          >
-                            <p
-                              className={`text-sm ${textoSecundario}`}
-                            >
-                              Compra{' '}
-                              {compraActual +
-                                1}{' '}
-                              de{' '}
-                              {compras.length}
-                            </p>
-
-                            <div className="flex gap-2">
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setCompraActual(
-                                    (actual) =>
-                                      Math.max(
-                                        0,
-                                        actual - 1
-                                      )
-                                  )
-                                }
-                                disabled={
-                                  compraActual ===
-                                  0
-                                }
-                                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                                  compraActual ===
-                                  0
-                                    ? 'cursor-not-allowed opacity-40'
-                                    : modoOscuro
-                                      ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-                                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                }`}
-                              >
-                                Anterior
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setCompraActual(
-                                    (actual) =>
-                                      Math.min(
-                                        compras.length -
-                                          1,
-                                        actual + 1
-                                      )
-                                  )
-                                }
-                                disabled={
-                                  compraActual >=
-                                  compras.length -
-                                    1
-                                }
-                                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                                  compraActual >=
-                                  compras.length -
-                                    1
-                                    ? 'cursor-not-allowed opacity-40'
-                                    : modoOscuro
-                                      ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-                                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                }`}
-                              >
-                                Siguiente
-                              </button>
-
-                            </div>
-                          </div>
-
-                        </div>
-                      </div>
-                    )}
-
+                        </article>
+                      )
+                    })}
                   </div>
                 )}
-
               </section>
             )}
 
-            {/* =================================================
-                MIS SELECCIONADOS
-            ================================================= */}
-
+            {/* SELECCIONADOS */}
             {seccion === 'seleccionados' && (
               <section>
-
                 <div className="mb-6">
                   <h2 className="text-2xl font-bold">
                     Mis seleccionados
@@ -1443,9 +957,8 @@ export default function PanelCliente({
                   <p
                     className={`mt-1 ${textoSecundario}`}
                   >
-                    Aquí encontrarás los
-                    productos que marcaste como
-                    favoritos.
+                    Aquí encontrarás los productos que
+                    marcaste como favoritos.
                   </p>
                 </div>
 
@@ -1464,16 +977,14 @@ export default function PanelCliente({
                     </div>
 
                     <h3 className="text-xl font-bold">
-                      No tienes productos
-                      seleccionados
+                      No tienes productos seleccionados
                     </h3>
 
                     <p
                       className={`mx-auto mt-2 max-w-md ${textoSecundario}`}
                     >
-                      Presiona el corazón en
-                      cualquier producto para
-                      guardarlo aquí.
+                      Presiona el corazón en cualquier
+                      producto para guardarlo aquí.
                     </p>
 
                     <button
@@ -1489,12 +1000,8 @@ export default function PanelCliente({
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-
                     {favoritos.map(
-                      (
-                        producto,
-                        indice
-                      ) => {
+                      (producto, indice) => {
                         const id =
                           obtenerIdProducto(
                             producto
@@ -1545,9 +1052,7 @@ export default function PanelCliente({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  quitarFavorito(
-                                    id
-                                  )
+                                  quitarFavorito(id)
                                 }
                                 title="Quitar de seleccionados"
                                 className={`absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full shadow-sm transition hover:scale-105 ${
@@ -1556,7 +1061,9 @@ export default function PanelCliente({
                                     : 'bg-white text-red-500 hover:bg-red-50'
                                 }`}
                               >
-                                <Trash2 size={18} />
+                                <Trash2
+                                  size={18}
+                                />
                               </button>
                             </div>
 
@@ -1566,11 +1073,7 @@ export default function PanelCliente({
                               </h3>
 
                               <p
-                                className={`mt-2 text-xl font-bold ${
-                                  modoOscuro
-                                    ? 'text-blue-400'
-                                    : 'text-blue-600'
-                                }`}
+                                className={`mt-2 text-xl font-bold ${modoOscuro ? 'text-blue-400' : 'text-blue-600'}`}
                               >
                                 {formatearPrecio(
                                   precio
@@ -1586,7 +1089,9 @@ export default function PanelCliente({
                                 }
                                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
                               >
-                                <ShoppingCart size={18} />
+                                <ShoppingCart
+                                  size={18}
+                                />
                                 Agregar al carrito
                               </button>
                             </div>
@@ -1594,20 +1099,14 @@ export default function PanelCliente({
                         )
                       }
                     )}
-
                   </div>
                 )}
-
               </section>
             )}
 
-            {/* =================================================
-                PERFIL
-            ================================================= */}
-
+            {/* PERFIL */}
             {seccion === 'perfil' && (
               <section>
-
                 <div className="mb-6">
                   <h2 className="text-2xl font-bold">
                     Mi perfil
@@ -1616,8 +1115,7 @@ export default function PanelCliente({
                   <p
                     className={`mt-1 ${textoSecundario}`}
                   >
-                    Información de tu cuenta
-                    en CellWorld.
+                    Información de tu cuenta en CellWorld.
                   </p>
                 </div>
 
@@ -1625,7 +1123,6 @@ export default function PanelCliente({
                   className={`rounded-3xl border p-5 shadow-sm sm:p-7 ${fondoTarjeta}`}
                 >
                   <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-center">
-
                     <div
                       className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl ${
                         modoOscuro
@@ -1649,11 +1146,9 @@ export default function PanelCliente({
                           'Correo no disponible'}
                       </p>
                     </div>
-
                   </div>
 
                   <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
                     <div>
                       <label
                         className={`mb-2 block text-sm font-semibold ${textoSecundario}`}
@@ -1729,419 +1224,277 @@ export default function PanelCliente({
                         }`}
                       />
                     </div>
-
                   </div>
                 </div>
-
               </section>
             )}
-
-          </main>
-
-        </div>
+            </div>
+          </div>
+        </main>
       </div>
 
-      {/* =========================================================
-          MODAL FACTURA
-      ========================================================= */}
-
-      {mostrarFactura &&
+      {/* MODAL DETALLES DE COMPRA */}
+      {mostrarDetalles &&
         compraSeleccionada && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm sm:p-5"
             onMouseDown={(evento) => {
               if (
-                evento.target ===
-                evento.currentTarget
+                evento.target === evento.currentTarget
               ) {
-                setMostrarFactura(false)
+                cerrarDetalles()
               }
             }}
           >
             <div
-              className={`${fondoTarjeta} ${bordeTarjeta} max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border shadow-2xl`}
+              className={`flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border shadow-2xl ${
+                modoOscuro
+                  ? 'border-slate-800 bg-slate-900 text-white'
+                  : 'border-gray-200 bg-white text-gray-900'
+              }`}
             >
-
+              {/* HEADER MODAL */}
               <div
-                className={`sticky top-0 z-10 flex items-center justify-between border-b p-6 ${
+                className={`flex shrink-0 items-start justify-between gap-4 border-b p-5 sm:p-6 ${
                   modoOscuro
-                    ? 'border-slate-800 bg-slate-900'
-                    : 'border-slate-200 bg-white'
+                    ? 'border-slate-800'
+                    : 'border-gray-200'
                 }`}
               >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        modoOscuro
+                          ? 'bg-blue-500/10 text-blue-400'
+                          : 'bg-blue-50 text-blue-700'
+                      }`}
+                    >
+                      Pedido #
+                      {compraSeleccionada?.id_pedido ??
+                        compraSeleccionada?.id ??
+                        '—'}
+                    </span>
 
-                <div className="flex items-center gap-3">
-
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white">
-                    <FileText size={21} />
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        modoOscuro
+                          ? 'bg-green-500/10 text-green-400'
+                          : 'bg-green-50 text-green-700'
+                      }`}
+                    >
+                      {compraSeleccionada?.estado ||
+                        'Pagado'}
+                    </span>
                   </div>
 
-                  <div>
-                    <h2
-                      className={`text-xl font-bold ${textoPrincipal}`}
-                    >
-                      Factura
-                    </h2>
+                  <h3 className="mt-3 text-xl font-bold sm:text-2xl">
+                    Detalles de la compra
+                  </h3>
 
-                    <p
-                      className={`text-sm ${textoSecundario}`}
-                    >
-                      Compra #
-                      {obtenerIdCompra(
+                  <p
+                    className={`mt-1 text-sm ${textoSecundario}`}
+                  >
+                    {formatearFecha(
+                      obtenerFechaCompra(
                         compraSeleccionada
-                      )}
-                    </p>
-                  </div>
-
+                      )
+                    )}
+                  </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setMostrarFactura(false)
-                  }
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${
+                  onClick={cerrarDetalles}
+                  aria-label="Cerrar"
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition ${
                     modoOscuro
-                      ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
-                  <X size={20} />
+                  <X size={22} />
                 </button>
-
               </div>
 
-              <div className="p-6">
+              {/* CONTENIDO MODAL */}
+              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+                <div className="space-y-4">
+                  {obtenerProductosCompra(
+                    compraSeleccionada
+                  ).map((producto, indice) => {
+                    const nombre =
+                      obtenerNombreProducto(producto)
 
-                <div
-                  className={`rounded-2xl p-6 ${
-                    modoOscuro
-                      ? 'bg-slate-800/50'
-                      : 'bg-slate-50'
-                  }`}
-                >
+                    const precio =
+                      obtenerPrecioProducto(producto)
 
-                  <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    const cantidad =
+                      Number(
+                        producto?.cantidad ??
+                          producto?.quantity ??
+                          1
+                      )
 
-                    <div>
-                      <h3
-                        className={`text-2xl font-bold ${textoPrincipal}`}
+                    const imagen =
+                      obtenerImagenProducto(producto)
+
+                    const subtotal =
+                      precio * cantidad
+
+                    return (
+                      <div
+                        key={indice}
+                        className={`grid grid-cols-1 gap-5 rounded-2xl border p-5 lg:grid-cols-[110px_minmax(0,1fr)_180px] lg:items-center ${
+                          modoOscuro
+                            ? 'border-slate-800 bg-slate-950'
+                            : 'border-gray-200 bg-gray-50'
+                        }`}
                       >
-                        CellWorld
-                      </h3>
-
-                      <p
-                        className={`mt-1 text-sm ${textoSecundario}`}
-                      >
-                        Factura /
-                        Comprobante de compra
-                      </p>
-                    </div>
-
-                    <span
-                      className={`w-fit rounded-full px-3 py-1.5 text-xs font-semibold ${obtenerEstiloEstado(
-                        compraSeleccionada,
-                        modoOscuro
-                      )}`}
-                    >
-                      {obtenerTextoEstado(
-                        compraSeleccionada
-                      )}
-                    </span>
-
-                  </div>
-
-                  <div className="mb-6 grid gap-4 sm:grid-cols-2">
-
-                    <div>
-                      <p
-                        className={`text-xs ${textoSecundario}`}
-                      >
-                        Número de factura
-                      </p>
-
-                      <p
-                        className={`mt-1 font-semibold ${textoPrincipal}`}
-                      >
-                        #
-                        {obtenerIdCompra(
-                          compraSeleccionada
-                        )}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p
-                        className={`text-xs ${textoSecundario}`}
-                      >
-                        Fecha
-                      </p>
-
-                      <p
-                        className={`mt-1 font-semibold ${textoPrincipal}`}
-                      >
-                        {formatearFecha(
-                          obtenerFechaCompra(
-                            compraSeleccionada
-                          )
-                        )}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p
-                        className={`text-xs ${textoSecundario}`}
-                      >
-                        Cliente
-                      </p>
-
-                      <p
-                        className={`mt-1 font-semibold ${textoPrincipal}`}
-                      >
-                        {obtenerNombreUsuario(
-                          usuario
-                        )}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p
-                        className={`text-xs ${textoSecundario}`}
-                      >
-                        Correo
-                      </p>
-
-                      <p
-                        className={`mt-1 break-all font-semibold ${textoPrincipal}`}
-                      >
-                        {obtenerCorreoUsuario(
-                          usuario
-                        ) ||
-                          'No registrado'}
-                      </p>
-                    </div>
-
-                  </div>
-
-                  <div className="space-y-2">
-
-                    {obtenerProductosCompra(
-                      compraSeleccionada
-                    ).map(
-                      (
-                        producto,
-                        indice
-                      ) => (
+                        {/* IMAGEN */}
                         <div
-                          key={`${obtenerIdProducto(
-                            producto
-                          )}-${indice}`}
-                          className={`flex items-center justify-between gap-4 rounded-xl p-4 ${
+                          className={`mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl lg:mx-0 ${
                             modoOscuro
-                              ? 'bg-slate-900/70'
+                              ? 'bg-slate-900'
                               : 'bg-white'
                           }`}
                         >
-
-                          <div className="min-w-0">
-
-                            <p
-                              className={`truncate font-semibold ${textoPrincipal}`}
-                            >
-                              {obtenerNombreProducto(
-                                producto
-                              )}
-                            </p>
-
-                            <p
-                              className={`mt-1 text-xs ${textoSecundario}`}
-                            >
-                              {
-                                producto?.cantidad
-                              }{' '}
-                              ×{' '}
-                              {formatearPrecio(
-                                obtenerPrecioProducto(
-                                  producto
-                                )
-                              )}
-                            </p>
-
-                          </div>
-
-                          <p
-                            className={`shrink-0 font-bold ${textoPrincipal}`}
-                          >
-                            {formatearPrecio(
-                              obtenerPrecioProducto(
-                                producto
-                              ) *
-                                Number(
-                                  producto?.cantidad ??
-                                    producto?.quantity ??
-                                    1
-                                )
-                            )}
-                          </p>
-
+                          {imagen ? (
+                            <img
+                              src={imagen}
+                              alt={nombre}
+                              className="h-full w-full object-contain p-3"
+                            />
+                          ) : (
+                            <Package
+                              size={35}
+                              className={
+                                textoSecundario
+                              }
+                            />
+                          )}
                         </div>
-                      )
-                    )}
 
-                  </div>
+                        {/* INFORMACIÓN */}
+                        <div className="min-w-0 text-center lg:text-left">
+                          <h4 className="break-words text-lg font-bold">
+                            {nombre}
+                          </h4>
 
-                  <div
-                    className={`mt-5 border-t pt-5 ${
-                      modoOscuro
-                        ? 'border-slate-700'
-                        : 'border-slate-200'
-                    }`}
-                  >
+                          <div
+                            className={`mt-3 flex flex-wrap justify-center gap-2 text-sm lg:justify-start`}
+                          >
+                            <span
+                              className={`rounded-full px-3 py-1 ${
+                                modoOscuro
+                                  ? 'bg-slate-800 text-gray-300'
+                                  : 'bg-white text-gray-600'
+                              }`}
+                            >
+                              Cantidad: {cantidad}
+                            </span>
 
-                    <div className="flex justify-end">
+                            <span
+                              className={`rounded-full px-3 py-1 ${
+                                modoOscuro
+                                  ? 'bg-slate-800 text-gray-300'
+                                  : 'bg-white text-gray-600'
+                              }`}
+                            >
+                              Unitario:{' '}
+                              {formatearPrecio(
+                                precio
+                              )}
+                            </span>
+                          </div>
+                        </div>
 
-                      <div className="w-full max-w-xs space-y-2">
-
-                        <div className="flex justify-between text-sm">
-
-                          <span
-                            className={
-                              textoSecundario
-                            }
+                        {/* SUBTOTAL */}
+                        <div className="border-t pt-4 text-center lg:border-l lg:border-t-0 lg:pl-5 lg:text-right">
+                          <p
+                            className={`text-sm ${textoSecundario}`}
                           >
                             Subtotal
-                          </span>
+                          </p>
 
-                          <span
-                            className={`font-medium ${textoPrincipal}`}
-                          >
+                          <p className="mt-1 text-xl font-bold">
                             {formatearPrecio(
-                              obtenerSubtotalCompra(
-                                compraSeleccionada
-                              )
+                              subtotal
                             )}
-                          </span>
-
+                          </p>
                         </div>
+                      </div>
+                    )
+                  })}
+                </div>
 
-                        {obtenerDescuentoCompra(
-                          compraSeleccionada
-                        ) > 0 && (
-                          <div className="flex justify-between text-sm">
+                {/* TOTAL */}
+                <div
+                  className={`mt-6 rounded-2xl border p-5 sm:p-6 ${
+                    modoOscuro
+                      ? 'border-slate-800 bg-slate-950'
+                      : 'border-gray-200 bg-gray-50'
+                  }`}
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                          modoOscuro
+                            ? 'bg-blue-500/10 text-blue-400'
+                            : 'bg-blue-50 text-blue-600'
+                        }`}
+                      >
+                        <CreditCard size={21} />
+                      </div>
 
-                            <span
-                              className={
-                                textoSecundario
-                              }
-                            >
-                              Descuento
-                            </span>
-
-                            <span className="font-medium text-emerald-600">
-                              -
-                              {formatearPrecio(
-                                obtenerDescuentoCompra(
-                                  compraSeleccionada
-                                )
-                              )}
-                            </span>
-
-                          </div>
-                        )}
-
-                        {obtenerIvaCompra(
-                          compraSeleccionada
-                        ) > 0 && (
-                          <div className="flex justify-between text-sm">
-
-                            <span
-                              className={
-                                textoSecundario
-                              }
-                            >
-                              IVA
-                            </span>
-
-                            <span
-                              className={`font-medium ${textoPrincipal}`}
-                            >
-                              {formatearPrecio(
-                                obtenerIvaCompra(
-                                  compraSeleccionada
-                                )
-                              )}
-                            </span>
-
-                          </div>
-                        )}
-
-                        <div
-                          className={`mt-3 flex justify-between border-t pt-3 ${
-                            modoOscuro
-                              ? 'border-slate-700'
-                              : 'border-slate-200'
-                          }`}
+                      <div>
+                        <p
+                          className={`text-sm ${textoSecundario}`}
                         >
+                          Total pagado
+                        </p>
 
-                          <span
-                            className={`font-bold ${textoPrincipal}`}
-                          >
-                            Total
-                          </span>
-
-                          <span className="text-xl font-bold text-blue-600">
-                            {formatearPrecio(
-                              obtenerTotalCompra(
-                                compraSeleccionada
-                              )
-                            )}
-                          </span>
-
-                        </div>
-
+                        <p className="font-semibold">
+                          Compra realizada
+                        </p>
                       </div>
                     </div>
+
+                    <p className="text-2xl font-bold sm:text-3xl">
+                      {formatearPrecio(
+                        obtenerTotalCompra(
+                          compraSeleccionada
+                        )
+                      )}
+                    </p>
                   </div>
-
                 </div>
-
-                <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setMostrarFactura(false)
-                    }
-                    className={`rounded-xl px-5 py-3 text-sm font-semibold transition ${
-                      modoOscuro
-                        ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    Cerrar
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      descargarFactura(
-                        compraSeleccionada
-                      )
-                    }
-                    className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-                  >
-                    <Download size={18} />
-                    Descargar PDF
-                  </button>
-
-                </div>
-
               </div>
 
+              {/* FOOTER MODAL */}
+              <div
+                className={`flex shrink-0 justify-end border-t p-4 sm:p-5 ${
+                  modoOscuro
+                    ? 'border-slate-800'
+                    : 'border-gray-200'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={cerrarDetalles}
+                  className={`w-full rounded-2xl px-5 py-3 font-semibold transition sm:w-auto ${
+                    modoOscuro
+                      ? 'bg-slate-800 text-white hover:bg-slate-700'
+                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
           </div>
         )}
-
     </div>
   )
 }
