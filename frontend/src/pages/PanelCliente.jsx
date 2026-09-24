@@ -15,10 +15,22 @@ import {
 import { useCart } from '../context/CartContext'
 import { API_URL } from '../config'
 
+const COMPRAS_KEY = 'cellworld_compras'
 
-const FAVORITOS_KEY = 'obtenerClaveFavoritos(usuario)'
-const COMPRAS_KEY = 'obtenerClaveCompras(usuario)'
+function obtenerClaveFavoritos(usuario) {
+  const idUsuario =
+    usuario?.id_usuario ??
+    usuario?.usuario_id ??
+    usuario?.id ??
+    usuario?.email ??
+    usuario?.correo
 
+  if (!idUsuario) {
+    return 'cellworld_favorites_guest'
+  }
+
+  return `cellworld_favorites_${idUsuario}`
+}
 function obtenerIdProducto(producto) {
   return (
     producto?.id_producto ??
@@ -158,15 +170,22 @@ export default function PanelCliente({
 }) {
   const { addItem } = useCart()
 
-  const [seccion, setSeccion] = useState('resumen')
-  const [favoritos, setFavoritos] = useState(() => {
+  const [usuarioActual, setUsuarioActual] = useState(() => {
+    if (usuario) return usuario
+
     try {
-      const guardados = JSON.parse(localStorage.getItem(FAVORITOS_KEY))
-      return Array.isArray(guardados) ? guardados : []
+      const guardado = localStorage.getItem('usuario')
+      return guardado ? JSON.parse(guardado) : null
     } catch {
-      return []
+      return null
     }
   })
+
+  const favoritosKey = obtenerClaveFavoritos(usuarioActual)
+
+  const [seccion, setSeccion] = useState('resumen')
+  const [favoritos, setFavoritos] = useState([])
+  const [favoritosCargados, setFavoritosCargados] = useState(false)
   const [compras, setCompras] = useState([])
   const [mostrarDetalles, setMostrarDetalles] = useState(false)
   const [compraSeleccionada, setCompraSeleccionada] = useState(null)
@@ -192,6 +211,30 @@ export default function PanelCliente({
   })
 
   useEffect(() => {
+    const cargarUsuarioActual = () => {
+      try {
+        const guardado = localStorage.getItem('usuario')
+        const usuarioGuardado = guardado ? JSON.parse(guardado) : null
+        setUsuarioActual(usuario || usuarioGuardado || null)
+      } catch {
+        setUsuarioActual(usuario || null)
+      }
+    }
+
+    cargarUsuarioActual()
+
+    window.addEventListener('usuarioCambio', cargarUsuarioActual)
+    window.addEventListener('storage', cargarUsuarioActual)
+    window.addEventListener('focus', cargarUsuarioActual)
+
+    return () => {
+      window.removeEventListener('usuarioCambio', cargarUsuarioActual)
+      window.removeEventListener('storage', cargarUsuarioActual)
+      window.removeEventListener('focus', cargarUsuarioActual)
+    }
+  }, [usuario])
+
+  useEffect(() => {
     if (usuario) {
       setPerfil({
         nombres: usuario?.nombres || '',
@@ -203,23 +246,61 @@ export default function PanelCliente({
   }, [usuario])
 
   useEffect(() => {
-    localStorage.setItem(
-      FAVORITOS_KEY,
-      JSON.stringify(favoritos)
-    )
-  }, [favoritos])
+    setFavoritosCargados(false)
+
+    try {
+      const guardados = localStorage.getItem(favoritosKey)
+
+      if (!guardados) {
+        setFavoritos([])
+        setFavoritosCargados(true)
+        return
+      }
+
+      const datos = JSON.parse(guardados)
+      setFavoritos(Array.isArray(datos) ? datos : [])
+    } catch (error) {
+      console.error('Error cargando favoritos:', error)
+      setFavoritos([])
+    } finally {
+      setFavoritosCargados(true)
+    }
+  }, [favoritosKey])
 
   useEffect(() => {
-    const actualizarFavoritos = () => {
-      try {
-        const guardados = JSON.parse(
-          localStorage.getItem(FAVORITOS_KEY)
-        )
+    if (!favoritosCargados) return
 
-        setFavoritos(
-          Array.isArray(guardados) ? guardados : []
-        )
-      } catch {
+    try {
+      localStorage.setItem(
+        favoritosKey,
+        JSON.stringify(favoritos)
+      )
+    } catch (error) {
+      console.error('Error guardando favoritos:', error)
+    }
+  }, [favoritos, favoritosCargados, favoritosKey])
+
+  useEffect(() => {
+    const actualizarFavoritos = (evento) => {
+      if (
+        evento?.detail?.key &&
+        evento.detail.key !== favoritosKey
+      ) {
+        return
+      }
+
+      try {
+        const guardados = localStorage.getItem(favoritosKey)
+
+        if (!guardados) {
+          setFavoritos([])
+          return
+        }
+
+        const datos = JSON.parse(guardados)
+        setFavoritos(Array.isArray(datos) ? datos : [])
+      } catch (error) {
+        console.error('Error actualizando favoritos:', error)
         setFavoritos([])
       }
     }
@@ -229,15 +310,8 @@ export default function PanelCliente({
       actualizarFavoritos
     )
 
-    window.addEventListener(
-      'storage',
-      actualizarFavoritos
-    )
-
-    window.addEventListener(
-      'focus',
-      actualizarFavoritos
-    )
+    window.addEventListener('storage', actualizarFavoritos)
+    window.addEventListener('focus', actualizarFavoritos)
 
     return () => {
       window.removeEventListener(
@@ -245,17 +319,10 @@ export default function PanelCliente({
         actualizarFavoritos
       )
 
-      window.removeEventListener(
-        'storage',
-        actualizarFavoritos
-      )
-
-      window.removeEventListener(
-        'focus',
-        actualizarFavoritos
-      )
+      window.removeEventListener('storage', actualizarFavoritos)
+      window.removeEventListener('focus', actualizarFavoritos)
     }
-  }, [])
+  }, [favoritosKey])
 
   useEffect(() => {
     cargarCompras()
@@ -372,18 +439,29 @@ export default function PanelCliente({
   }
 
   function quitarFavorito(id) {
-    setFavoritos((actuales) =>
-      actuales.filter(
+    setFavoritos((actuales) => {
+      const nuevosFavoritos = actuales.filter(
         (producto) =>
-          String(
-            obtenerIdProducto(producto)
-          ) !== String(id)
+          String(obtenerIdProducto(producto)) !== String(id)
       )
-    )
 
-    window.dispatchEvent(
-      new Event('cellworld-favorites-updated')
-    )
+      try {
+        localStorage.setItem(
+          favoritosKey,
+          JSON.stringify(nuevosFavoritos)
+        )
+      } catch (error) {
+        console.error('Error guardando favoritos:', error)
+      }
+
+      window.dispatchEvent(
+        new CustomEvent('cellworld-favorites-updated', {
+          detail: { key: favoritosKey },
+        })
+      )
+
+      return nuevosFavoritos
+    })
   }
 
   function agregarFavoritoAlCarrito(producto) {
