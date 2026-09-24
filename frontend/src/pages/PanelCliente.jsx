@@ -11,6 +11,9 @@ import {
   Eye,
   Trash2,
   ShoppingCart,
+  Download,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { API_URL } from '../config'
@@ -190,6 +193,11 @@ export default function PanelCliente({
   const [mostrarDetalles, setMostrarDetalles] = useState(false)
   const [compraSeleccionada, setCompraSeleccionada] = useState(null)
   const [cargandoCompras, setCargandoCompras] = useState(false)
+  const [paginaCompras, setPaginaCompras] = useState(1)
+  const [paginaFavoritos, setPaginaFavoritos] = useState(1)
+
+  const elementosPorPaginaCompras = 5
+  const elementosPorPaginaFavoritos = 6
 
   const [perfil, setPerfil] = useState(() => {
     let usuarioGuardado = null
@@ -481,6 +489,48 @@ export default function PanelCliente({
     setCompraSeleccionada(null)
   }
 
+  function descargarFactura(compra) {
+    const productos = obtenerProductosCompra(compra)
+    const idPedido = compra?.id_pedido ?? compra?.id ?? 'N/A'
+    const fecha = formatearFecha(obtenerFechaCompra(compra))
+    const total = obtenerTotalCompra(compra)
+    const estado = compra?.estado || 'Pagado'
+
+    const lineas = [
+      'CELLWORLD',
+      'FACTURA DE COMPRA',
+      '==============================',
+      `Pedido: #${idPedido}`,
+      `Fecha: ${fecha}`,
+      `Estado: ${estado}`,
+      '',
+      'PRODUCTOS',
+      '------------------------------',
+      ...productos.map((producto, indice) => {
+        const nombre = obtenerNombreProducto(producto)
+        const precio = obtenerPrecioProducto(producto)
+        const cantidad = Number(producto?.cantidad ?? producto?.quantity ?? 1)
+        const subtotal = precio * cantidad
+        return `${indice + 1}. ${nombre} | Cantidad: ${cantidad} | Unitario: ${formatearPrecio(precio)} | Subtotal: ${formatearPrecio(subtotal)}`
+      }),
+      '',
+      `TOTAL: ${formatearPrecio(total)}`,
+      '',
+      'Gracias por comprar en CellWorld.',
+    ]
+
+    const contenido = lineas.join('\n')
+    const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const enlace = document.createElement('a')
+    enlace.href = url
+    enlace.download = `factura-cellworld-${idPedido}.txt`
+    document.body.appendChild(enlace)
+    enlace.click()
+    enlace.remove()
+    URL.revokeObjectURL(url)
+  }
+
   const nombreUsuario =
     usuario?.nombres ||
     perfil.nombres ||
@@ -488,6 +538,31 @@ export default function PanelCliente({
 
   const totalFavoritos = favoritos.length
   const totalCompras = compras.length
+
+  const totalPaginasCompras = Math.max(1, Math.ceil(totalCompras / elementosPorPaginaCompras))
+  const totalPaginasFavoritos = Math.max(1, Math.ceil(totalFavoritos / elementosPorPaginaFavoritos))
+
+  const comprasPaginaActual = compras.slice(
+    (paginaCompras - 1) * elementosPorPaginaCompras,
+    paginaCompras * elementosPorPaginaCompras
+  )
+
+  const favoritosPaginaActual = favoritos.slice(
+    (paginaFavoritos - 1) * elementosPorPaginaFavoritos,
+    paginaFavoritos * elementosPorPaginaFavoritos
+  )
+
+  useEffect(() => {
+    if (paginaCompras > totalPaginasCompras) {
+      setPaginaCompras(totalPaginasCompras)
+    }
+  }, [paginaCompras, totalPaginasCompras])
+
+  useEffect(() => {
+    if (paginaFavoritos > totalPaginasFavoritos) {
+      setPaginaFavoritos(totalPaginasFavoritos)
+    }
+  }, [paginaFavoritos, totalPaginasFavoritos])
 
   const fondoPrincipal = modoOscuro
     ? 'bg-slate-950 text-white'
@@ -605,7 +680,7 @@ export default function PanelCliente({
 
         {/* ÁREA DE CONTENIDO */}
         <main className="min-w-0 flex-1 overflow-hidden lg:ml-[245px]">
-          <div className="h-full overflow-y-auto">
+          <div className="h-full overflow-hidden">
             <header
               className={`flex min-h-[78px] shrink-0 items-center border-b px-5 sm:px-7 ${
                 modoOscuro ? 'border-slate-800 bg-slate-900' : 'border-gray-200 bg-white'
@@ -624,7 +699,7 @@ export default function PanelCliente({
               </div>
             </header>
 
-            <div className="p-5 sm:p-7">
+            <div className="h-[calc(100%-78px)] overflow-hidden p-5 sm:p-7">
             {/* RESUMEN */}
             {seccion === 'resumen' && (
               <section>
@@ -756,282 +831,112 @@ export default function PanelCliente({
 
             {/* COMPRAS */}
             {seccion === 'compras' && (
-              <section>
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold">
-                    Mis compras
-                  </h2>
-
-                  <p
-                    className={`mt-1 ${textoSecundario}`}
-                  >
-                    Consulta el historial de tus pedidos
-                    realizados.
-                  </p>
+              <section className="flex h-full min-h-0 flex-col">
+                <div className="mb-5 shrink-0">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold">Mis compras</h2>
+                      <p className={`mt-1 ${textoSecundario}`}>
+                        Consulta el historial de tus pedidos realizados.
+                      </p>
+                    </div>
+                    {totalCompras > 0 && (
+                      <span className={`text-sm ${textoSecundario}`}>
+                        {totalCompras} {totalCompras === 1 ? 'compra' : 'compras'}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {cargandoCompras ? (
-                  <div
-                    className={`rounded-3xl border p-10 text-center ${fondoTarjeta}`}
-                  >
-                    <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-
-                    <p className={textoSecundario}>
-                      Cargando tus compras...
-                    </p>
-                  </div>
-                ) : compras.length === 0 ? (
-                  <div
-                    className={`rounded-3xl border p-10 text-center shadow-sm ${fondoTarjeta}`}
-                  >
-                    <div
-                      className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${
-                        modoOscuro
-                          ? 'bg-slate-800 text-gray-400'
-                          : 'bg-gray-100 text-gray-500'
-                      }`}
-                    >
-                      <Package size={30} />
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  {cargandoCompras ? (
+                    <div className={`rounded-3xl border p-10 text-center ${fondoTarjeta}`}>
+                      <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+                      <p className={textoSecundario}>Cargando tus compras...</p>
                     </div>
+                  ) : compras.length === 0 ? (
+                    <div className={`rounded-3xl border p-10 text-center shadow-sm ${fondoTarjeta}`}>
+                      <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${modoOscuro ? 'bg-slate-800 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
+                        <Package size={30} />
+                      </div>
+                      <h3 className="text-xl font-bold">Aún no tienes compras</h3>
+                      <p className={`mx-auto mt-2 max-w-md ${textoSecundario}`}>
+                        Cuando realices una compra, aparecerá aquí junto con todos sus detalles.
+                      </p>
+                      <button type="button" onClick={() => { window.location.href = '/productos' }} className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700">
+                        <ShoppingCart size={18} />
+                        Ir al catálogo
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex h-full min-h-0 flex-col">
+                      <div className="min-h-0 flex-1 space-y-3 overflow-hidden">
+                        {comprasPaginaActual.map((compra, indicePagina) => {
+                          const productos = obtenerProductosCompra(compra)
+                          const total = obtenerTotalCompra(compra)
+                          const fecha = obtenerFechaCompra(compra)
+                          const idPedido = compra?.id_pedido ?? compra?.id ?? ((paginaCompras - 1) * elementosPorPaginaCompras + indicePagina + 1)
 
-                    <h3 className="text-xl font-bold">
-                      Aún no tienes compras
-                    </h3>
-
-                    <p
-                      className={`mx-auto mt-2 max-w-md ${textoSecundario}`}
-                    >
-                      Cuando realices una compra,
-                      aparecerá aquí junto con todos sus
-                      detalles.
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        window.location.href =
-                          '/productos'
-                      }}
-                      className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
-                    >
-                      <ShoppingCart size={18} />
-                      Ir al catálogo
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-                    {compras.map((compra, indice) => {
-                      const productos =
-                        obtenerProductosCompra(compra)
-
-                      const total =
-                        obtenerTotalCompra(compra)
-
-                      const fecha =
-                        obtenerFechaCompra(compra)
-
-                      const idPedido =
-                        compra?.id_pedido ??
-                        compra?.id ??
-                        indice + 1
-
-                      return (
-                        <article
-                          key={
-                            compra?.id_pedido ??
-                            compra?.id ??
-                            indice
-                          }
-                          className={`overflow-hidden rounded-3xl border shadow-sm transition hover:shadow-md ${fondoTarjeta}`}
-                        >
-                          <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_320px]">
-                            {/* INFORMACIÓN DEL PEDIDO */}
-                            <div className="min-w-0 p-5 sm:p-6">
-                              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="min-w-0">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span
-                                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                        modoOscuro
-                                          ? 'bg-blue-500/10 text-blue-400'
-                                          : 'bg-blue-50 text-blue-700'
-                                      }`}
-                                    >
-                                      Pedido #{idPedido}
-                                    </span>
-
-                                    <span
-                                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                        modoOscuro
-                                          ? 'bg-green-500/10 text-green-400'
-                                          : 'bg-green-50 text-green-700'
-                                      }`}
-                                    >
-                                      {compra?.estado ||
-                                        'Pagado'}
-                                    </span>
+                          return (
+                            <article key={compra?.id_pedido ?? compra?.id ?? indicePagina} className={`rounded-2xl border shadow-sm transition hover:shadow-md ${fondoTarjeta}`}>
+                              <div className="flex h-[104px] flex-col justify-center gap-3 px-4 py-3 sm:h-[112px] sm:px-5">
+                                <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${modoOscuro ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-700'}`}>
+                                        Pedido #{idPedido}
+                                      </span>
+                                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${modoOscuro ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-700'}`}>
+                                        {compra?.estado || 'Pagado'}
+                                      </span>
+                                    </div>
+                                    <div className={`mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${textoSecundario}`}>
+                                      <span className="inline-flex items-center gap-1.5"><CalendarDays size={15} />{formatearFecha(fecha)}</span>
+                                      <span className="inline-flex items-center gap-1.5"><Package size={15} />{productos.length} {productos.length === 1 ? 'producto' : 'productos'}</span>
+                                    </div>
                                   </div>
 
-                                  <div
-                                    className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm ${textoSecundario}`}
-                                  >
-                                    <span className="inline-flex items-center gap-2">
-                                      <CalendarDays
-                                        size={16}
-                                      />
-                                      {formatearFecha(
-                                        fecha
-                                      )}
-                                    </span>
-
-                                    <span className="inline-flex items-center gap-2">
-                                      <Package
-                                        size={16}
-                                      />
-                                      {productos.length}{' '}
-                                      {productos.length ===
-                                      1
-                                        ? 'producto'
-                                        : 'productos'}
-                                    </span>
+                                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                    <div className="mr-1 min-w-[125px] text-right">
+                                      <p className={`text-xs ${textoSecundario}`}>Total</p>
+                                      <p className="text-lg font-bold">{formatearPrecio(total)}</p>
+                                    </div>
+                                    <button type="button" onClick={() => abrirDetalles(compra)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">
+                                      <Eye size={17} />
+                                      Ver detalles
+                                    </button>
+                                    <button type="button" onClick={() => descargarFactura(compra)} title="Descargar factura" className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-semibold transition ${modoOscuro ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                                      <Download size={17} />
+                                      <span className="hidden sm:inline">Factura</span>
+                                    </button>
                                   </div>
                                 </div>
                               </div>
+                            </article>
+                          )
+                        })}
+                      </div>
 
-                              {/* PRODUCTOS DEL PEDIDO */}
-                              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                {productos
-                                  .slice(0, 4)
-                                  .map(
-                                    (
-                                      producto,
-                                      productoIndex
-                                    ) => {
-                                      const nombre =
-                                        obtenerNombreProducto(
-                                          producto
-                                        )
-
-                                      const precio =
-                                        obtenerPrecioProducto(
-                                          producto
-                                        )
-
-                                      const cantidad =
-                                        Number(
-                                          producto?.cantidad ??
-                                            producto?.quantity ??
-                                            1
-                                        )
-
-                                      const imagen =
-                                        obtenerImagenProducto(
-                                          producto
-                                        )
-
-                                      return (
-                                        <div
-                                          key={`${idPedido}-${productoIndex}`}
-                                          className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 ${
-                                            modoOscuro
-                                              ? 'border-slate-800 bg-slate-950'
-                                              : 'border-gray-100 bg-gray-50'
-                                          }`}
-                                        >
-                                          <div
-                                            className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl ${
-                                              modoOscuro
-                                                ? 'bg-slate-900'
-                                                : 'bg-white'
-                                            }`}
-                                          >
-                                            {imagen ? (
-                                              <img
-                                                src={imagen}
-                                                alt={nombre}
-                                                className="h-full w-full object-contain p-2"
-                                              />
-                                            ) : (
-                                              <Package
-                                                size={24}
-                                                className={
-                                                  textoSecundario
-                                                }
-                                              />
-                                            )}
-                                          </div>
-
-                                          <div className="min-w-0 flex-1">
-                                            <p className="truncate font-semibold">
-                                              {nombre}
-                                            </p>
-
-                                            <p
-                                              className={`mt-1 text-sm ${textoSecundario}`}
-                                            >
-                                              Cantidad:{' '}
-                                              {cantidad}
-                                            </p>
-
-                                            <p className="mt-1 text-sm font-semibold">
-                                              {formatearPrecio(
-                                                precio
-                                              )}
-                                            </p>
-                                          </div>
-                                        </div>
-                                      )
-                                    }
-                                  )}
-                              </div>
-
-                              {productos.length > 4 && (
-                                <p
-                                  className={`mt-3 text-sm ${textoSecundario}`}
-                                >
-                                  + {productos.length - 4}{' '}
-                                  producto(s) más
-                                </p>
-                              )}
-                            </div>
-
-                            {/* TOTAL Y BOTÓN */}
-                            <div
-                              className={`flex flex-col justify-between gap-5 border-t p-5 sm:p-6 2xl:border-l 2xl:border-t-0 ${
-                                modoOscuro
-                                  ? 'border-slate-800'
-                                  : 'border-gray-200'
-                              }`}
-                            >
-                              <div>
-                                <p
-                                  className={`text-sm ${textoSecundario}`}
-                                >
-                                  Total de la compra
-                                </p>
-
-                                <p className="mt-2 break-words text-2xl font-bold sm:text-3xl">
-                                  {formatearPrecio(total)}
-                                </p>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  abrirDetalles(compra)
-                                }
-                                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
-                              >
-                                <Eye size={18} />
-                                Ver detalles
+                      {totalPaginasCompras > 1 && (
+                        <div className={`mt-3 flex shrink-0 items-center justify-between rounded-2xl border px-3 py-2 ${fondoTarjeta}`}>
+                          <button type="button" disabled={paginaCompras === 1} onClick={() => setPaginaCompras((pagina) => Math.max(1, pagina - 1))} className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${modoOscuro ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}>
+                            <ChevronLeft size={17} /> Anterior
+                          </button>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: totalPaginasCompras }, (_, indice) => indice + 1).map((pagina) => (
+                              <button key={pagina} type="button" onClick={() => setPaginaCompras(pagina)} className={`flex h-9 min-w-9 items-center justify-center rounded-xl px-2 text-sm font-semibold transition ${paginaCompras === pagina ? 'bg-blue-600 text-white' : modoOscuro ? 'text-gray-300 hover:bg-slate-800' : 'text-gray-600 hover:bg-gray-100'}`}>
+                                {pagina}
                               </button>
-                            </div>
+                            ))}
                           </div>
-                        </article>
-                      )
-                    })}
-                  </div>
-                )}
+                          <button type="button" disabled={paginaCompras === totalPaginasCompras} onClick={() => setPaginaCompras((pagina) => Math.min(totalPaginasCompras, pagina + 1))} className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${modoOscuro ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}>
+                            Siguiente <ChevronRight size={17} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </section>
             )}
 
@@ -1088,8 +993,9 @@ export default function PanelCliente({
                     </button>
                   </div>
                 ) : (
+                  <>
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                    {favoritos.map(
+                    {favoritosPaginaActual.map(
                       (producto, indice) => {
                         const id =
                           obtenerIdProducto(
@@ -1189,7 +1095,25 @@ export default function PanelCliente({
                       }
                     )}
                   </div>
-                )}
+
+                  {totalPaginasFavoritos > 1 && (
+                    <div className={`mt-4 flex items-center justify-between rounded-2xl border px-3 py-2 ${fondoTarjeta}`}>
+                      <button type="button" disabled={paginaFavoritos === 1} onClick={() => setPaginaFavoritos((pagina) => Math.max(1, pagina - 1))} className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${modoOscuro ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}>
+                        <ChevronLeft size={17} /> Anterior
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPaginasFavoritos }, (_, indice) => indice + 1).map((pagina) => (
+                          <button key={pagina} type="button" onClick={() => setPaginaFavoritos(pagina)} className={`flex h-9 min-w-9 items-center justify-center rounded-xl px-2 text-sm font-semibold transition ${paginaFavoritos === pagina ? 'bg-blue-600 text-white' : modoOscuro ? 'text-gray-300 hover:bg-slate-800' : 'text-gray-600 hover:bg-gray-100'}`}>
+                            {pagina}
+                          </button>
+                        ))}
+                      </div>
+                      <button type="button" disabled={paginaFavoritos === totalPaginasFavoritos} onClick={() => setPaginaFavoritos((pagina) => Math.min(totalPaginasFavoritos, pagina + 1))} className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${modoOscuro ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}>
+                        Siguiente <ChevronRight size={17} />
+                      </button>
+                    </div>
+                  )}
+                  </>}
               </section>
             )}
 
@@ -1563,12 +1487,21 @@ export default function PanelCliente({
 
               {/* FOOTER MODAL */}
               <div
-                className={`flex shrink-0 justify-end border-t p-4 sm:p-5 ${
+                className={`flex shrink-0 flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:justify-end sm:p-5 ${
                   modoOscuro
                     ? 'border-slate-800'
                     : 'border-gray-200'
                 }`}
               >
+                <button
+                  type="button"
+                  onClick={() => descargarFactura(compraSeleccionada)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 sm:w-auto"
+                >
+                  <Download size={18} />
+                  Descargar factura
+                </button>
+
                 <button
                   type="button"
                   onClick={cerrarDetalles}
