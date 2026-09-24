@@ -47,11 +47,11 @@ function obtenerNombreProducto(producto) {
 function obtenerPrecioProducto(producto) {
   return Number(
     producto?.precio_unitario ??
-    producto?.precio ??
-    producto?.price ??
-    producto?.producto?.precio ??
-    producto?.producto?.price ??
-    0
+      producto?.precio ??
+      producto?.price ??
+      producto?.producto?.precio ??
+      producto?.producto?.price ??
+      0
   )
 }
 
@@ -193,20 +193,24 @@ function obtenerSubtotalCompra(compra) {
 }
 
 function obtenerDescuentoCompra(compra) {
-  return Number(
-    compra?.descuento ??
-      compra?.discount ??
-      0
-  ) || 0
+  return (
+    Number(
+      compra?.descuento ??
+        compra?.discount ??
+        0
+    ) || 0
+  )
 }
 
 function obtenerIvaCompra(compra) {
-  return Number(
-    compra?.iva ??
-      compra?.impuesto ??
-      compra?.impuestos ??
-      0
-  ) || 0
+  return (
+    Number(
+      compra?.iva ??
+        compra?.impuesto ??
+        compra?.impuestos ??
+        0
+    ) || 0
+  )
 }
 
 function obtenerFechaCompra(compra) {
@@ -748,10 +752,6 @@ export default function PanelCliente({
     setMostrarFactura(true)
   }
 
-  function cerrarFactura() {
-    setMostrarFactura(false)
-  }
-
   function descargarFactura(compra) {
     try {
       generarFacturaPDF(
@@ -782,6 +782,16 @@ export default function PanelCliente({
   const compra =
     compras[compraActual] || null
 
+  const botonMenuBase =
+    'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left font-medium transition'
+
+  const botonMenuActivo =
+    'bg-blue-600 text-white shadow-md'
+
+  const botonMenuInactivo = modoOscuro
+    ? 'text-gray-300 hover:bg-slate-800'
+    : 'text-gray-700 hover:bg-gray-100'
+
   return (
     <div
       className={`min-h-screen w-full ${fondoPrincipal}`}
@@ -798,7 +808,6 @@ export default function PanelCliente({
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
 
             <div className="min-w-0">
-
               <p
                 className={`mb-1 text-sm font-medium ${textoSecundario}`}
               >
@@ -816,7 +825,6 @@ export default function PanelCliente({
                 productos seleccionados y
                 tu perfil.
               </p>
-
             </div>
 
             <div
@@ -839,137 +847,106 @@ export default function PanelCliente({
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)]">
 
           {/* =====================================================
-              MENÚ
+              MENÚ LATERAL
           ===================================================== */}
 
-          {/* =====================================================
-    MENÚ
-===================================================== */}
+          <aside className="h-fit lg:sticky lg:top-6">
+            <nav className="flex flex-col gap-1">
 
-<aside className="h-fit lg:sticky lg:top-6">
-  <nav
-    className={`
-      flex flex-col gap-2
-      rounded-2xl border p-2
-      shadow-sm
-      ${fondoTarjeta}
-    `}
-  >
-    <button
-      type="button"
-      onClick={() => setSeccion('resumen')}
-      className={`
-        flex w-full items-center gap-3 rounded-xl
-        px-4 py-3 text-left font-medium transition
-        ${
-          seccion === 'resumen'
-            ? 'bg-blue-600 text-white shadow-md'
-            : modoOscuro
-              ? 'text-gray-300 hover:bg-slate-800'
-              : 'text-gray-700 hover:bg-gray-100'
-        }
-      `}
-    >
-      <LayoutDashboard size={19} />
-      <span>Resumen</span>
-    </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setSeccion('resumen')
+                }
+                className={`${botonMenuBase} ${
+                  seccion === 'resumen'
+                    ? botonMenuActivo
+                    : botonMenuInactivo
+                }`}
+              >
+                <LayoutDashboard size={19} />
+                <span>Resumen</span>
+              </button>
 
-    <button
-      type="button"
-      onClick={() => setSeccion('compras')}
-      className={`
-        flex w-full items-center gap-3 rounded-xl
-        px-4 py-3 text-left font-medium transition
-        ${
-          seccion === 'compras'
-            ? 'bg-blue-600 text-white shadow-md'
-            : modoOscuro
-              ? 'text-gray-300 hover:bg-slate-800'
-              : 'text-gray-700 hover:bg-gray-100'
-        }
-      `}
-    >
-      <ShoppingBag size={19} />
+              <button
+                type="button"
+                onClick={() =>
+                  setSeccion('compras')
+                }
+                className={`${botonMenuBase} ${
+                  seccion === 'compras'
+                    ? botonMenuActivo
+                    : botonMenuInactivo
+                }`}
+              >
+                <ShoppingBag size={19} />
 
-      <span>Mis compras</span>
+                <span>Mis compras</span>
 
-      {totalCompras > 0 && (
-        <span
-          className={`
-            ml-auto flex min-w-6 items-center justify-center
-            rounded-full px-2 py-0.5 text-xs
-            ${
-              seccion === 'compras'
-                ? 'bg-white/20 text-white'
-                : modoOscuro
-                  ? 'bg-slate-700 text-gray-200'
-                  : 'bg-gray-100 text-gray-700'
-            }
-          `}
-        >
-          {totalCompras}
-        </span>
-      )}
-    </button>
+                {totalCompras > 0 && (
+                  <span
+                    className={`ml-auto flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs ${
+                      seccion === 'compras'
+                        ? 'bg-white/20 text-white'
+                        : modoOscuro
+                          ? 'bg-slate-700 text-gray-200'
+                          : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {totalCompras}
+                  </span>
+                )}
+              </button>
 
-    <button
-      type="button"
-      onClick={() => setSeccion('seleccionados')}
-      className={`
-        flex w-full items-center gap-3 rounded-xl
-        px-4 py-3 text-left font-medium transition
-        ${
-          seccion === 'seleccionados'
-            ? 'bg-blue-600 text-white shadow-md'
-            : modoOscuro
-              ? 'text-gray-300 hover:bg-slate-800'
-              : 'text-gray-700 hover:bg-gray-100'
-        }
-      `}
-    >
-      <Heart size={19} />
+              <button
+                type="button"
+                onClick={() =>
+                  setSeccion('seleccionados')
+                }
+                className={`${botonMenuBase} ${
+                  seccion === 'seleccionados'
+                    ? botonMenuActivo
+                    : botonMenuInactivo
+                }`}
+              >
+                <Heart size={19} />
 
-      <span>Mis seleccionados</span>
+                <span>
+                  Mis seleccionados
+                </span>
 
-      {totalFavoritos > 0 && (
-        <span
-          className={`
-            ml-auto flex min-w-6 items-center justify-center
-            rounded-full px-2 py-0.5 text-xs
-            ${
-              seccion === 'seleccionados'
-                ? 'bg-white/20 text-white'
-                : modoOscuro
-                  ? 'bg-slate-700 text-gray-200'
-                  : 'bg-gray-100 text-gray-700'
-            }
-          `}
-        >
-          {totalFavoritos}
-        </span>
-      )}
-    </button>
+                {totalFavoritos > 0 && (
+                  <span
+                    className={`ml-auto flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs ${
+                      seccion === 'seleccionados'
+                        ? 'bg-white/20 text-white'
+                        : modoOscuro
+                          ? 'bg-slate-700 text-gray-200'
+                          : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {totalFavoritos}
+                  </span>
+                )}
+              </button>
 
-    <button
-      type="button"
-      onClick={() => setSeccion('perfil')}
-      className={`
-        flex w-full items-center gap-3 rounded-xl
-        px-4 py-3 text-left font-medium transition
-        ${
-          seccion === 'perfil'
-            ? 'bg-blue-600 text-white shadow-md'
-            : modoOscuro
-              ? 'text-gray-300 hover:bg-slate-800'
-              : 'text-gray-700 hover:bg-gray-100'
-        }
-      `}
-    >
-      <User size={19} />
-      <span>Mi perfil</span>
-    </button>
-  </nav>
-</aside>
+              <button
+                type="button"
+                onClick={() =>
+                  setSeccion('perfil')
+                }
+                className={`${botonMenuBase} ${
+                  seccion === 'perfil'
+                    ? botonMenuActivo
+                    : botonMenuInactivo
+                }`}
+              >
+                <User size={19} />
+                <span>Mi perfil</span>
+              </button>
+
+            </nav>
+          </aside>
 
           {/* =====================================================
               MAIN
@@ -985,7 +962,6 @@ export default function PanelCliente({
               <section>
 
                 <div className="mb-6">
-
                   <h2 className="text-2xl font-bold">
                     Resumen
                   </h2>
@@ -997,7 +973,6 @@ export default function PanelCliente({
                     rápidamente tu actividad
                     en CellWorld.
                   </p>
-
                 </div>
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -1005,9 +980,7 @@ export default function PanelCliente({
                   <div
                     className={`rounded-3xl border p-6 shadow-sm ${fondoTarjeta}`}
                   >
-
                     <div className="mb-5 flex items-center justify-between">
-
                       <div
                         className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
                           modoOscuro
@@ -1015,11 +988,8 @@ export default function PanelCliente({
                             : 'bg-blue-50 text-blue-600'
                         }`}
                       >
-                        <ShoppingBag
-                          size={23}
-                        />
+                        <ShoppingBag size={23} />
                       </div>
-
                     </div>
 
                     <p
@@ -1031,15 +1001,12 @@ export default function PanelCliente({
                     <p className="mt-1 text-3xl font-bold">
                       {totalCompras}
                     </p>
-
                   </div>
 
                   <div
                     className={`rounded-3xl border p-6 shadow-sm ${fondoTarjeta}`}
                   >
-
                     <div className="mb-5 flex items-center justify-between">
-
                       <div
                         className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
                           modoOscuro
@@ -1049,7 +1016,6 @@ export default function PanelCliente({
                       >
                         <Heart size={23} />
                       </div>
-
                     </div>
 
                     <p
@@ -1061,15 +1027,12 @@ export default function PanelCliente({
                     <p className="mt-1 text-3xl font-bold">
                       {totalFavoritos}
                     </p>
-
                   </div>
 
                   <div
                     className={`rounded-3xl border p-6 shadow-sm sm:col-span-2 xl:col-span-1 ${fondoTarjeta}`}
                   >
-
                     <div className="mb-5 flex items-center justify-between">
-
                       <div
                         className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
                           modoOscuro
@@ -1079,7 +1042,6 @@ export default function PanelCliente({
                       >
                         <User size={23} />
                       </div>
-
                     </div>
 
                     <p
@@ -1092,7 +1054,6 @@ export default function PanelCliente({
                       {perfil.email ||
                         'Cliente'}
                     </p>
-
                   </div>
 
                 </div>
@@ -1100,11 +1061,9 @@ export default function PanelCliente({
                 <div
                   className={`mt-6 rounded-3xl border p-6 shadow-sm ${fondoTarjeta}`}
                 >
-
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
                     <div>
-
                       <h3 className="text-lg font-bold">
                         ¿Buscas algo nuevo?
                       </h3>
@@ -1116,7 +1075,6 @@ export default function PanelCliente({
                         y encuentra tu próximo
                         celular.
                       </p>
-
                     </div>
 
                     <button
@@ -1127,14 +1085,11 @@ export default function PanelCliente({
                       }}
                       className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
                     >
-                      <ShoppingCart
-                        size={18}
-                      />
+                      <ShoppingCart size={18} />
                       Ver productos
                     </button>
 
                   </div>
-
                 </div>
 
               </section>
@@ -1148,7 +1103,6 @@ export default function PanelCliente({
               <section>
 
                 <div className="mb-6">
-
                   <h2 className="text-2xl font-bold">
                     Mis compras
                   </h2>
@@ -1159,14 +1113,12 @@ export default function PanelCliente({
                     Consulta el historial de
                     tus pedidos realizados.
                   </p>
-
                 </div>
 
                 {cargandoCompras ? (
                   <div
                     className={`rounded-3xl border p-10 text-center ${fondoTarjeta}`}
                   >
-
                     <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
 
                     <p
@@ -1174,13 +1126,11 @@ export default function PanelCliente({
                     >
                       Cargando tus compras...
                     </p>
-
                   </div>
                 ) : compras.length === 0 ? (
                   <div
                     className={`rounded-3xl border p-10 text-center shadow-sm ${fondoTarjeta}`}
                   >
-
                     <div
                       className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${
                         modoOscuro
@@ -1212,24 +1162,18 @@ export default function PanelCliente({
                       }}
                       className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
                     >
-                      <ShoppingCart
-                        size={18}
-                      />
+                      <ShoppingCart size={18} />
                       Ir al catálogo
                     </button>
-
                   </div>
                 ) : (
                   <div className="space-y-5">
 
-                    {/* =================================================
-                        PESTAÑAS DE COMPRAS
-                    ================================================= */}
+                    {/* PESTAÑAS DE COMPRAS */}
 
                     <div
                       className={`rounded-2xl border p-2 ${fondoTarjeta}`}
                     >
-
                       <div className="flex gap-2 overflow-x-auto">
 
                         {compras.map(
@@ -1255,12 +1199,8 @@ export default function PanelCliente({
                                     : 'text-gray-700 hover:bg-gray-100'
                               }`}
                             >
-
                               <div className="flex items-center gap-2">
-
-                                <ShoppingBag
-                                  size={16}
-                                />
+                                <ShoppingBag size={16} />
 
                                 <span className="font-semibold">
                                   Compra #
@@ -1269,7 +1209,6 @@ export default function PanelCliente({
                                   ) ??
                                     indice + 1}
                                 </span>
-
                               </div>
 
                               <p
@@ -1286,40 +1225,30 @@ export default function PanelCliente({
                                   )
                                 )}
                               </p>
-
                             </button>
                           )
                         )}
 
                       </div>
-
                     </div>
 
-                    {/* =================================================
-                        COMPRA SELECCIONADA
-                    ================================================= */}
+                    {/* COMPRA SELECCIONADA */}
 
                     {compra && (
                       <div
                         className={`${fondoTarjeta} ${bordeTarjeta} rounded-2xl border shadow-sm`}
                       >
-
                         <div className="p-6">
 
                           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
 
-                            {/* INFORMACIÓN PRINCIPAL */}
-
                             <div className="flex items-center gap-4">
 
                               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-                                <ShoppingBag
-                                  size={24}
-                                />
+                                <ShoppingBag size={24} />
                               </div>
 
                               <div>
-
                                 <h2
                                   className={`text-lg font-bold ${textoPrincipal}`}
                                 >
@@ -1332,11 +1261,8 @@ export default function PanelCliente({
                                 <div
                                   className={`mt-2 flex flex-wrap items-center gap-3 text-sm ${textoSecundario}`}
                                 >
-
                                   <span className="flex items-center gap-1.5">
-                                    <CalendarDays
-                                      size={15}
-                                    />
+                                    <CalendarDays size={15} />
 
                                     {formatearFecha(
                                       obtenerFechaCompra(
@@ -1355,19 +1281,13 @@ export default function PanelCliente({
                                       compra
                                     )}
                                   </span>
-
                                 </div>
-
                               </div>
-
                             </div>
-
-                            {/* RESUMEN */}
 
                             <div className="flex flex-wrap items-center gap-6">
 
                               <div>
-
                                 <p
                                   className={`text-xs ${textoSecundario}`}
                                 >
@@ -1383,11 +1303,9 @@ export default function PanelCliente({
                                     ).length
                                   }
                                 </p>
-
                               </div>
 
                               <div>
-
                                 <p
                                   className={`text-xs ${textoSecundario}`}
                                 >
@@ -1403,7 +1321,6 @@ export default function PanelCliente({
                                     )
                                   )}
                                 </p>
-
                               </div>
 
                               <button
@@ -1415,18 +1332,12 @@ export default function PanelCliente({
                                 }
                                 className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
                               >
-                                <FileText
-                                  size={17}
-                                />
-
+                                <FileText size={17} />
                                 Factura
                               </button>
 
                             </div>
-
                           </div>
-
-                          {/* NAVEGACIÓN */}
 
                           <div
                             className={`mt-6 flex items-center justify-between border-t pt-5 ${
@@ -1435,7 +1346,6 @@ export default function PanelCliente({
                                 : 'border-slate-200'
                             }`}
                           >
-
                             <p
                               className={`text-sm ${textoSecundario}`}
                             >
@@ -1455,8 +1365,7 @@ export default function PanelCliente({
                                     (actual) =>
                                       Math.max(
                                         0,
-                                        actual -
-                                          1
+                                        actual - 1
                                       )
                                   )
                                 }
@@ -1484,8 +1393,7 @@ export default function PanelCliente({
                                       Math.min(
                                         compras.length -
                                           1,
-                                        actual +
-                                          1
+                                        actual + 1
                                       )
                                   )
                                 }
@@ -1508,11 +1416,9 @@ export default function PanelCliente({
                               </button>
 
                             </div>
-
                           </div>
 
                         </div>
-
                       </div>
                     )}
 
@@ -1526,12 +1432,10 @@ export default function PanelCliente({
                 MIS SELECCIONADOS
             ================================================= */}
 
-            {seccion ===
-              'seleccionados' && (
+            {seccion === 'seleccionados' && (
               <section>
 
                 <div className="mb-6">
-
                   <h2 className="text-2xl font-bold">
                     Mis seleccionados
                   </h2>
@@ -1543,15 +1447,12 @@ export default function PanelCliente({
                     productos que marcaste como
                     favoritos.
                   </p>
-
                 </div>
 
-                {favoritos.length ===
-                0 ? (
+                {favoritos.length === 0 ? (
                   <div
                     className={`rounded-3xl border p-10 text-center shadow-sm ${fondoTarjeta}`}
                   >
-
                     <div
                       className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${
                         modoOscuro
@@ -1585,7 +1486,6 @@ export default function PanelCliente({
                     >
                       Ver productos
                     </button>
-
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -1595,12 +1495,10 @@ export default function PanelCliente({
                         producto,
                         indice
                       ) => {
-
                         const id =
                           obtenerIdProducto(
                             producto
-                          ) ??
-                          indice
+                          ) ?? indice
 
                         const nombre =
                           obtenerNombreProducto(
@@ -1622,7 +1520,6 @@ export default function PanelCliente({
                             key={String(id)}
                             className={`group overflow-hidden rounded-3xl border shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${fondoTarjeta}`}
                           >
-
                             <div
                               className={`relative flex h-56 items-center justify-center ${
                                 modoOscuro
@@ -1630,7 +1527,6 @@ export default function PanelCliente({
                                   : 'bg-gray-50'
                               }`}
                             >
-
                               {imagen ? (
                                 <img
                                   src={imagen}
@@ -1660,15 +1556,11 @@ export default function PanelCliente({
                                     : 'bg-white text-red-500 hover:bg-red-50'
                                 }`}
                               >
-                                <Trash2
-                                  size={18}
-                                />
+                                <Trash2 size={18} />
                               </button>
-
                             </div>
 
                             <div className="p-5">
-
                               <h3 className="truncate text-lg font-bold">
                                 {nombre}
                               </h3>
@@ -1694,15 +1586,10 @@ export default function PanelCliente({
                                 }
                                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
                               >
-                                <ShoppingCart
-                                  size={18}
-                                />
-
+                                <ShoppingCart size={18} />
                                 Agregar al carrito
                               </button>
-
                             </div>
-
                           </article>
                         )
                       }
@@ -1722,7 +1609,6 @@ export default function PanelCliente({
               <section>
 
                 <div className="mb-6">
-
                   <h2 className="text-2xl font-bold">
                     Mi perfil
                   </h2>
@@ -1733,13 +1619,11 @@ export default function PanelCliente({
                     Información de tu cuenta
                     en CellWorld.
                   </p>
-
                 </div>
 
                 <div
                   className={`rounded-3xl border p-5 shadow-sm sm:p-7 ${fondoTarjeta}`}
                 >
-
                   <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-center">
 
                     <div
@@ -1753,7 +1637,6 @@ export default function PanelCliente({
                     </div>
 
                     <div className="min-w-0">
-
                       <h3 className="text-xl font-bold">
                         {perfil.nombres}{' '}
                         {perfil.apellidos}
@@ -1765,7 +1648,6 @@ export default function PanelCliente({
                         {perfil.email ||
                           'Correo no disponible'}
                       </p>
-
                     </div>
 
                   </div>
@@ -1773,7 +1655,6 @@ export default function PanelCliente({
                   <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
 
                     <div>
-
                       <label
                         className={`mb-2 block text-sm font-semibold ${textoSecundario}`}
                       >
@@ -1782,9 +1663,7 @@ export default function PanelCliente({
 
                       <input
                         type="text"
-                        value={
-                          perfil.nombres
-                        }
+                        value={perfil.nombres}
                         readOnly
                         className={`w-full rounded-2xl border px-4 py-3 outline-none ${
                           modoOscuro
@@ -1792,11 +1671,9 @@ export default function PanelCliente({
                             : 'border-gray-200 bg-gray-50 text-gray-900'
                         }`}
                       />
-
                     </div>
 
                     <div>
-
                       <label
                         className={`mb-2 block text-sm font-semibold ${textoSecundario}`}
                       >
@@ -1805,9 +1682,7 @@ export default function PanelCliente({
 
                       <input
                         type="text"
-                        value={
-                          perfil.apellidos
-                        }
+                        value={perfil.apellidos}
                         readOnly
                         className={`w-full rounded-2xl border px-4 py-3 outline-none ${
                           modoOscuro
@@ -1815,11 +1690,9 @@ export default function PanelCliente({
                             : 'border-gray-200 bg-gray-50 text-gray-900'
                         }`}
                       />
-
                     </div>
 
                     <div>
-
                       <label
                         className={`mb-2 block text-sm font-semibold ${textoSecundario}`}
                       >
@@ -1828,9 +1701,7 @@ export default function PanelCliente({
 
                       <input
                         type="email"
-                        value={
-                          perfil.email
-                        }
+                        value={perfil.email}
                         readOnly
                         className={`w-full rounded-2xl border px-4 py-3 outline-none ${
                           modoOscuro
@@ -1838,11 +1709,9 @@ export default function PanelCliente({
                             : 'border-gray-200 bg-gray-50 text-gray-900'
                         }`}
                       />
-
                     </div>
 
                     <div>
-
                       <label
                         className={`mb-2 block text-sm font-semibold ${textoSecundario}`}
                       >
@@ -1851,9 +1720,7 @@ export default function PanelCliente({
 
                       <input
                         type="text"
-                        value={
-                          perfil.telefono
-                        }
+                        value={perfil.telefono}
                         readOnly
                         className={`w-full rounded-2xl border px-4 py-3 outline-none ${
                           modoOscuro
@@ -1861,11 +1728,9 @@ export default function PanelCliente({
                             : 'border-gray-200 bg-gray-50 text-gray-900'
                         }`}
                       />
-
                     </div>
 
                   </div>
-
                 </div>
 
               </section>
@@ -1893,7 +1758,6 @@ export default function PanelCliente({
               }
             }}
           >
-
             <div
               className={`${fondoTarjeta} ${bordeTarjeta} max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border shadow-2xl`}
             >
@@ -1913,7 +1777,6 @@ export default function PanelCliente({
                   </div>
 
                   <div>
-
                     <h2
                       className={`text-xl font-bold ${textoPrincipal}`}
                     >
@@ -1928,7 +1791,6 @@ export default function PanelCliente({
                         compraSeleccionada
                       )}
                     </p>
-
                   </div>
 
                 </div>
@@ -1962,7 +1824,6 @@ export default function PanelCliente({
                   <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 
                     <div>
-
                       <h3
                         className={`text-2xl font-bold ${textoPrincipal}`}
                       >
@@ -1975,7 +1836,6 @@ export default function PanelCliente({
                         Factura /
                         Comprobante de compra
                       </p>
-
                     </div>
 
                     <span
@@ -1994,7 +1854,6 @@ export default function PanelCliente({
                   <div className="mb-6 grid gap-4 sm:grid-cols-2">
 
                     <div>
-
                       <p
                         className={`text-xs ${textoSecundario}`}
                       >
@@ -2009,11 +1868,9 @@ export default function PanelCliente({
                           compraSeleccionada
                         )}
                       </p>
-
                     </div>
 
                     <div>
-
                       <p
                         className={`text-xs ${textoSecundario}`}
                       >
@@ -2029,11 +1886,9 @@ export default function PanelCliente({
                           )
                         )}
                       </p>
-
                     </div>
 
                     <div>
-
                       <p
                         className={`text-xs ${textoSecundario}`}
                       >
@@ -2047,11 +1902,9 @@ export default function PanelCliente({
                           usuario
                         )}
                       </p>
-
                     </div>
 
                     <div>
-
                       <p
                         className={`text-xs ${textoSecundario}`}
                       >
@@ -2066,7 +1919,6 @@ export default function PanelCliente({
                         ) ||
                           'No registrado'}
                       </p>
-
                     </div>
 
                   </div>
@@ -2080,7 +1932,6 @@ export default function PanelCliente({
                         producto,
                         indice
                       ) => (
-
                         <div
                           key={`${obtenerIdProducto(
                             producto
@@ -2134,7 +1985,6 @@ export default function PanelCliente({
                           </p>
 
                         </div>
-
                       )
                     )}
 
@@ -2188,14 +2038,12 @@ export default function PanelCliente({
                             </span>
 
                             <span className="font-medium text-emerald-600">
-
                               -
                               {formatearPrecio(
                                 obtenerDescuentoCompra(
                                   compraSeleccionada
                                 )
                               )}
-
                             </span>
 
                           </div>
@@ -2252,9 +2100,7 @@ export default function PanelCliente({
                         </div>
 
                       </div>
-
                     </div>
-
                   </div>
 
                 </div>
@@ -2293,7 +2139,6 @@ export default function PanelCliente({
               </div>
 
             </div>
-
           </div>
         )}
 
