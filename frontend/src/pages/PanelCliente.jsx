@@ -17,6 +17,9 @@ import {
 } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { API_URL } from '../config'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import logoDark from '../assets/logo-dark.png'
 
 const COMPRAS_KEY = 'cellworld_compras'
 
@@ -489,46 +492,377 @@ export default function PanelCliente({
     setCompraSeleccionada(null)
   }
 
-  function descargarFactura(compra) {
-    const productos = obtenerProductosCompra(compra)
-    const idPedido = compra?.id_pedido ?? compra?.id ?? 'N/A'
-    const fecha = formatearFecha(obtenerFechaCompra(compra))
-    const total = obtenerTotalCompra(compra)
-    const estado = compra?.estado || 'Pagado'
+  const convertirImagenDataURL = (src) => {
+    return new Promise((resolve, reject) => {
+      const imagen = new Image()
 
-    const lineas = [
-      'CELLWORLD',
-      'FACTURA DE COMPRA',
-      '==============================',
-      `Pedido: #${idPedido}`,
-      `Fecha: ${fecha}`,
-      `Estado: ${estado}`,
-      '',
-      'PRODUCTOS',
-      '------------------------------',
-      ...productos.map((producto, indice) => {
-        const nombre = obtenerNombreProducto(producto)
+      imagen.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = imagen.naturalWidth
+        canvas.height = imagen.naturalHeight
+
+        const contexto = canvas.getContext('2d')
+        contexto.drawImage(imagen, 0, 0)
+
+        resolve(canvas.toDataURL('image/png'))
+      }
+
+      imagen.onerror = reject
+      imagen.src = src
+    })
+  }
+
+  async function descargarFactura(compra) {
+    if (!compra) {
+      alert('No se encontró la información de la compra.')
+      return
+    }
+
+    try {
+      const documento = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      })
+
+      const anchoPagina = documento.internal.pageSize.getWidth()
+      const altoPagina = documento.internal.pageSize.getHeight()
+
+      const numeroFactura =
+        compra?.numero_factura ||
+        compra?.factura ||
+        compra?.id_pedido ||
+        compra?.id ||
+        'N/A'
+
+      const fechaVenta =
+        compra?.fecha ||
+        compra?.creado_en ||
+        compra?.fecha_pedido ||
+        new Date()
+
+      const estadoFactura = compra?.estado || 'Pagado'
+      const productosCompra = obtenerProductosCompra(compra)
+      const productos = Array.isArray(productosCompra)
+        ? productosCompra
+        : []
+
+      const usuarioFactura = usuarioActual || usuario || {}
+
+      const nombreCliente =
+        `${usuarioFactura?.nombres || perfil?.nombres || ''} ${
+          usuarioFactura?.apellidos || perfil?.apellidos || ''
+        }`.trim() || 'Cliente'
+
+      const documentoCliente =
+        usuarioFactura?.numero_documento ||
+        usuarioFactura?.documento ||
+        usuarioFactura?.cedula ||
+        compra?.documento_cliente ||
+        compra?.numero_documento_cliente ||
+        ''
+
+      const correoCliente =
+        usuarioFactura?.email ||
+        perfil?.email ||
+        compra?.correo_cliente ||
+        compra?.email_cliente ||
+        ''
+
+      const telefonoCliente =
+        usuarioFactura?.telefono ||
+        perfil?.telefono ||
+        compra?.telefono_cliente ||
+        compra?.telefono ||
+        ''
+
+      const direccionCliente =
+        usuarioFactura?.direccion ||
+        compra?.direccion_cliente ||
+        compra?.direccion ||
+        ''
+
+      const filasProductos = productos.map((producto, indice) => {
+        const cantidad = Number(
+          producto?.cantidad ?? producto?.quantity ?? 1
+        ) || 0
+
+        const precioUnitario = obtenerPrecioProducto(producto)
+        const subtotal = cantidad * precioUnitario
+
+        return [
+          indice + 1,
+          obtenerNombreProducto(producto),
+          cantidad,
+          formatearPrecio(precioUnitario),
+          formatearPrecio(subtotal),
+        ]
+      })
+
+      if (filasProductos.length === 0) {
+        filasProductos.push([
+          1,
+          'Sin productos registrados',
+          0,
+          formatearPrecio(0),
+          formatearPrecio(0),
+        ])
+      }
+
+      const subtotalCalculado = productos.reduce((acumulado, producto) => {
+        const cantidad = Number(
+          producto?.cantidad ?? producto?.quantity ?? 1
+        ) || 0
         const precio = obtenerPrecioProducto(producto)
-        const cantidad = Number(producto?.cantidad ?? producto?.quantity ?? 1)
-        const subtotal = precio * cantidad
-        return `${indice + 1}. ${nombre} | Cantidad: ${cantidad} | Unitario: ${formatearPrecio(precio)} | Subtotal: ${formatearPrecio(subtotal)}`
-      }),
-      '',
-      `TOTAL: ${formatearPrecio(total)}`,
-      '',
-      'Gracias por comprar en CellWorld.',
-    ]
 
-    const contenido = lineas.join('\n')
-    const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const enlace = document.createElement('a')
-    enlace.href = url
-    enlace.download = `factura-cellworld-${idPedido}.txt`
-    document.body.appendChild(enlace)
-    enlace.click()
-    enlace.remove()
-    URL.revokeObjectURL(url)
+        return acumulado + cantidad * precio
+      }, 0)
+
+      const subtotalRegistrado = Number(
+        compra?.subtotal ?? compra?.sub_total
+      )
+
+      const subtotal =
+        Number.isFinite(subtotalRegistrado) && subtotalRegistrado > 0
+          ? subtotalRegistrado
+          : subtotalCalculado
+
+      const impuesto =
+        Number(
+          compra?.impuesto ??
+          compra?.iva ??
+          compra?.valor_iva ??
+          0
+        ) || 0
+
+      const descuento = Number(compra?.descuento ?? 0) || 0
+      const totalRegistrado = Number(compra?.total)
+
+      const total = Number.isFinite(totalRegistrado)
+        ? totalRegistrado
+        : subtotal + impuesto - descuento
+
+      documento.setFillColor(8, 17, 31)
+      documento.rect(0, 0, anchoPagina, 42, 'F')
+
+      try {
+        const logoData = await convertirImagenDataURL(logoDark)
+        documento.addImage(logoData, 'PNG', 14, 8, 36, 22)
+      } catch {
+        documento.setFillColor(37, 99, 235)
+        documento.roundedRect(14, 9, 36, 20, 3, 3, 'F')
+
+        documento.setTextColor(255, 255, 255)
+        documento.setFont('helvetica', 'bold')
+        documento.setFontSize(11)
+        documento.text('CELLWORLD', 18, 21)
+      }
+
+      documento.setTextColor(255, 255, 255)
+      documento.setFont('helvetica', 'bold')
+      documento.setFontSize(19)
+      documento.text('FACTURA DE VENTA', 58, 17)
+
+      documento.setFont('helvetica', 'normal')
+      documento.setFontSize(9)
+      documento.text(
+        'Sistema de gestión de ventas - CellWorld',
+        58,
+        24
+      )
+
+      documento.setFont('helvetica', 'bold')
+      documento.setFontSize(10)
+      documento.text(`N.º ${numeroFactura}`, anchoPagina - 14, 17, {
+        align: 'right',
+      })
+
+      documento.setFont('helvetica', 'normal')
+      documento.setFontSize(9)
+      documento.text(
+        `Fecha: ${formatearFecha(fechaVenta)}`,
+        anchoPagina - 14,
+        25,
+        { align: 'right' }
+      )
+
+      documento.setFillColor(245, 247, 250)
+      documento.roundedRect(
+        14,
+        50,
+        anchoPagina - 28,
+        39,
+        3,
+        3,
+        'F'
+      )
+
+      documento.setTextColor(40, 50, 65)
+      documento.setFont('helvetica', 'bold')
+      documento.setFontSize(11)
+      documento.text('DATOS DEL CLIENTE', 20, 59)
+
+      documento.setFont('helvetica', 'normal')
+      documento.setFontSize(9)
+      documento.text(`Nombre: ${nombreCliente}`, 20, 67)
+
+      if (documentoCliente) {
+        documento.text(`Documento: ${documentoCliente}`, 20, 74)
+      }
+
+      if (correoCliente) {
+        documento.text(`Correo: ${correoCliente}`, 20, 81)
+      }
+
+      if (telefonoCliente) {
+        documento.text(`Teléfono: ${telefonoCliente}`, 105, 67)
+      }
+
+      if (direccionCliente) {
+        documento.text(`Dirección: ${direccionCliente}`, 105, 74)
+      }
+
+      documento.setTextColor(100, 110, 125)
+      documento.setFontSize(8)
+      documento.text(`Estado: ${estadoFactura}`, 105, 81)
+
+      autoTable(documento, {
+        startY: 98,
+        head: [[
+          '#',
+          'Producto / Servicio',
+          'Cantidad',
+          'Precio unitario',
+          'Subtotal',
+        ]],
+        body: filasProductos,
+        theme: 'grid',
+        styles: {
+          font: 'helvetica',
+          fontSize: 8,
+          cellPadding: 3,
+          textColor: [35, 45, 60],
+        },
+        headStyles: {
+          fillColor: [37, 99, 235],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252],
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 76 },
+          2: { cellWidth: 22, halign: 'center' },
+          3: { cellWidth: 35, halign: 'right' },
+          4: { cellWidth: 35, halign: 'right' },
+        },
+        margin: {
+          left: 14,
+          right: 14,
+        },
+      })
+
+      const posicionFinal = documento.lastAutoTable?.finalY || 110
+      const resumenInicio = posicionFinal + 10
+
+      documento.setFillColor(248, 250, 252)
+      documento.roundedRect(
+        anchoPagina - 91,
+        resumenInicio,
+        77,
+        54,
+        3,
+        3,
+        'F'
+      )
+
+      documento.setTextColor(70, 80, 95)
+      documento.setFont('helvetica', 'normal')
+      documento.setFontSize(9)
+      documento.text('Subtotal', anchoPagina - 85, resumenInicio + 10)
+      documento.text(formatearPrecio(subtotal), anchoPagina - 20, resumenInicio + 10, {
+        align: 'right',
+      })
+
+      documento.text('Descuento', anchoPagina - 85, resumenInicio + 20)
+      documento.text(formatearPrecio(descuento), anchoPagina - 20, resumenInicio + 20, {
+        align: 'right',
+      })
+
+      documento.text('Impuestos', anchoPagina - 85, resumenInicio + 30)
+      documento.text(formatearPrecio(impuesto), anchoPagina - 20, resumenInicio + 30, {
+        align: 'right',
+      })
+
+      documento.setDrawColor(210, 215, 220)
+      documento.line(
+        anchoPagina - 85,
+        resumenInicio + 35,
+        anchoPagina - 20,
+        resumenInicio + 35
+      )
+
+      documento.setTextColor(20, 30, 45)
+      documento.setFont('helvetica', 'bold')
+      documento.setFontSize(11)
+      documento.text('TOTAL', anchoPagina - 85, resumenInicio + 46)
+      documento.text(formatearPrecio(total), anchoPagina - 20, resumenInicio + 46, {
+        align: 'right',
+      })
+
+      documento.setFillColor(8, 17, 31)
+      documento.roundedRect(14, resumenInicio, 105, 54, 3, 3, 'F')
+
+      documento.setTextColor(255, 255, 255)
+      documento.setFont('helvetica', 'bold')
+      documento.setFontSize(10)
+      documento.text('INFORMACIÓN DE LA FACTURA', 20, resumenInicio + 11)
+
+      documento.setFont('helvetica', 'normal')
+      documento.setFontSize(8)
+      documento.text(
+        `Número de factura: ${numeroFactura}`,
+        20,
+        resumenInicio + 21
+      )
+      documento.text(
+        `Estado: ${estadoFactura}`,
+        20,
+        resumenInicio + 29
+      )
+      documento.text(
+        `Fecha de emisión: ${formatearFecha(fechaVenta)}`,
+        20,
+        resumenInicio + 37
+      )
+      documento.text(
+        'Factura generada desde CellWorld.',
+        20,
+        resumenInicio + 46
+      )
+
+      documento.setTextColor(100, 110, 125)
+      documento.setFont('helvetica', 'normal')
+      documento.setFontSize(7)
+      documento.text(
+        'CellWorld - Documento generado desde el sistema de gestión de ventas',
+        14,
+        altoPagina - 9
+      )
+      documento.text('Página 1', anchoPagina - 14, altoPagina - 9, {
+        align: 'right',
+      })
+
+      const numeroArchivo =
+        String(numeroFactura).replace(/[^a-zA-Z0-9_-]/g, '') || 'venta'
+
+      documento.save(`CellWorld_Factura_${numeroArchivo}.pdf`)
+    } catch (error) {
+      console.error('Error al generar factura:', error)
+      alert('No se pudo generar la factura.')
+    }
   }
 
   const nombreUsuario =
@@ -1113,7 +1447,8 @@ export default function PanelCliente({
                       </button>
                     </div>
                   )}
-                  </>)}
+                  </>
+                )}
               </section>
             )}
 
