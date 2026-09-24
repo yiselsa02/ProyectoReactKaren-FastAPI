@@ -1113,7 +1113,7 @@ export default function PanelCliente({
                       </button>
                     </div>
                   )}
-                  </>}
+                  </>)}
               </section>
             )}
 
