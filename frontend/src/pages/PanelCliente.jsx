@@ -842,126 +842,134 @@ export default function PanelCliente({
               MENÚ
           ===================================================== */}
 
-          <aside className="h-fit lg:sticky lg:top-6">
+          {/* =====================================================
+    MENÚ
+===================================================== */}
 
-            <div
-              className={`rounded-3xl border p-3 shadow-sm ${fondoTarjeta}`}
-            >
+<aside className="h-fit lg:sticky lg:top-6">
+  <nav
+    className={`
+      flex flex-col gap-2
+      rounded-2xl border p-2
+      shadow-sm
+      ${fondoTarjeta}
+    `}
+  >
+    <button
+      type="button"
+      onClick={() => setSeccion('resumen')}
+      className={`
+        flex w-full items-center gap-3 rounded-xl
+        px-4 py-3 text-left font-medium transition
+        ${
+          seccion === 'resumen'
+            ? 'bg-blue-600 text-white shadow-md'
+            : modoOscuro
+              ? 'text-gray-300 hover:bg-slate-800'
+              : 'text-gray-700 hover:bg-gray-100'
+        }
+      `}
+    >
+      <LayoutDashboard size={19} />
+      <span>Resumen</span>
+    </button>
 
-              <nav className="flex flex-col gap-2">
+    <button
+      type="button"
+      onClick={() => setSeccion('compras')}
+      className={`
+        flex w-full items-center gap-3 rounded-xl
+        px-4 py-3 text-left font-medium transition
+        ${
+          seccion === 'compras'
+            ? 'bg-blue-600 text-white shadow-md'
+            : modoOscuro
+              ? 'text-gray-300 hover:bg-slate-800'
+              : 'text-gray-700 hover:bg-gray-100'
+        }
+      `}
+    >
+      <ShoppingBag size={19} />
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSeccion('resumen')
-                  }
-                  className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left font-medium transition ${
-                    seccion === 'resumen'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : modoOscuro
-                        ? 'text-gray-300 hover:bg-slate-800'
-                        : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <LayoutDashboard
-                    size={19}
-                  />
-                  <span>Resumen</span>
-                </button>
+      <span>Mis compras</span>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSeccion('compras')
-                  }
-                  className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left font-medium transition ${
-                    seccion === 'compras'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : modoOscuro
-                        ? 'text-gray-300 hover:bg-slate-800'
-                        : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <ShoppingBag
-                    size={19}
-                  />
+      {totalCompras > 0 && (
+        <span
+          className={`
+            ml-auto flex min-w-6 items-center justify-center
+            rounded-full px-2 py-0.5 text-xs
+            ${
+              seccion === 'compras'
+                ? 'bg-white/20 text-white'
+                : modoOscuro
+                  ? 'bg-slate-700 text-gray-200'
+                  : 'bg-gray-100 text-gray-700'
+            }
+          `}
+        >
+          {totalCompras}
+        </span>
+      )}
+    </button>
 
-                  <span>Mis compras</span>
+    <button
+      type="button"
+      onClick={() => setSeccion('seleccionados')}
+      className={`
+        flex w-full items-center gap-3 rounded-xl
+        px-4 py-3 text-left font-medium transition
+        ${
+          seccion === 'seleccionados'
+            ? 'bg-blue-600 text-white shadow-md'
+            : modoOscuro
+              ? 'text-gray-300 hover:bg-slate-800'
+              : 'text-gray-700 hover:bg-gray-100'
+        }
+      `}
+    >
+      <Heart size={19} />
 
-                  {totalCompras > 0 && (
-                    <span
-                      className={`ml-auto flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs ${
-                        seccion === 'compras'
-                          ? 'bg-white/20 text-white'
-                          : modoOscuro
-                            ? 'bg-slate-700 text-gray-200'
-                            : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {totalCompras}
-                    </span>
-                  )}
-                </button>
+      <span>Mis seleccionados</span>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSeccion(
-                      'seleccionados'
-                    )
-                  }
-                  className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left font-medium transition ${
-                    seccion === 'seleccionados'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : modoOscuro
-                        ? 'text-gray-300 hover:bg-slate-800'
-                        : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Heart size={19} />
+      {totalFavoritos > 0 && (
+        <span
+          className={`
+            ml-auto flex min-w-6 items-center justify-center
+            rounded-full px-2 py-0.5 text-xs
+            ${
+              seccion === 'seleccionados'
+                ? 'bg-white/20 text-white'
+                : modoOscuro
+                  ? 'bg-slate-700 text-gray-200'
+                  : 'bg-gray-100 text-gray-700'
+            }
+          `}
+        >
+          {totalFavoritos}
+        </span>
+      )}
+    </button>
 
-                  <span>
-                    Mis seleccionados
-                  </span>
-
-                  {totalFavoritos > 0 && (
-                    <span
-                      className={`ml-auto flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs ${
-                        seccion ===
-                        'seleccionados'
-                          ? 'bg-white/20 text-white'
-                          : modoOscuro
-                            ? 'bg-slate-700 text-gray-200'
-                            : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {totalFavoritos}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSeccion('perfil')
-                  }
-                  className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left font-medium transition ${
-                    seccion === 'perfil'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : modoOscuro
-                        ? 'text-gray-300 hover:bg-slate-800'
-                        : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <User size={19} />
-                  <span>Mi perfil</span>
-                </button>
-
-              </nav>
-
-            </div>
-
-          </aside>
+    <button
+      type="button"
+      onClick={() => setSeccion('perfil')}
+      className={`
+        flex w-full items-center gap-3 rounded-xl
+        px-4 py-3 text-left font-medium transition
+        ${
+          seccion === 'perfil'
+            ? 'bg-blue-600 text-white shadow-md'
+            : modoOscuro
+              ? 'text-gray-300 hover:bg-slate-800'
+              : 'text-gray-700 hover:bg-gray-100'
+        }
+      `}
+    >
+      <User size={19} />
+      <span>Mi perfil</span>
+    </button>
+  </nav>
+</aside>
 
           {/* =====================================================
               MAIN
