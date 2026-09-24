@@ -13,6 +13,8 @@ import {
   ShoppingCart,
 } from 'lucide-react'
 import { useCart } from '../context/CartContext'
+import { API_URL } from '../config'
+
 
 const FAVORITOS_KEY = 'cellworld_favorites'
 const COMPRAS_KEY = 'cellworld_compras'
@@ -308,7 +310,7 @@ export default function PanelCliente({
       }
 
       const respuesta = await fetch(
-        'http://127.0.0.1:8000/api/pedidos/mis-pedidos',
+        `${API_URL}/api/pedidos/mis-pedidos`,
         {
           method: 'GET',
           headers: {
