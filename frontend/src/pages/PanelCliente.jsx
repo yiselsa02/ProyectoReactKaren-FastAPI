@@ -157,32 +157,37 @@ export default function PanelCliente({
   const { addItem } = useCart()
 
   const [seccion, setSeccion] = useState('resumen')
-  const [favoritos, setFavoritos] = useState([])
+  const [favoritos, setFavoritos] = useState(() => {
+    try {
+      const guardados = JSON.parse(localStorage.getItem(FAVORITOS_KEY))
+      return Array.isArray(guardados) ? guardados : []
+    } catch {
+      return []
+    }
+  })
   const [compras, setCompras] = useState([])
   const [mostrarDetalles, setMostrarDetalles] = useState(false)
   const [compraSeleccionada, setCompraSeleccionada] = useState(null)
   const [cargandoCompras, setCargandoCompras] = useState(false)
 
-  const [perfil, setPerfil] = useState({
-    nombres: usuario?.nombres || '',
-    apellidos: usuario?.apellidos || '',
-    email: usuario?.email || '',
-    telefono: usuario?.telefono || '',
-  })
+  const [perfil, setPerfil] = useState(() => {
+    let usuarioGuardado = null
 
-  useEffect(() => {
     try {
-      const guardados = JSON.parse(
-        localStorage.getItem(FAVORITOS_KEY)
-      )
-
-      if (Array.isArray(guardados)) {
-        setFavoritos(guardados)
-      }
+      usuarioGuardado = JSON.parse(localStorage.getItem('usuario'))
     } catch {
-      setFavoritos([])
+      usuarioGuardado = null
     }
-  }, [])
+
+    const fuente = usuario || usuarioGuardado || {}
+
+    return {
+      nombres: fuente?.nombres || '',
+      apellidos: fuente?.apellidos || '',
+      email: fuente?.email || '',
+      telefono: fuente?.telefono || '',
+    }
+  })
 
   useEffect(() => {
     if (usuario) {
@@ -248,6 +253,10 @@ export default function PanelCliente({
         actualizarFavoritos
       )
     }
+  }, [])
+
+  useEffect(() => {
+    cargarCompras()
   }, [])
 
   useEffect(() => {
@@ -419,7 +428,7 @@ export default function PanelCliente({
       <div className="flex h-screen w-full overflow-hidden">
         {/* MENÚ LATERAL FIJO */}
         <aside
-          className={`fixed inset-y-0 left-0 z-40 hidden w-[245px] shrink-0 flex-col border-r lg:flex ${
+          className={`fixed inset-y-0 left-0 z-40 flex w-[245px] shrink-0 flex-col border-r ${
             modoOscuro
               ? 'border-slate-800 bg-slate-900'
               : 'border-gray-200 bg-white'
