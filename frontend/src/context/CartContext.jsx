@@ -11,152 +11,231 @@ import { API_URL } from '../config'
 
 const CartContext = createContext(null)
 
-const CART_KEY = 'cellworld_cart'
+const CART_STORAGE_KEY = 'cellworld_cart'
 
-const leerCarritoInicial = () => {
+// ============================================================
+// USUARIO
+// ============================================================
+
+function obtenerUsuarioActual() {
   try {
-    const carritoGuardado =
-      localStorage.getItem(CART_KEY)
+    const usuarioGuardado = localStorage.getItem('usuario')
 
-    if (!carritoGuardado) {
-      return []
+    if (!usuarioGuardado) {
+      return null
     }
 
-    const carritoParseado =
-      JSON.parse(carritoGuardado)
-
-    return Array.isArray(carritoParseado)
-      ? carritoParseado
-      : []
+    return JSON.parse(usuarioGuardado)
   } catch (error) {
-    console.error(
-      'Error leyendo el carrito:',
-      error
-    )
-
-    return []
+    console.error('Error leyendo usuario:', error)
+    return null
   }
 }
 
+function obtenerIdUsuario(usuario) {
+  if (!usuario || typeof usuario !== 'object') {
+    return null
+  }
+
+  const id =
+    usuario.id_usuario ??
+    usuario.usuario_id ??
+    usuario.id ??
+    usuario.user_id
+
+  const numero = Number(id)
+
+  if (!Number.isInteger(numero) || numero <= 0) {
+    return null
+  }
+
+  return numero
+}
+
+function crearClaveCarrito(usuarioId) {
+  return `${CART_STORAGE_KEY}_${usuarioId}`
+}
+
+// ============================================================
+// NORMALIZAR PRODUCTO
+// ============================================================
+
+function normalizarProducto(producto) {
+  if (!producto || typeof producto !== 'object') {
+    return null
+  }
+
+  const id =
+    producto.id_producto ??
+    producto.producto_id ??
+    producto.id
+
+  const idNumero = Number(id)
+
+  if (
+    !Number.isInteger(idNumero) ||
+    idNumero <= 0
+  ) {
+    console.warn(
+      'Producto rechazado del carrito porque no tiene un ID válido:',
+      producto
+    )
+
+    return null
+  }
+
+  const nombre =
+    producto.nombre_producto ??
+    producto.nombre ??
+    producto.name ??
+    'Producto'
+
+  const precio =
+    producto.precio ??
+    producto.precio_unitario ??
+    producto.precio_venta ??
+    producto.price ??
+    0
+
+  const imagen =
+    producto.imagen ??
+    producto.imagen_url ??
+    producto.url_imagen ??
+    producto.image ??
+    ''
+
+  const precioNumero = Number(precio)
+
+  return {
+    ...producto,
+
+    id_producto: idNumero,
+
+    nombre_producto: String(nombre),
+
+    precio: Number.isFinite(precioNumero)
+      ? precioNumero
+      : 0,
+
+    imagen,
+  }
+}
+
+// ============================================================
+// NORMALIZAR CARRITO
+// ============================================================
+
+function normalizarCarrito(carrito) {
+  if (!Array.isArray(carrito)) {
+    return []
+  }
+
+  return carrito
+    .map((item) => {
+      const producto = normalizarProducto(item)
+
+      if (!producto) {
+        return null
+      }
+
+      const cantidad = Number(item.cantidad)
+
+      return {
+        ...producto,
+
+        cantidad:
+          Number.isInteger(cantidad) && cantidad >= 1
+            ? cantidad
+            : 1,
+      }
+    })
+    .filter(Boolean)
+}
+
+// ============================================================
+// FUNCIONES PARA FACTURA
+// ============================================================
+
 function formatearPrecioFactura(valor) {
-  return new Intl.NumberFormat(
-    'es-CO',
-    {
-      style: 'currency',
-      currency: 'COP',
-      maximumFractionDigits: 0,
-    }
-  ).format(
-    Number(valor) || 0
-  )
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(Number(valor) || 0)
 }
 
 function formatearFechaFactura(valor) {
-  try {
-    return new Date(
-      valor
-    ).toLocaleString(
-      'es-CO',
-      {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      }
-    )
-  } catch {
-    return new Date().toLocaleString(
-      'es-CO',
-      {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      }
-    )
+  if (!valor) {
+    return 'Fecha no disponible'
   }
+
+  const fecha = new Date(valor)
+
+  if (Number.isNaN(fecha.getTime())) {
+    return String(valor)
+  }
+
+  return fecha.toLocaleString('es-CO', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
 }
 
-function obtenerNombreClienteFactura(
-  usuario
-) {
+function obtenerNombreClienteFactura(usuario) {
   if (!usuario) {
-    return 'Cliente'
+    return 'Cliente CellWorld'
   }
 
   return (
     usuario.nombre_completo ||
+    usuario.nombres ||
     usuario.nombre ||
-    usuario.name ||
     usuario.usuario ||
-    usuario.username ||
-    usuario.correo ||
-    usuario.email ||
-    'Cliente'
+    'Cliente CellWorld'
   )
 }
 
-function obtenerCorreoClienteFactura(
-  usuario
-) {
+function obtenerCorreoClienteFactura(usuario) {
   if (!usuario) {
-    return ''
+    return 'No registrado'
   }
 
   return (
     usuario.correo ||
     usuario.email ||
-    usuario.email_usuario ||
-    ''
+    usuario.correo_electronico ||
+    'No registrado'
   )
 }
 
-function obtenerDetallesFactura(
-  pedido
-) {
-  if (!pedido) {
+function obtenerDetallesFactura(pedido) {
+  if (!pedido || typeof pedido !== 'object') {
     return []
   }
 
-  if (
-    Array.isArray(
-      pedido.detalles
-    )
-  ) {
-    return pedido.detalles
-  }
+  const detalles =
+    pedido.detalles ||
+    pedido.detalle_pedido ||
+    pedido.detalle_pedidos ||
+    pedido.items ||
+    []
 
-  if (
-    Array.isArray(
-      pedido.detalle_pedidos
-    )
-  ) {
-    return pedido.detalle_pedidos
-  }
-
-  if (
-    Array.isArray(
-      pedido.items
-    )
-  ) {
-    return pedido.items
-  }
-
-  if (
-    Array.isArray(
-      pedido.productos
-    )
-  ) {
-    return pedido.productos
-  }
-
-  return []
+  return Array.isArray(detalles)
+    ? detalles
+    : []
 }
 
-export function generarFacturaPDF(
-  pedido,
-  usuario = null
-) {
-  if (
-    !pedido ||
-    typeof pedido !== 'object'
-  ) {
+// ============================================================
+// GENERADOR ÚNICO DE FACTURA PDF
+// ============================================================
+//
+// SOLO SE MODIFICÓ EL DISEÑO DE LA FACTURA.
+// LA INFORMACIÓN, CÁLCULOS, EXPORTACIÓN Y DESCARGA
+// SE MANTIENEN.
+// ============================================================
+
+export function generarFacturaPDF(pedido, usuario = null) {
+  if (!pedido || typeof pedido !== 'object') {
     throw new Error(
       'No se recibió la información del pedido.'
     )
@@ -172,42 +251,27 @@ export function generarFacturaPDF(
   const altoPagina =
     doc.internal.pageSize.getHeight()
 
-  const anchoContenido =
-    anchoPagina -
-    margen * 2
-
   const detalles =
-    obtenerDetallesFactura(
-      pedido
-    )
+    obtenerDetallesFactura(pedido)
 
   const nombreCliente =
-    obtenerNombreClienteFactura(
-      usuario
-    )
+    obtenerNombreClienteFactura(usuario)
 
   const correoCliente =
-    obtenerCorreoClienteFactura(
-      usuario
-    )
+    obtenerCorreoClienteFactura(usuario)
 
   const subtotalCalculado =
     detalles.reduce(
-      (
-        acumulado,
-        item
-      ) => {
+      (acumulado, item) => {
         const precio =
           Number(
             item.precio_unitario ??
-              item.precio ??
-              0
+            item.precio ??
+            0
           ) || 0
 
         const cantidad =
-          Number(
-            item.cantidad
-          ) || 0
+          Number(item.cantidad) || 0
 
         return (
           acumulado +
@@ -218,26 +282,18 @@ export function generarFacturaPDF(
     )
 
   const descuento =
-    Number(
-      pedido.descuento
-    ) || 0
+    Number(pedido.descuento) || 0
 
   const iva =
-    Number(
-      pedido.iva
-    ) || 0
+    Number(pedido.iva) || 0
 
   const subtotal =
     subtotalCalculado
 
   const total =
-    Number(
-      pedido.total
-    ) ||
+    Number(pedido.total) ||
     Math.max(
-      subtotal -
-        descuento +
-        iva,
+      subtotal - descuento + iva,
       0
     )
 
@@ -249,8 +305,7 @@ export function generarFacturaPDF(
 
   const estadoOriginal =
     String(
-      pedido.estado ||
-        'pagado'
+      pedido.estado || 'pagado'
     )
 
   const estado =
@@ -259,39 +314,31 @@ export function generarFacturaPDF(
       .toUpperCase() +
     estadoOriginal.slice(1)
 
-  const fecha =
-    formatearFechaFactura(
-      pedido.creado_en ||
-        pedido.fecha ||
-        pedido.created_at ||
-        new Date()
-    )
+  // ==========================================================
+  // FUNCIONES VISUALES
+  // ==========================================================
 
-  /*
-   * ============================================================
-   * PIE DE PÁGINA
-   * ============================================================
-   */
-
-  const dibujarPiePagina = () => {
-    const y =
+  const dibujarPie = () => {
+    const pieY =
       altoPagina - 18
 
     doc.setDrawColor(
-      225,
-      228,
-      232
-    )
-
-    doc.setLineWidth(
-      0.3
+      220,
+      220,
+      220
     )
 
     doc.line(
       margen,
-      y - 7,
+      pieY - 8,
       anchoPagina - margen,
-      y - 7
+      pieY - 8
+    )
+
+    doc.setTextColor(
+      105,
+      105,
+      105
     )
 
     doc.setFont(
@@ -301,117 +348,88 @@ export function generarFacturaPDF(
 
     doc.setFontSize(8)
 
-    doc.setTextColor(
-      110,
-      110,
-      110
-    )
-
     doc.text(
       'Gracias por comprar en CellWorld.',
       anchoPagina / 2,
-      y,
+      pieY,
       {
         align: 'center',
       }
     )
 
+    doc.setFontSize(7.5)
+
     doc.text(
       'Comprobante generado digitalmente.',
       anchoPagina / 2,
-      y + 5,
+      pieY + 6,
       {
         align: 'center',
       }
     )
   }
 
-  /*
-   * ============================================================
-   * ENCABEZADO DE TABLA
-   * ============================================================
-   */
+  const dibujarCabeceraTabla = (posicionY) => {
+    const anchoTabla =
+      anchoPagina - margen * 2
 
-  const dibujarEncabezadoTabla =
-    (y) => {
-      const altoFila = 11
+    doc.setFillColor(
+      240,
+      243,
+      247
+    )
 
-      doc.setFillColor(
-        243,
-        245,
-        248
-      )
+    doc.roundedRect(
+      margen,
+      posicionY - 5,
+      anchoTabla,
+      10,
+      2,
+      2,
+      'F'
+    )
 
-      doc.roundedRect(
-        margen,
-        y,
-        anchoContenido,
-        altoFila,
-        2,
-        2,
-        'F'
-      )
+    doc.setTextColor(
+      55,
+      55,
+      55
+    )
 
-      doc.setFont(
-        'helvetica',
-        'bold'
-      )
+    doc.setFont(
+      'helvetica',
+      'bold'
+    )
 
-      doc.setFontSize(
-        8.5
-      )
+    doc.setFontSize(9)
 
-      doc.setTextColor(
-        65,
-        65,
-        65
-      )
+    doc.text(
+      'Producto',
+      margen + 3,
+      posicionY + 1
+    )
 
-      doc.text(
-        'PRODUCTO',
-        margen + 4,
-        y + 7
-      )
+    doc.text(
+      'Cant.',
+      113,
+      posicionY + 1
+    )
 
-      doc.text(
-        'CANT.',
-        116,
-        y + 7,
-        {
-          align: 'center',
-        }
-      )
+    doc.text(
+      'Precio',
+      142,
+      posicionY + 1
+    )
 
-      doc.text(
-        'PRECIO',
-        145,
-        y + 7,
-        {
-          align: 'right',
-        }
-      )
+    doc.text(
+      'Total',
+      178,
+      posicionY + 1
+    )
+  }
 
-      doc.text(
-        'TOTAL',
-        anchoPagina -
-          margen -
-          4,
-        y + 7,
-        {
-          align: 'right',
-        }
-      )
-
-      return (
-        y + altoFila
-      )
-    }
-
-  /*
-   * ============================================================
-   * ENCABEZADO PRINCIPAL
-   * ============================================================
-   */
+  // ==========================================================
+  // ENCABEZADO PRINCIPAL
+  // ==========================================================
 
   doc.setFillColor(
     25,
@@ -427,6 +445,22 @@ export function generarFacturaPDF(
     'F'
   )
 
+  // Pequeño detalle visual
+  doc.setFillColor(
+    13,
+    93,
+    174
+  )
+
+  doc.rect(
+    0,
+    38,
+    anchoPagina,
+    4,
+    'F'
+  )
+
+  // Logo / nombre
   doc.setTextColor(
     255,
     255,
@@ -438,14 +472,12 @@ export function generarFacturaPDF(
     'bold'
   )
 
-  doc.setFontSize(
-    22
-  )
+  doc.setFontSize(25)
 
   doc.text(
     'CellWorld',
     margen,
-    17
+    18
   )
 
   doc.setFont(
@@ -453,30 +485,26 @@ export function generarFacturaPDF(
     'normal'
   )
 
-  doc.setFontSize(
-    9
-  )
+  doc.setFontSize(10)
 
   doc.text(
     'Tecnología y soluciones móviles',
     margen,
-    25
+    28
   )
 
+  // FACTURA
   doc.setFont(
     'helvetica',
     'bold'
   )
 
-  doc.setFontSize(
-    15
-  )
+  doc.setFontSize(12)
 
   doc.text(
     'FACTURA',
-    anchoPagina -
-      margen,
-    16,
+    anchoPagina - margen,
+    17,
     {
       align: 'right',
     }
@@ -487,37 +515,22 @@ export function generarFacturaPDF(
     'normal'
   )
 
-  doc.setFontSize(
-    9
-  )
+  doc.setFontSize(9)
 
   doc.text(
     `No. ${idPedido}`,
-    anchoPagina -
-      margen,
-    24,
+    anchoPagina - margen,
+    26,
     {
       align: 'right',
     }
   )
-
-  doc.text(
-    fecha,
-    anchoPagina -
-      margen,
-    31,
-    {
-      align: 'right',
-    }
-  )
-
-  /*
-   * ============================================================
-   * INFORMACIÓN DE LA COMPRA
-   * ============================================================
-   */
 
   let y = 55
+
+  // ==========================================================
+  // INFORMACIÓN DE LA COMPRA
+  // ==========================================================
 
   doc.setTextColor(
     35,
@@ -530,9 +543,7 @@ export function generarFacturaPDF(
     'bold'
   )
 
-  doc.setFontSize(
-    11
-  )
+  doc.setFontSize(11)
 
   doc.text(
     'INFORMACIÓN DE LA COMPRA',
@@ -540,7 +551,11 @@ export function generarFacturaPDF(
     y
   )
 
-  y += 8
+  y += 9
+
+  // Caja de información
+  const cajaInfoY = y - 4
+  const cajaInfoAltura = 39
 
   doc.setFillColor(
     248,
@@ -550,164 +565,71 @@ export function generarFacturaPDF(
 
   doc.roundedRect(
     margen,
-    y,
-    anchoContenido,
-    32,
+    cajaInfoY,
+    anchoPagina - margen * 2,
+    cajaInfoAltura,
     3,
     3,
     'F'
   )
 
-  /*
-   * CLIENTE
-   */
-
-  doc.setFont(
-    'helvetica',
-    'bold'
-  )
-
-  doc.setFontSize(
-    8
-  )
-
-  doc.setTextColor(
-    105,
-    105,
-    105
-  )
-
-  doc.text(
-    'CLIENTE',
-    margen + 6,
-    y + 9
-  )
-
-  doc.setFont(
-    'helvetica',
-    'normal'
-  )
-
-  doc.setFontSize(
-    10
-  )
-
-  doc.setTextColor(
-    40,
-    40,
-    40
-  )
-
-  doc.text(
-    nombreCliente ||
-      'Cliente',
-    margen + 6,
-    y + 16
-  )
-
-  /*
-   * CORREO
-   */
-
-  doc.setFont(
-    'helvetica',
-    'bold'
-  )
-
-  doc.setFontSize(
-    8
-  )
-
-  doc.setTextColor(
-    105,
-    105,
-    105
-  )
-
-  doc.text(
-    'CORREO',
-    margen + 6,
-    y + 25
-  )
-
-  doc.setFont(
-    'helvetica',
-    'normal'
-  )
-
-  doc.setFontSize(
-    9
-  )
-
-  doc.setTextColor(
-    40,
-    40,
-    40
-  )
-
-  const correoMostrar =
-    correoCliente ||
-    'No registrado'
-
-  doc.text(
-    correoMostrar,
-    margen + 31,
-    y + 25
-  )
-
-  /*
-   * ESTADO
-   */
-
-  const estadoX =
-    anchoPagina -
-    margen -
-    42
-
-  const estadoY =
-    y + 9
-
-  doc.setFont(
-    'helvetica',
-    'bold'
-  )
-
-  doc.setFontSize(
-    8
-  )
-
-  doc.setTextColor(
-    105,
-    105,
-    105
-  )
-
-  doc.text(
-    'ESTADO',
-    estadoX,
-    y + 9
-  )
-
-  doc.setFillColor(
-    220,
-    252,
-    231
+  doc.setDrawColor(
+    232,
+    234,
+    238
   )
 
   doc.roundedRect(
-    estadoX,
-    estadoY + 5,
-    36,
-    10,
-    5,
-    5,
-    'F'
+    margen,
+    cajaInfoY,
+    anchoPagina - margen * 2,
+    cajaInfoAltura,
+    3,
+    3,
+    'S'
+  )
+
+  doc.setFont(
+    'helvetica',
+    'normal'
+  )
+
+  doc.setFontSize(9)
+
+  doc.setTextColor(
+    100,
+    100,
+    100
+  )
+
+  doc.text(
+    'Factura',
+    margen + 5,
+    y + 4
+  )
+
+  doc.text(
+    'Fecha',
+    margen + 5,
+    y + 13
+  )
+
+  doc.text(
+    'Cliente',
+    margen + 5,
+    y + 22
+  )
+
+  doc.text(
+    'Correo',
+    margen + 5,
+    y + 31
   )
 
   doc.setTextColor(
-    22,
-    101,
-    52
+    40,
+    40,
+    40
   )
 
   doc.setFont(
@@ -715,26 +637,106 @@ export function generarFacturaPDF(
     'bold'
   )
 
-  doc.setFontSize(
-    8
+  doc.text(
+    `#${idPedido}`,
+    margen + 38,
+    y + 4
+  )
+
+  doc.setFont(
+    'helvetica',
+    'normal'
   )
 
   doc.text(
+    formatearFechaFactura(
+      pedido.creado_en
+    ),
+    margen + 38,
+    y + 13
+  )
+
+  const clienteTexto =
+    String(nombreCliente)
+
+  const correoTexto =
+    String(correoCliente)
+
+  doc.text(
+    clienteTexto.length > 48
+      ? `${clienteTexto.substring(0, 45)}...`
+      : clienteTexto,
+    margen + 38,
+    y + 22
+  )
+
+  doc.text(
+    correoTexto.length > 48
+      ? `${correoTexto.substring(0, 45)}...`
+      : correoTexto,
+    margen + 38,
+    y + 31
+  )
+
+  // ==========================================================
+  // ESTADO
+  // ==========================================================
+
+  const cajaEstadoAncho = 43
+
+  const cajaEstadoX =
+    anchoPagina -
+    margen -
+    cajaEstadoAncho -
+    5
+
+  const cajaEstadoY =
+    y + 7
+
+  doc.setFillColor(
+    235,
+    247,
+    239
+  )
+
+  doc.roundedRect(
+    cajaEstadoX,
+    cajaEstadoY,
+    cajaEstadoAncho,
+    13,
+    3,
+    3,
+    'F'
+  )
+
+  doc.setTextColor(
+    35,
+    130,
+    70
+  )
+
+  doc.setFont(
+    'helvetica',
+    'bold'
+  )
+
+  doc.setFontSize(9)
+
+  doc.text(
     estado,
-    estadoX + 18,
-    estadoY + 11.5,
+    cajaEstadoX +
+      cajaEstadoAncho / 2,
+    cajaEstadoY + 8.2,
     {
       align: 'center',
     }
   )
 
-  y += 43
+  y += 52
 
-  /*
-   * ============================================================
-   * DETALLE DE PRODUCTOS
-   * ============================================================
-   */
+  // ==========================================================
+  // DETALLE DE PRODUCTOS
+  // ==========================================================
 
   doc.setTextColor(
     35,
@@ -747,9 +749,7 @@ export function generarFacturaPDF(
     'bold'
   )
 
-  doc.setFontSize(
-    11
-  )
+  doc.setFontSize(11)
 
   doc.text(
     'DETALLE DE PRODUCTOS',
@@ -757,253 +757,225 @@ export function generarFacturaPDF(
     y
   )
 
-  y += 7
+  y += 8
 
-  y =
-    dibujarEncabezadoTabla(
+  const xProducto =
+    margen + 3
+
+  const xCantidad =
+    113
+
+  const xPrecio =
+    142
+
+  const xTotal =
+    178
+
+  dibujarCabeceraTabla(y)
+
+  y += 12
+
+  // ==========================================================
+  // PRODUCTOS
+  // ==========================================================
+
+  doc.setFont(
+    'helvetica',
+    'normal'
+  )
+
+  doc.setFontSize(9)
+
+  if (detalles.length === 0) {
+    doc.setTextColor(
+      110,
+      110,
+      110
+    )
+
+    doc.text(
+      'No hay productos registrados en esta factura.',
+      xProducto,
       y
     )
 
-  /*
-   * ============================================================
-   * PRODUCTOS
-   * ============================================================
-   */
+    y += 10
+  } else {
+    detalles.forEach(
+      (item) => {
+        const nombre =
+          item.nombre_producto ||
+          item.nombre ||
+          'Producto'
 
-  detalles.forEach(
-    (
-      item,
-      index
-    ) => {
-      const nombre =
-        item.nombre_producto ||
-        item.nombre ||
-        'Producto'
+        const cantidad =
+          Number(item.cantidad) || 0
 
-      const cantidad =
-        Number(
-          item.cantidad
-        ) || 0
-
-      const precio =
-        Number(
-          item.precio_unitario ??
+        const precio =
+          Number(
+            item.precio_unitario ??
             item.precio ??
             0
-        ) || 0
+          ) || 0
 
-      const totalProducto =
-        precio * cantidad
+        const totalProducto =
+          precio * cantidad
 
-      const nombreDividido =
-        doc.splitTextToSize(
-          nombre,
-          83
+        // ======================================================
+        // SALTO DE PÁGINA
+        // ======================================================
+
+        if (
+          y >
+          altoPagina - 58
+        ) {
+          dibujarPie()
+
+          doc.addPage()
+
+          y = 24
+
+          doc.setTextColor(
+            35,
+            35,
+            35
+          )
+
+          doc.setFont(
+            'helvetica',
+            'bold'
+          )
+
+          doc.setFontSize(11)
+
+          doc.text(
+            'DETALLE DE PRODUCTOS',
+            margen,
+            y
+          )
+
+          y += 8
+
+          dibujarCabeceraTabla(y)
+
+          y += 12
+
+          doc.setFont(
+            'helvetica',
+            'normal'
+          )
+
+          doc.setFontSize(9)
+        }
+
+        const nombreTexto =
+          String(nombre)
+
+        const nombreCorto =
+          nombreTexto.length > 43
+            ? `${nombreTexto.substring(
+                0,
+                40
+              )}...`
+            : nombreTexto
+
+        doc.setTextColor(
+          60,
+          60,
+          60
         )
 
-      const altoFila =
-        Math.max(
-          14,
-          nombreDividido.length *
-            4.5 +
-            8
+        doc.setFont(
+          'helvetica',
+          'normal'
         )
 
-      /*
-       * SALTO DE PÁGINA
-       */
+        doc.setFontSize(9)
 
-      if (
-        y + altoFila >
-        altoPagina - 38
-      ) {
-        dibujarPiePagina()
+        doc.text(
+          nombreCorto,
+          xProducto,
+          y
+        )
 
-        doc.addPage()
+        doc.text(
+          String(cantidad),
+          xCantidad + 3,
+          y
+        )
 
-        y = 20
+        doc.text(
+          formatearPrecioFactura(
+            precio
+          ),
+          xPrecio,
+          y
+        )
 
         doc.setFont(
           'helvetica',
           'bold'
         )
 
-        doc.setFontSize(
-          11
-        )
-
-        doc.setTextColor(
-          35,
-          35,
-          35
-        )
-
         doc.text(
-          'DETALLE DE PRODUCTOS',
-          margen,
+          formatearPrecioFactura(
+            totalProducto
+          ),
+          xTotal,
           y
         )
 
-        y += 7
-
-        y =
-          dibujarEncabezadoTabla(
-            y
-          )
-      }
-
-      /*
-       * FILAS ALTERNADAS
-       */
-
-      if (
-        index % 2 === 1
-      ) {
-        doc.setFillColor(
-          250,
-          251,
-          252
+        doc.setFont(
+          'helvetica',
+          'normal'
         )
 
-        doc.rect(
+        y += 8
+
+        doc.setDrawColor(
+          225,
+          225,
+          225
+        )
+
+        doc.line(
           margen,
-          y,
-          anchoContenido,
-          altoFila,
-          'F'
+          y - 4,
+          anchoPagina - margen,
+          y - 4
         )
       }
+    )
+  }
 
-      /*
-       * NOMBRE
-       */
+  // ==========================================================
+  // TOTALES
+  // ==========================================================
 
-      doc.setFont(
-        'helvetica',
-        'normal'
-      )
-
-      doc.setFontSize(
-        8.5
-      )
-
-      doc.setTextColor(
-        45,
-        45,
-        45
-      )
-
-      doc.text(
-        nombreDividido,
-        margen + 4,
-        y + 6
-      )
-
-      /*
-       * CANTIDAD
-       */
-
-      doc.text(
-        String(cantidad),
-        116,
-        y + 7,
-        {
-          align: 'center',
-        }
-      )
-
-      /*
-       * PRECIO
-       */
-
-      doc.text(
-        formatearPrecioFactura(
-          precio
-        ),
-        145,
-        y + 7,
-        {
-          align: 'right',
-        }
-      )
-
-      /*
-       * TOTAL PRODUCTO
-       */
-
-      doc.setFont(
-        'helvetica',
-        'bold'
-      )
-
-      doc.text(
-        formatearPrecioFactura(
-          totalProducto
-        ),
-        anchoPagina -
-          margen -
-          4,
-        y + 7,
-        {
-          align: 'right',
-        }
-      )
-
-      /*
-       * SEPARADOR
-       */
-
-      doc.setDrawColor(
-        225,
-        228,
-        232
-      )
-
-      doc.setLineWidth(
-        0.25
-      )
-
-      doc.line(
-        margen,
-        y + altoFila,
-        anchoPagina -
-          margen,
-        y + altoFila
-      )
-
-      y += altoFila
-    }
-  )
-
-  /*
-   * ============================================================
-   * TOTALES
-   * ============================================================
-   */
-
-  const alturaTotales =
-    58
+  y += 8
 
   if (
-    y + alturaTotales >
-    altoPagina - 30
+    y >
+    altoPagina - 78
   ) {
-    dibujarPiePagina()
+    dibujarPie()
 
     doc.addPage()
 
-    y = 25
-  } else {
-    y += 8
+    y = 28
   }
 
-  const cajaTotalesX =
-    anchoPagina -
-    margen -
-    82
+  const xEtiqueta =
+    126
 
-  const cajaTotalesAncho =
-    82
+  const xValor =
+    anchoPagina - margen
+
+  // Caja suave para los totales
+  const alturaTotales =
+    48 +
+    (descuento > 0 ? 8 : 0) +
+    (iva > 0 ? 8 : 0)
 
   doc.setFillColor(
     248,
@@ -1012,152 +984,118 @@ export function generarFacturaPDF(
   )
 
   doc.roundedRect(
-    cajaTotalesX,
-    y,
-    cajaTotalesAncho,
+    120,
+    y - 5,
+    anchoPagina - 120 - margen,
     alturaTotales,
     3,
     3,
     'F'
   )
 
-  doc.setFontSize(
-    9
+  doc.setTextColor(
+    80,
+    80,
+    80
   )
-
-  /*
-   * SUBTOTAL
-   */
 
   doc.setFont(
     'helvetica',
     'normal'
   )
 
-  doc.setTextColor(
-    90,
-    90,
-    90
-  )
+  doc.setFontSize(9.5)
 
   doc.text(
-    'Subtotal',
-    cajaTotalesX + 6,
-    y + 11
+    'Subtotal:',
+    xEtiqueta,
+    y + 3
   )
 
   doc.text(
     formatearPrecioFactura(
       subtotal
     ),
-    anchoPagina -
-      margen -
-      6,
-    y + 11,
+    xValor,
+    y + 3,
     {
       align: 'right',
     }
   )
 
-  /*
-   * DESCUENTO
-   */
+  y += 9
 
-  let siguienteLinea =
-    22
-
-  if (
-    descuento > 0
-  ) {
+  if (descuento > 0) {
     doc.text(
-      'Descuento',
-      cajaTotalesX + 6,
-      y + siguienteLinea
+      'Descuento:',
+      xEtiqueta,
+      y + 3
+    )
+
+    doc.setTextColor(
+      35,
+      130,
+      70
     )
 
     doc.text(
       `-${formatearPrecioFactura(
         descuento
       )}`,
-      anchoPagina -
-        margen -
-        6,
-      y + siguienteLinea,
+      xValor,
+      y + 3,
       {
         align: 'right',
       }
     )
 
-    siguienteLinea += 11
+    doc.setTextColor(
+      80,
+      80,
+      80
+    )
+
+    y += 9
   }
 
-  /*
-   * IVA
-   */
-
-  if (
-    iva > 0
-  ) {
+  if (iva > 0) {
     doc.text(
-      'IVA',
-      cajaTotalesX + 6,
-      y + siguienteLinea
+      'IVA:',
+      xEtiqueta,
+      y + 3
     )
 
     doc.text(
       formatearPrecioFactura(
         iva
       ),
-      anchoPagina -
-        margen -
-        6,
-      y + siguienteLinea,
+      xValor,
+      y + 3,
       {
         align: 'right',
       }
     )
 
-    siguienteLinea += 11
+    y += 9
   }
 
-  /*
-   * LÍNEA TOTAL
-   */
-
-  const lineaTotalY =
-    y + siguienteLinea
-
+  // Línea superior del total
   doc.setDrawColor(
-    210,
-    214,
-    219
+    25,
+    118,
+    210
   )
 
-  doc.setLineWidth(
-    0.4
-  )
+  doc.setLineWidth(0.5)
 
   doc.line(
-    cajaTotalesX + 6,
-    lineaTotalY,
-    anchoPagina -
-      margen -
-      6,
-    lineaTotalY
+    xEtiqueta,
+    y + 5,
+    xValor,
+    y + 5
   )
 
-  /*
-   * TOTAL
-   */
-
-  doc.setFont(
-    'helvetica',
-    'bold'
-  )
-
-  doc.setFontSize(
-    11
-  )
+  y += 14
 
   doc.setTextColor(
     25,
@@ -1165,218 +1103,227 @@ export function generarFacturaPDF(
     210
   )
 
+  doc.setFont(
+    'helvetica',
+    'bold'
+  )
+
+  doc.setFontSize(13)
+
   doc.text(
     'TOTAL',
-    cajaTotalesX + 6,
-    lineaTotalY + 11
+    xEtiqueta,
+    y
   )
 
   doc.text(
     formatearPrecioFactura(
       total
     ),
-    anchoPagina -
-      margen -
-      6,
-    lineaTotalY + 11,
+    xValor,
+    y,
     {
       align: 'right',
     }
   )
 
-  /*
-   * ============================================================
-   * MENSAJE FINAL
-   * ============================================================
-   */
+  // ==========================================================
+  // PIE
+  // ==========================================================
 
-  const mensajeY =
-    Math.min(
-      lineaTotalY + 25,
-      altoPagina - 35
-    )
+  dibujarPie()
 
-  doc.setFont(
-    'helvetica',
-    'normal'
-  )
-
-  doc.setFontSize(
-    8
-  )
-
-  doc.setTextColor(
-    110,
-    110,
-    110
-  )
-
-  doc.text(
-    'Este documento corresponde al comprobante de la compra realizada',
-    anchoPagina / 2,
-    mensajeY,
-    {
-      align: 'center',
-    }
-  )
-
-  doc.text(
-    'a través de la plataforma CellWorld.',
-    anchoPagina / 2,
-    mensajeY + 5,
-    {
-      align: 'center',
-    }
-  )
-
-  /*
-   * ============================================================
-   * PIE DE PÁGINA
-   * ============================================================
-   */
-
-  dibujarPiePagina()
-
-  /*
-   * ============================================================
-   * GUARDAR PDF
-   * ============================================================
-   */
+  // ==========================================================
+  // DESCARGAR
+  // ==========================================================
 
   doc.save(
     `Factura_CellWorld_${idPedido}.pdf`
   )
 }
 
+// ============================================================
+// PROVIDER
+// ============================================================
+
 export function CartProvider({
   children,
 }) {
   const [carrito, setCarrito] =
-    useState(
-      leerCarritoInicial
-    )
+    useState([])
 
-  const [procesandoCompra, setProcesandoCompra] =
+  const [usuarioId, setUsuarioId] =
+    useState(null)
+
+  const [comprando, setComprando] =
     useState(false)
 
-  /*
-   * ============================================================
-   * SINCRONIZAR CARRITO
-   * ============================================================
-   */
+  // ============================================================
+  // CARGAR CARRITO DEL USUARIO
+  // ============================================================
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        CART_KEY,
-        JSON.stringify(carrito)
-      )
-    } catch (error) {
-      console.error(
-        'Error guardando el carrito:',
-        error
-      )
-    }
-  }, [carrito])
+  const cargarCarritoUsuario =
+    useCallback(() => {
+      const usuario =
+        obtenerUsuarioActual()
 
-  /*
-   * ============================================================
-   * ESCUCHAR CAMBIOS DEL CARRITO
-   * ============================================================
-   */
+      const id =
+        obtenerIdUsuario(usuario)
 
-  useEffect(() => {
-    const manejarCambioStorage =
-      (evento) => {
-        if (
-          evento.key !==
-          CART_KEY
-        ) {
+      setUsuarioId(id)
+
+      if (!id) {
+        setCarrito([])
+        return
+      }
+
+      const clave =
+        crearClaveCarrito(id)
+
+      try {
+        const carritoGuardado =
+          localStorage.getItem(clave)
+
+        if (!carritoGuardado) {
+          setCarrito([])
           return
         }
 
-        try {
-          const nuevoCarrito =
-            evento.newValue
-              ? JSON.parse(
-                  evento.newValue
-                )
-              : []
+        const carritoParseado =
+          JSON.parse(carritoGuardado)
 
-          setCarrito(
-            Array.isArray(
-              nuevoCarrito
-            )
-              ? nuevoCarrito
-              : []
+        setCarrito(
+          normalizarCarrito(
+            carritoParseado
           )
-        } catch (error) {
-          console.error(
-            'Error sincronizando el carrito:',
-            error
-          )
-        }
+        )
+      } catch (error) {
+        console.error(
+          'Error cargando carrito:',
+          error
+        )
+
+        setCarrito([])
+      }
+    }, [])
+
+  useEffect(() => {
+    cargarCarritoUsuario()
+  }, [cargarCarritoUsuario])
+
+  // ============================================================
+  // CAMBIO DE USUARIO
+  // ============================================================
+
+  useEffect(() => {
+    const manejarCambioUsuario =
+      () => {
+        cargarCarritoUsuario()
       }
 
     window.addEventListener(
-      'storage',
-      manejarCambioStorage
+      'usuarioCambio',
+      manejarCambioUsuario
     )
 
     return () => {
       window.removeEventListener(
-        'storage',
-        manejarCambioStorage
+        'usuarioCambio',
+        manejarCambioUsuario
       )
     }
-  }, [])
+  }, [cargarCarritoUsuario])
 
-  /*
-   * ============================================================
-   * AGREGAR AL CARRITO
-   * ============================================================
-   */
+  // ============================================================
+  // GUARDAR CARRITO
+  // ============================================================
+
+  useEffect(() => {
+    if (!usuarioId) {
+      return
+    }
+
+    const clave =
+      crearClaveCarrito(usuarioId)
+
+    try {
+      localStorage.setItem(
+        clave,
+        JSON.stringify(carrito)
+      )
+    } catch (error) {
+      console.error(
+        'Error guardando carrito:',
+        error
+      )
+    }
+  }, [carrito, usuarioId])
+
+  // ============================================================
+  // AGREGAR AL CARRITO
+  // ============================================================
 
   const agregarAlCarrito =
     useCallback(
       (producto) => {
-        if (!producto) {
-          return
+        const usuario =
+          obtenerUsuarioActual()
+
+        const idUsuario =
+          obtenerIdUsuario(usuario)
+
+        if (!idUsuario) {
+          console.warn(
+            'No se puede agregar al carrito sin iniciar sesión.'
+          )
+
+          return {
+            ok: false,
+            message:
+              'Debes iniciar sesión para agregar productos al carrito.',
+          }
         }
 
-        setCarrito(
-          (carritoAnterior) => {
-            const idProducto =
-              producto.id_producto ??
-              producto.id
+        const productoNormalizado =
+          normalizarProducto(producto)
 
-            const indice =
-              carritoAnterior.findIndex(
+        if (!productoNormalizado) {
+          return {
+            ok: false,
+            message:
+              'Este producto no está disponible para compra.',
+          }
+        }
+
+        setUsuarioId(idUsuario)
+
+        setCarrito(
+          (carritoActual) => {
+            const existente =
+              carritoActual.find(
                 (item) =>
-                  (
-                    item.id_producto ??
-                    item.id
+                  Number(
+                    item.id_producto
                   ) ===
-                  idProducto
+                  Number(
+                    productoNormalizado.id_producto
+                  )
               )
 
-            if (
-              indice !== -1
-            ) {
-              return carritoAnterior.map(
-                (
-                  item,
-                  index
-                ) =>
-                  index ===
-                  indice
+            if (existente) {
+              return carritoActual.map(
+                (item) =>
+                  Number(
+                    item.id_producto
+                  ) ===
+                  Number(
+                    productoNormalizado.id_producto
+                  )
                     ? {
                         ...item,
                         cantidad:
-                          (
-                            Number(
-                              item.cantidad
-                            ) || 0
+                          Number(
+                            item.cantidad
                           ) + 1,
                       }
                     : item
@@ -1384,178 +1331,383 @@ export function CartProvider({
             }
 
             return [
-              ...carritoAnterior,
+              ...carritoActual,
               {
-                ...producto,
+                ...productoNormalizado,
                 cantidad: 1,
               },
             ]
           }
         )
+
+        return {
+          ok: true,
+          message:
+            'Producto agregado al carrito.',
+        }
       },
       []
     )
 
-  /*
-   * ============================================================
-   * ELIMINAR DEL CARRITO
-   * ============================================================
-   */
+  // ============================================================
+  // AGREGAR CANTIDAD ESPECÍFICA
+  // ============================================================
 
-  const eliminarDelCarrito =
+  const agregarProducto =
+    useCallback(
+      (
+        producto,
+        cantidad = 1
+      ) => {
+        const usuario =
+          obtenerUsuarioActual()
+
+        const idUsuario =
+          obtenerIdUsuario(usuario)
+
+        if (!idUsuario) {
+          return {
+            ok: false,
+            message:
+              'Debes iniciar sesión para agregar productos al carrito.',
+          }
+        }
+
+        const productoNormalizado =
+          normalizarProducto(producto)
+
+        if (!productoNormalizado) {
+          return {
+            ok: false,
+            message:
+              'Este producto no está disponible para compra.',
+          }
+        }
+
+        const cantidadNumero =
+          Number(cantidad)
+
+        if (
+          !Number.isInteger(
+            cantidadNumero
+          ) ||
+          cantidadNumero <= 0
+        ) {
+          return {
+            ok: false,
+            message:
+              'Cantidad inválida.',
+          }
+        }
+
+        setUsuarioId(idUsuario)
+
+        setCarrito(
+          (carritoActual) => {
+            const existente =
+              carritoActual.find(
+                (item) =>
+                  Number(
+                    item.id_producto
+                  ) ===
+                  Number(
+                    productoNormalizado.id_producto
+                  )
+              )
+
+            if (existente) {
+              return carritoActual.map(
+                (item) =>
+                  Number(
+                    item.id_producto
+                  ) ===
+                  Number(
+                    productoNormalizado.id_producto
+                  )
+                    ? {
+                        ...item,
+                        cantidad:
+                          Number(
+                            item.cantidad
+                          ) +
+                          cantidadNumero,
+                      }
+                    : item
+              )
+            }
+
+            return [
+              ...carritoActual,
+              {
+                ...productoNormalizado,
+                cantidad:
+                  cantidadNumero,
+              },
+            ]
+          }
+        )
+
+        return {
+          ok: true,
+          message:
+            'Producto agregado al carrito.',
+        }
+      },
+      []
+    )
+
+  // ============================================================
+  // AUMENTAR
+  // ============================================================
+
+  const aumentarCantidad =
     useCallback(
       (idProducto) => {
         setCarrito(
-          (carritoAnterior) =>
-            carritoAnterior.filter(
+          (carritoActual) =>
+            carritoActual.map(
               (item) =>
-                (
-                  item.id_producto ??
-                  item.id
-                ) !==
-                idProducto
-            )
-        )
-      },
-      []
-    )
-
-  /*
-   * ============================================================
-   * ACTUALIZAR CANTIDAD
-   * ============================================================
-   */
-
-  const actualizarCantidad =
-    useCallback(
-      (
-        idProducto,
-        nuevaCantidad
-      ) => {
-        const cantidad =
-          Number(
-            nuevaCantidad
-          )
-
-        if (
-          !Number.isFinite(
-            cantidad
-          ) ||
-          cantidad <= 0
-        ) {
-          eliminarDelCarrito(
-            idProducto
-          )
-          return
-        }
-
-        setCarrito(
-          (carritoAnterior) =>
-            carritoAnterior.map(
-              (item) =>
-                (
-                  item.id_producto ??
-                  item.id
+                Number(
+                  item.id_producto
                 ) ===
-                idProducto
+                Number(idProducto)
                   ? {
                       ...item,
-                      cantidad,
+                      cantidad:
+                        Number(
+                          item.cantidad
+                        ) + 1,
                     }
                   : item
             )
         )
       },
-      [
-        eliminarDelCarrito,
-      ]
+      []
     )
 
-  /*
-   * ============================================================
-   * VACIAR CARRITO
-   * ============================================================
-   */
+  // ============================================================
+  // DISMINUIR
+  // ============================================================
+
+  const disminuirCantidad =
+    useCallback(
+      (idProducto) => {
+        setCarrito(
+          (carritoActual) =>
+            carritoActual
+              .map(
+                (item) =>
+                  Number(
+                    item.id_producto
+                  ) ===
+                  Number(idProducto)
+                    ? {
+                        ...item,
+                        cantidad:
+                          Number(
+                            item.cantidad
+                          ) - 1,
+                      }
+                    : item
+              )
+              .filter(
+                (item) =>
+                  Number(
+                    item.cantidad
+                  ) > 0
+              )
+        )
+      },
+      []
+    )
+
+  // ============================================================
+  // ELIMINAR
+  // ============================================================
+
+  const eliminarDelCarrito =
+    useCallback(
+      (idProducto) => {
+        setCarrito(
+          (carritoActual) =>
+            carritoActual.filter(
+              (item) =>
+                Number(
+                  item.id_producto
+                ) !==
+                Number(idProducto)
+            )
+        )
+      },
+      []
+    )
+
+  const removeItem =
+    eliminarDelCarrito
+
+  // ============================================================
+  // ACTUALIZAR CANTIDAD
+  // ============================================================
+
+  const actualizarCantidad =
+    useCallback(
+      (
+        idProducto,
+        cantidad
+      ) => {
+        const cantidadNumero =
+          Number(cantidad)
+
+        if (
+          !Number.isInteger(
+            cantidadNumero
+          ) ||
+          cantidadNumero <= 0
+        ) {
+          setCarrito(
+            (carritoActual) =>
+              carritoActual.filter(
+                (item) =>
+                  Number(
+                    item.id_producto
+                  ) !==
+                  Number(idProducto)
+              )
+          )
+
+          return
+        }
+
+        setCarrito(
+          (carritoActual) =>
+            carritoActual.map(
+              (item) =>
+                Number(
+                  item.id_producto
+                ) ===
+                Number(idProducto)
+                  ? {
+                      ...item,
+                      cantidad:
+                        cantidadNumero,
+                    }
+                  : item
+            )
+        )
+      },
+      []
+    )
+
+  const updateQuantity =
+    actualizarCantidad
+
+  // ============================================================
+  // VACIAR
+  // ============================================================
 
   const vaciarCarrito =
     useCallback(() => {
       setCarrito([])
     }, [])
 
-  /*
-   * ============================================================
-   * TOTAL DE PRODUCTOS
-   * ============================================================
-   */
+  const clearCart =
+    vaciarCarrito
 
-  const cantidadTotal =
-    useMemo(
-      () =>
-        carrito.reduce(
-          (
-            total,
-            item
-          ) =>
-            total +
-            (
-              Number(
-                item.cantidad
-              ) || 0
-            ),
-          0
+  // ============================================================
+  // LOGOUT
+  // ============================================================
+
+  const clearCartOnLogout =
+    useCallback(() => {
+      if (usuarioId) {
+        const clave =
+          crearClaveCarrito(
+            usuarioId
+          )
+
+        localStorage.removeItem(
+          clave
+        )
+      }
+
+      setCarrito([])
+      setUsuarioId(null)
+    }, [usuarioId])
+
+  // ============================================================
+  // COUNT
+  // ============================================================
+
+  const count = useMemo(() => {
+    return carrito.reduce(
+      (total, item) =>
+        total +
+        Number(
+          item.cantidad || 0
         ),
-      [carrito]
+      0
+    )
+  }, [carrito])
+
+  // ============================================================
+  // TOTAL
+  // ============================================================
+
+  const total = useMemo(() => {
+    return carrito.reduce(
+      (suma, item) =>
+        suma +
+        Number(
+          item.precio || 0
+        ) *
+          Number(
+            item.cantidad || 0
+          ),
+      0
+    )
+  }, [carrito])
+
+  const obtenerSubtotal =
+    useCallback(
+      (item) => {
+        return (
+          Number(
+            item.precio || 0
+          ) *
+          Number(
+            item.cantidad || 0
+          )
+        )
+      },
+      []
     )
 
-  /*
-   * ============================================================
-   * TOTAL DEL CARRITO
-   * ============================================================
-   */
+  // ============================================================
+  // CHECKOUT
+  // ============================================================
 
-  const totalCarrito =
-    useMemo(
-      () =>
-        carrito.reduce(
-          (
-            total,
-            item
-          ) => {
-            const precio =
-              Number(
-                item.precio ??
-                item.precio_unitario ??
-                0
-              ) || 0
-
-            const cantidad =
-              Number(
-                item.cantidad
-              ) || 0
-
-            return (
-              total +
-              precio *
-                cantidad
-            )
-          },
-          0
-        ),
-      [carrito]
-    )
-
-  /*
-   * ============================================================
-   * CHECKOUT
-   * ============================================================
-   */
-
-  const realizarCompra =
+  const checkout =
     useCallback(
       async () => {
+        if (comprando) {
+          return null
+        }
+
+        const usuario =
+          obtenerUsuarioActual()
+
+        const idUsuario =
+          obtenerIdUsuario(usuario)
+
+        if (!idUsuario) {
+          throw new Error(
+            'Debes iniciar sesión para realizar la compra.'
+          )
+        }
+
         if (
-          carrito.length ===
-          0
+          !Array.isArray(carrito) ||
+          carrito.length === 0
         ) {
           throw new Error(
             'El carrito está vacío.'
@@ -1567,235 +1719,310 @@ export function CartProvider({
             'token'
           )
 
-        const usuarioGuardado =
-          localStorage.getItem(
-            'usuario'
-          )
-
         if (!token) {
           throw new Error(
-            'Debes iniciar sesión para realizar la compra.'
+            'Tu sesión ha expirado. Inicia sesión nuevamente.'
           )
         }
 
-        let usuario = null
+        // ======================================================
+        // VALIDAR PRODUCTOS
+        // ======================================================
 
-        try {
-          usuario =
-            usuarioGuardado
-              ? JSON.parse(
-                  usuarioGuardado
+        const productosValidos =
+          carrito.every(
+            (item) => {
+              const id =
+                Number(
+                  item.id_producto
                 )
-              : null
-        } catch {
-          usuario = null
-        }
 
-        const usuarioId =
-          usuario?.id_usuario ??
-          usuario?.id ??
-          usuario?.usuario_id
+              const cantidad =
+                Number(
+                  item.cantidad
+                )
 
-        if (!usuarioId) {
+              const precio =
+                Number(
+                  item.precio
+                )
+
+              return (
+                Number.isInteger(
+                  id
+                ) &&
+                id > 0 &&
+                Number.isInteger(
+                  cantidad
+                ) &&
+                cantidad > 0 &&
+                Number.isFinite(
+                  precio
+                ) &&
+                precio >= 0
+              )
+            }
+          )
+
+        if (!productosValidos) {
           throw new Error(
-            'No se pudo identificar al usuario.'
+            'El carrito contiene un producto inválido.'
           )
         }
 
-        setProcesandoCompra(
-          true
+        // ======================================================
+        // ITEMS PARA BACKEND
+        // ======================================================
+
+        const items =
+          carrito.map(
+            (item) => ({
+              producto_id:
+                Number(
+                  item.id_producto
+                ),
+
+              nombre_producto:
+                String(
+                  item.nombre_producto ||
+                    'Producto'
+                ).trim(),
+
+              precio_unitario:
+                Number(
+                  item.precio
+                ) || 0,
+
+              cantidad:
+                Number(
+                  item.cantidad
+                ),
+            })
+          )
+
+        // ======================================================
+        // API
+        // ======================================================
+
+        if (!API_URL) {
+          throw new Error(
+            'API_URL no está configurado correctamente.'
+          )
+        }
+
+        const url =
+          `${API_URL.replace(
+            /\/$/,
+            ''
+          )}/api/pedidos`
+
+        console.log(
+          '===================================='
         )
 
+        console.log(
+          'REALIZANDO COMPRA'
+        )
+
+        console.log(
+          'URL:',
+          url
+        )
+
+        console.log(
+          'USUARIO:',
+          idUsuario
+        )
+
+        console.log(
+          'ITEMS:',
+          items
+        )
+
+        console.log(
+          '===================================='
+        )
+
+        setComprando(true)
+
         try {
-          const detalles =
-            carrito.map(
-              (item) => ({
-                producto_id:
-                  item.id_producto ??
-                  item.id,
-
-                nombre_producto:
-                  item.nombre_producto ??
-                  item.nombre ??
-                  'Producto',
-
-                precio_unitario:
-                  Number(
-                    item.precio ??
-                    item.precio_unitario ??
-                    0
-                  ) || 0,
-
-                cantidad:
-                  Number(
-                    item.cantidad
-                  ) || 1,
-              })
-            )
-
-          const total =
-            detalles.reduce(
-              (
-                acumulado,
-                item
-              ) =>
-                acumulado +
-                item.precio_unitario *
-                  item.cantidad,
-              0
-            )
-
           const respuesta =
             await fetch(
-              `${API_URL}/api/pedidos`,
+              url,
               {
                 method: 'POST',
+
                 headers: {
                   'Content-Type':
                     'application/json',
-                  Authorization: `Bearer ${token}`,
+
+                  Authorization:
+                    `Bearer ${token}`,
                 },
-                body: JSON.stringify(
-                  {
-                    usuario_id:
-                      usuarioId,
-                    total,
-                    estado:
-                      'pagado',
-                    detalles,
-                  }
-                ),
+
+                body:
+                  JSON.stringify({
+                    items,
+                  }),
               }
             )
 
-          const datos =
-            await respuesta
-              .json()
-              .catch(
-                () => null
-              )
+          let datos = null
 
-          if (
-            !respuesta.ok
-          ) {
-            throw new Error(
+          try {
+            datos =
+              await respuesta.json()
+          } catch {
+            datos = null
+          }
+
+          console.log(
+            'RESPUESTA COMPRA:',
+            respuesta.status,
+            datos
+          )
+
+          if (!respuesta.ok) {
+            const mensaje =
               datos?.detail ||
-                datos?.mensaje ||
-                'No se pudo registrar la compra.'
+              datos?.message ||
+              `Error HTTP ${respuesta.status}`
+
+            throw new Error(
+              mensaje
             )
           }
+
+          // ====================================================
+          // VALIDAR QUE EL BACKEND DEVOLVIÓ PEDIDO
+          // ====================================================
+
+          if (
+            !datos ||
+            typeof datos !== 'object'
+          ) {
+            throw new Error(
+              'La compra se registró, pero el servidor no devolvió la información del pedido.'
+            )
+          }
+
+          // ====================================================
+          // GENERAR FACTURA PDF
+          // ====================================================
 
           generarFacturaPDF(
             datos,
             usuario
           )
 
+          // ====================================================
+          // LIMPIAR CARRITO SOLO DESPUÉS DE TODO
+          // ====================================================
+
           setCarrito([])
-
-          localStorage.removeItem(
-            CART_KEY
-          )
-
-          window.dispatchEvent(
-            new CustomEvent(
-              'compraRealizada',
-              {
-                detail: datos,
-              }
-            )
-          )
 
           return datos
         } finally {
-          setProcesandoCompra(
-            false
-          )
+          setComprando(false)
         }
       },
-      [carrito]
+      [
+        carrito,
+        comprando,
+      ]
     )
 
-  /*
-   * ============================================================
-   * LIMPIAR CARRITO AL CERRAR SESIÓN
-   * ============================================================
-   */
+  // ============================================================
+  // VALUE
+  // ============================================================
 
-  const clearCartOnLogout =
-    useCallback(() => {
-      setCarrito([])
+  const value =
+    useMemo(
+      () => ({
+        carrito,
 
-      try {
-        localStorage.removeItem(
-          CART_KEY
-        )
-      } catch (error) {
-        console.error(
-          'Error limpiando carrito:',
-          error
-        )
-      }
-    }, [])
+        cart: carrito,
 
-  /*
-   * ============================================================
-   * VALOR DEL CONTEXTO
-   * ============================================================
-   */
+        usuarioId,
 
-  const valor = useMemo(
-    () => ({
-      carrito,
-      cantidadTotal,
-      totalCarrito,
-      procesandoCompra,
+        count,
 
-      agregarAlCarrito,
-      eliminarDelCarrito,
-      actualizarCantidad,
-      vaciarCarrito,
+        total,
 
-      realizarCompra,
-      clearCartOnLogout,
+        comprando,
 
-      generarFacturaPDF,
-    }),
-    [
-      carrito,
-      cantidadTotal,
-      totalCarrito,
-      procesandoCompra,
-      agregarAlCarrito,
-      eliminarDelCarrito,
-      actualizarCantidad,
-      vaciarCarrito,
-      realizarCompra,
-      clearCartOnLogout,
-    ]
-  )
+        agregarAlCarrito,
+
+        agregarProducto,
+
+        aumentarCantidad,
+
+        disminuirCantidad,
+
+        actualizarCantidad,
+
+        updateQuantity,
+
+        eliminarDelCarrito,
+
+        removeItem,
+
+        vaciarCarrito,
+
+        clearCart,
+
+        clearCartOnLogout,
+
+        obtenerSubtotal,
+
+        checkout,
+      }),
+      [
+        carrito,
+        usuarioId,
+        count,
+        total,
+        comprando,
+        agregarAlCarrito,
+        agregarProducto,
+        aumentarCantidad,
+        disminuirCantidad,
+        actualizarCantidad,
+        updateQuantity,
+        eliminarDelCarrito,
+        removeItem,
+        vaciarCarrito,
+        clearCart,
+        clearCartOnLogout,
+        obtenerSubtotal,
+        checkout,
+      ]
+    )
 
   return (
     <CartContext.Provider
-      value={valor}
+      value={value}
     >
       {children}
     </CartContext.Provider>
   )
 }
 
-export function useCart() {
-  const contexto =
-    useContext(
-      CartContext
-    )
+// ============================================================
+// HOOK
+// ============================================================
 
-  if (!contexto) {
+export function useCart() {
+  const context =
+    useContext(CartContext)
+
+  if (!context) {
     throw new Error(
-      'useCart debe utilizarse dentro de CartProvider.'
+      'useCart debe utilizarse dentro de CartProvider'
     )
   }
 
-  return contexto
+  return context
 }
 
 export default CartContext
