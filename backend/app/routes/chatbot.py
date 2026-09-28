@@ -24,19 +24,18 @@ class ChatRequest(BaseModel):
 
 
 @router.post("")
+@router.post("")
 def responder_chatbot(data: ChatRequest):
-   api_key = os.getenv("OPENAI_API_KEY")
-   modelo = os.getenv("OPENAI_MODEL")
+    api_key = os.getenv("OPENAI_API_KEY")
+    modelo = os.getenv("OPENAI_MODEL")
 
-   if not api_key:
-    raise HTTPException(
-        status_code=503,
-        detail={
-            "error": "OPENAI_API_KEY no está llegando al backend",
-            "api_key_configurada": False,
-            "modelo": modelo,
-        },
-    )
+    return {
+        "success": True,
+        "api_key_configurada": bool(api_key),
+        "modelo_configurado": bool(modelo),
+        "modelo": modelo,
+        "mensaje_recibido": data.message,
+    },
 
     mensajes = [
         {
