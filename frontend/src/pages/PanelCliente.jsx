@@ -25,26 +25,16 @@ import logoDark from '../assets/logo-dark.png'
 const COMPRAS_KEY = 'cellworld_compras'
 
 function obtenerClaveFavoritos(usuario) {
-  const idUsuario =
-    usuario?.id_usuario ??
-    usuario?.usuario_id ??
-    usuario?.id ??
-    usuario?.email ??
-    usuario?.correo
-
-  if (!idUsuario) {
-    return 'cellworld_favorites_guest'
-  }
-
-  return `cellworld_favorites_${idUsuario}`
+  if (!usuario) return 'cellworld_favorites'
+  return `cellworld_favorites_${usuario.id_usuario || usuario.id || 'usuario'}`
 }
 
 function obtenerIdProducto(producto) {
   return (
     producto?.id_producto ??
+    producto?.idProducto ??
     producto?.id ??
     producto?.producto_id ??
-    producto?.idProducto ??
     null
   )
 }
@@ -53,20 +43,16 @@ function obtenerNombreProducto(producto) {
   return (
     producto?.nombre_producto ??
     producto?.nombre ??
-    producto?.name ??
-    producto?.producto?.nombre ??
-    producto?.producto?.name ??
+    producto?.producto ??
     'Producto'
   )
 }
 
 function obtenerPrecioProducto(producto) {
   return Number(
-    producto?.precio_unitario ??
-      producto?.precio ??
-      producto?.price ??
-      producto?.producto?.precio ??
-      producto?.producto?.price ??
+    producto?.precio ??
+      producto?.precio_unitario ??
+      producto?.precio_producto ??
       0
   )
 }
@@ -74,102 +60,104 @@ function obtenerPrecioProducto(producto) {
 function obtenerImagenProducto(producto) {
   return (
     producto?.imagen ??
-    producto?.image ??
     producto?.imagen_url ??
-    producto?.producto?.imagen ??
-    producto?.producto?.image ??
-    null
+    producto?.url_imagen ??
+    producto?.foto ??
+    ''
   )
 }
 
 function normalizarProducto(producto) {
-  const id = obtenerIdProducto(producto)
-
   return {
     ...producto,
-    id: id ?? `producto-${Math.random()}`,
-    name: obtenerNombreProducto(producto),
-    price: obtenerPrecioProducto(producto),
-    image: obtenerImagenProducto(producto),
+    id_producto: obtenerIdProducto(producto),
+    nombre: obtenerNombreProducto(producto),
+    precio: obtenerPrecioProducto(producto),
+    imagen: obtenerImagenProducto(producto),
   }
 }
 
 function formatearPrecio(valor) {
-  return new Intl.NumberFormat('es-CO', {
+  return Number(valor || 0).toLocaleString('es-CO', {
     style: 'currency',
     currency: 'COP',
     maximumFractionDigits: 0,
-  }).format(Number(valor) || 0)
+  })
 }
 
 function formatearFecha(fecha) {
-  if (!fecha) return 'Fecha no disponible'
+  if (!fecha) return 'Sin fecha'
 
-  const fechaObjeto = new Date(fecha)
+  const fechaObj = new Date(fecha)
 
-  if (Number.isNaN(fechaObjeto.getTime())) {
-    return 'Fecha no disponible'
+  if (Number.isNaN(fechaObj.getTime())) {
+    return 'Sin fecha'
   }
 
-  return fechaObjeto.toLocaleDateString('es-CO', {
-    day: '2-digit',
-    month: 'long',
+  return fechaObj.toLocaleDateString('es-CO', {
     year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   })
 }
 
 function obtenerProductosCompra(compra) {
-  if (Array.isArray(compra?.detalles)) {
-    return compra.detalles
-  }
+  const productos =
+    compra?.detalles ??
+    compra?.detalle_pedidos ??
+    compra?.productos ??
+    compra?.items ??
+    []
 
-  if (Array.isArray(compra?.detalle_pedido)) {
-    return compra.detalle_pedido
-  }
+  if (!Array.isArray(productos)) return []
 
-  if (Array.isArray(compra?.detalles_pedido)) {
-    return compra.detalles_pedido
-  }
-
-  if (Array.isArray(compra?.productos)) {
-    return compra.productos
-  }
-
-  if (Array.isArray(compra?.items)) {
-    return compra.items
-  }
-
-  if (compra?.producto) {
-    return [compra.producto]
-  }
-
-  return []
+  return productos.map((item) => ({
+    ...item,
+    nombre:
+      item?.nombre ??
+      item?.nombre_producto ??
+      item?.producto?.nombre ??
+      'Producto',
+    cantidad: Number(item?.cantidad ?? 1),
+    precio:
+      Number(
+        item?.precio ??
+          item?.precio_unitario ??
+          item?.producto?.precio ??
+          0
+      ),
+    imagen:
+      item?.imagen ??
+      item?.imagen_url ??
+      item?.producto?.imagen ??
+      '',
+  }))
 }
 
 function obtenerTotalCompra(compra) {
-  if (compra?.total !== undefined && compra?.total !== null) {
-    return Number(compra.total) || 0
+  if (compra?.total != null) {
+    return Number(compra.total)
+  }
+
+  if (compra?.total_pedido != null) {
+    return Number(compra.total_pedido)
   }
 
   const productos = obtenerProductosCompra(compra)
 
-  return productos.reduce((total, producto) => {
-    const precio = obtenerPrecioProducto(producto)
-    const cantidad = Number(
-      producto?.cantidad ?? producto?.quantity ?? 1
-    )
-
-    return total + precio * cantidad
-  }, 0)
+  return productos.reduce(
+    (total, producto) =>
+      total + producto.precio * producto.cantidad,
+    0
+  )
 }
 
 function obtenerFechaCompra(compra) {
   return (
-    compra?.creado_en ??
     compra?.fecha ??
+    compra?.creado_en ??
     compra?.fecha_pedido ??
     compra?.created_at ??
-    compra?.createdAt ??
     null
   )
 }
@@ -178,152 +166,197 @@ export default function PanelCliente({
   modoOscuro = false,
   usuario = null,
 }) {
-  const { addItem } = useCart()
+  const { carrito, eliminarDelCarrito } = useCart()
 
-  const [usuarioActual, setUsuarioActual] = useState(() => {
-    if (usuario) return usuario
-
-    try {
-      const guardado = localStorage.getItem('usuario')
-      return guardado ? JSON.parse(guardado) : null
-    } catch {
-      return null
-    }
-  })
-
-  const favoritosKey = obtenerClaveFavoritos(usuarioActual)
-
+  const [usuarioActual, setUsuarioActual] = useState(usuario)
   const [seccion, setSeccion] = useState('resumen')
+
   const [favoritos, setFavoritos] = useState([])
   const [favoritosCargados, setFavoritosCargados] = useState(false)
+
   const [compras, setCompras] = useState([])
-  const [pqrs, setPqrs] = useState([])
-  const [cargandoPqrs, setCargandoPqrs] = useState(false)
-  const [errorPqrs, setErrorPqrs] = useState('')
-  const [paginaPqrs, setPaginaPqrs] = useState(1)
   const [mostrarDetalles, setMostrarDetalles] = useState(false)
   const [compraSeleccionada, setCompraSeleccionada] = useState(null)
   const [cargandoCompras, setCargandoCompras] = useState(false)
+
   const [paginaCompras, setPaginaCompras] = useState(1)
   const [paginaFavoritos, setPaginaFavoritos] = useState(1)
 
   const elementosPorPaginaCompras = 5
   const elementosPorPaginaFavoritos = 6
-  const elementosPorPaginaPqrs = 5
 
-  const [perfil, setPerfil] = useState(() => {
-    let usuarioGuardado = null
-
-    try {
-      usuarioGuardado = JSON.parse(
-        localStorage.getItem('usuario')
-      )
-    } catch {
-      usuarioGuardado = null
-    }
-
-    const fuente = usuario || usuarioGuardado || {}
-
-    return {
-      nombres: fuente?.nombres || '',
-      apellidos: fuente?.apellidos || '',
-      email: fuente?.email || '',
-      telefono: fuente?.telefono || '',
-    }
+  const [perfil, setPerfil] = useState({
+    nombres: '',
+    apellidos: '',
+    email: '',
+    telefono: '',
   })
 
-  useEffect(() => {
-    const cargarUsuarioActual = () => {
-      try {
-        const guardado = localStorage.getItem('usuario')
-        const usuarioGuardado = guardado
-          ? JSON.parse(guardado)
-          : null
+  // =========================
+  // PQR
+  // =========================
+  const [pqrs, setPqrs] = useState([])
+  const [cargandoPqrs, setCargandoPqrs] = useState(false)
+  const [errorPqrs, setErrorPqrs] = useState('')
+  const [paginaPqrs, setPaginaPqrs] = useState(1)
 
-        setUsuarioActual(
-          usuario || usuarioGuardado || null
+  const elementosPorPaginaPqrs = 5
+
+  const fondoPrincipal = modoOscuro
+    ? 'bg-slate-950 text-white'
+    : 'bg-gray-100 text-gray-900'
+
+  const fondoTarjeta = modoOscuro
+    ? 'bg-slate-900 border-slate-800'
+    : 'bg-white border-gray-200'
+
+  const textoSecundario = modoOscuro
+    ? 'text-gray-400'
+    : 'text-gray-500'
+
+  // =========================
+  // USUARIO
+  // =========================
+
+  useEffect(() => {
+    const cargarUsuario = () => {
+      try {
+        const usuarioGuardado =
+          localStorage.getItem('usuario')
+
+        if (usuarioGuardado) {
+          const usuarioParseado =
+            JSON.parse(usuarioGuardado)
+
+          setUsuarioActual(usuarioParseado)
+
+          setPerfil({
+            nombres: usuarioParseado?.nombres || '',
+            apellidos:
+              usuarioParseado?.apellidos || '',
+            email: usuarioParseado?.email || '',
+            telefono:
+              usuarioParseado?.telefono || '',
+          })
+        } else {
+          setUsuarioActual(usuario)
+        }
+      } catch (error) {
+        console.error(
+          'Error cargando usuario:',
+          error
         )
-      } catch {
-        setUsuarioActual(usuario || null)
+
+        setUsuarioActual(usuario)
       }
     }
 
-    cargarUsuarioActual()
+    cargarUsuario()
 
     window.addEventListener(
       'usuarioCambio',
-      cargarUsuarioActual
+      cargarUsuario
     )
+
     window.addEventListener(
       'storage',
-      cargarUsuarioActual
+      cargarUsuario
     )
+
     window.addEventListener(
       'focus',
-      cargarUsuarioActual
+      cargarUsuario
     )
 
     return () => {
       window.removeEventListener(
         'usuarioCambio',
-        cargarUsuarioActual
+        cargarUsuario
       )
+
       window.removeEventListener(
         'storage',
-        cargarUsuarioActual
+        cargarUsuario
       )
+
       window.removeEventListener(
         'focus',
-        cargarUsuarioActual
+        cargarUsuario
       )
     }
   }, [usuario])
 
-  useEffect(() => {
-    if (usuario) {
-      setPerfil({
-        nombres: usuario?.nombres || '',
-        apellidos: usuario?.apellidos || '',
-        email: usuario?.email || '',
-        telefono: usuario?.telefono || '',
-      })
-    }
-  }, [usuario])
+  // =========================
+  // FAVORITOS
+  // =========================
 
   useEffect(() => {
-    setFavoritosCargados(false)
+    const cargarFavoritos = () => {
+      try {
+        const clave =
+          obtenerClaveFavoritos(usuarioActual)
 
-    try {
-      const guardados =
-        localStorage.getItem(favoritosKey)
+        const favoritosGuardados =
+          localStorage.getItem(clave)
 
-      if (!guardados) {
+        if (favoritosGuardados) {
+          const datos =
+            JSON.parse(favoritosGuardados)
+
+          setFavoritos(
+            Array.isArray(datos)
+              ? datos.map(normalizarProducto)
+              : []
+          )
+        } else {
+          setFavoritos([])
+        }
+      } catch (error) {
+        console.error(
+          'Error cargando favoritos:',
+          error
+        )
+
         setFavoritos([])
-        setFavoritosCargados(true)
-        return
       }
 
-      const datos = JSON.parse(guardados)
-      setFavoritos(
-        Array.isArray(datos) ? datos : []
-      )
-    } catch (error) {
-      console.error(
-        'Error cargando favoritos:',
-        error
-      )
-      setFavoritos([])
-    } finally {
       setFavoritosCargados(true)
     }
-  }, [favoritosKey])
+
+    cargarFavoritos()
+
+    window.addEventListener(
+      'favoritosActualizados',
+      cargarFavoritos
+    )
+
+    window.addEventListener(
+      'usuarioCambio',
+      cargarFavoritos
+    )
+
+    return () => {
+      window.removeEventListener(
+        'favoritosActualizados',
+        cargarFavoritos
+      )
+
+      window.removeEventListener(
+        'usuarioCambio',
+        cargarFavoritos
+      )
+    }
+  }, [usuarioActual])
 
   useEffect(() => {
     if (!favoritosCargados) return
 
     try {
+      const clave =
+        obtenerClaveFavoritos(usuarioActual)
+
       localStorage.setItem(
-        favoritosKey,
+        clave,
         JSON.stringify(favoritos)
       )
     } catch (error) {
@@ -335,119 +368,41 @@ export default function PanelCliente({
   }, [
     favoritos,
     favoritosCargados,
-    favoritosKey,
+    usuarioActual,
   ])
 
-  useEffect(() => {
-    const actualizarFavoritos = (evento) => {
-      if (
-        evento?.detail?.key &&
-        evento.detail.key !== favoritosKey
-      ) {
-        return
-      }
+  const quitarFavorito = (idProducto) => {
+    const nuevosFavoritos =
+      favoritos.filter(
+        (producto) =>
+          obtenerIdProducto(producto) !==
+          idProducto
+      )
 
-      try {
-        const guardados =
-          localStorage.getItem(favoritosKey)
+    setFavoritos(nuevosFavoritos)
 
-        if (!guardados) {
-          setFavoritos([])
-          return
-        }
-
-        const datos = JSON.parse(guardados)
-        setFavoritos(
-          Array.isArray(datos) ? datos : []
-        )
-      } catch (error) {
-        console.error(
-          'Error actualizando favoritos:',
-          error
-        )
-        setFavoritos([])
-      }
-    }
-
-    window.addEventListener(
-      'cellworld-favorites-updated',
-      actualizarFavoritos
+    window.dispatchEvent(
+      new Event('favoritosActualizados')
     )
+  }
 
-    window.addEventListener(
-      'storage',
-      actualizarFavoritos
-    )
-    window.addEventListener(
-      'focus',
-      actualizarFavoritos
-    )
-
-    return () => {
-      window.removeEventListener(
-        'cellworld-favorites-updated',
-        actualizarFavoritos
-      )
-
-      window.removeEventListener(
-        'storage',
-        actualizarFavoritos
-      )
-      window.removeEventListener(
-        'focus',
-        actualizarFavoritos
-      )
-    }
-  }, [favoritosKey])
-
-  useEffect(() => {
-    cargarCompras()
-  }, [])
-
-  useEffect(() => {
-    if (seccion === 'compras') {
-      cargarCompras()
-    }
-  }, [seccion])
-
-  useEffect(() => {
-    if (seccion === 'pqrs') {
-      cargarPqrs()
-    }
-  }, [seccion])
-
-  useEffect(() => {
-    const manejarEscape = (evento) => {
-      if (evento.key === 'Escape') {
-        setMostrarDetalles(false)
-      }
-    }
-
-    if (mostrarDetalles) {
-      document.addEventListener(
-        'keydown',
-        manejarEscape
-      )
-    }
-
-    return () => {
-      document.removeEventListener(
-        'keydown',
-        manejarEscape
-      )
-    }
-  }, [mostrarDetalles])
+  // =========================
+  // COMPRAS
+  // =========================
 
   async function cargarCompras() {
     setCargandoCompras(true)
 
-    const token = localStorage.getItem('token')
+    const token =
+      localStorage.getItem('token')
 
-    try {
-      if (!token) {
+    if (!token) {
+      try {
         const comprasLocales =
           JSON.parse(
-            localStorage.getItem(COMPRAS_KEY)
+            localStorage.getItem(
+              COMPRAS_KEY
+            ) || '[]'
           )
 
         setCompras(
@@ -455,10 +410,15 @@ export default function PanelCliente({
             ? comprasLocales
             : []
         )
-
-        return
+      } catch {
+        setCompras([])
       }
 
+      setCargandoCompras(false)
+      return
+    }
+
+    try {
       const respuesta = await fetch(
         `${API_URL}/api/pedidos/mis-pedidos`,
         {
@@ -470,38 +430,19 @@ export default function PanelCliente({
         }
       )
 
-      const data = await respuesta.json()
-
       if (!respuesta.ok) {
         throw new Error(
-          data?.detail ||
-            'No se pudieron cargar las compras.'
+          'No se pudieron cargar las compras.'
         )
       }
 
-      let pedidos = []
+      const data =
+        await respuesta.json()
 
-      if (Array.isArray(data)) {
-        pedidos = data
-      } else if (
-        Array.isArray(data?.pedidos)
-      ) {
-        pedidos = data.pedidos
-      } else if (
-        Array.isArray(data?.data)
-      ) {
-        pedidos = data.data
-      } else if (
-        Array.isArray(data?.items)
-      ) {
-        pedidos = data.items
-      }
-
-      setCompras(pedidos)
-
-      localStorage.setItem(
-        COMPRAS_KEY,
-        JSON.stringify(pedidos)
+      setCompras(
+        Array.isArray(data)
+          ? data
+          : data?.pedidos || []
       )
     } catch (error) {
       console.error(
@@ -512,7 +453,9 @@ export default function PanelCliente({
       try {
         const comprasLocales =
           JSON.parse(
-            localStorage.getItem(COMPRAS_KEY)
+            localStorage.getItem(
+              COMPRAS_KEY
+            ) || '[]'
           )
 
         setCompras(
@@ -528,11 +471,26 @@ export default function PanelCliente({
     }
   }
 
+  useEffect(() => {
+    cargarCompras()
+  }, [])
+
+  useEffect(() => {
+    if (seccion === 'compras') {
+      cargarCompras()
+    }
+  }, [seccion])
+
+  // =========================
+  // PQR
+  // =========================
+
   async function cargarPqrs() {
     setCargandoPqrs(true)
     setErrorPqrs('')
 
-    const token = localStorage.getItem('token')
+    const token =
+      localStorage.getItem('token')
 
     if (!token) {
       setPqrs([])
@@ -555,7 +513,8 @@ export default function PanelCliente({
         }
       )
 
-      const data = await respuesta.json()
+      const data =
+        await respuesta.json()
 
       if (!respuesta.ok) {
         throw new Error(
@@ -565,7 +524,9 @@ export default function PanelCliente({
       }
 
       setPqrs(
-        Array.isArray(data) ? data : []
+        Array.isArray(data)
+          ? data
+          : []
       )
     } catch (error) {
       console.error(
@@ -574,6 +535,7 @@ export default function PanelCliente({
       )
 
       setPqrs([])
+
       setErrorPqrs(
         error?.message ||
           'No se pudieron cargar tus PQR.'
@@ -583,821 +545,18 @@ export default function PanelCliente({
     }
   }
 
-  function quitarFavorito(id) {
-    setFavoritos((actuales) => {
-      const nuevosFavoritos =
-        actuales.filter(
-          (producto) =>
-            String(
-              obtenerIdProducto(producto)
-            ) !== String(id)
-        )
-
-      try {
-        localStorage.setItem(
-          favoritosKey,
-          JSON.stringify(
-            nuevosFavoritos
-          )
-        )
-      } catch (error) {
-        console.error(
-          'Error guardando favoritos:',
-          error
-        )
-      }
-
-      window.dispatchEvent(
-        new CustomEvent(
-          'cellworld-favorites-updated',
-          {
-            detail: {
-              key: favoritosKey,
-            },
-          }
-        )
-      )
-
-      return nuevosFavoritos
-    })
-  }
-
-  function agregarFavoritoAlCarrito(
-    producto
-  ) {
-    const productoNormalizado =
-      normalizarProducto(producto)
-
-    addItem(productoNormalizado)
-  }
-
-  function abrirDetalles(compra) {
-    setCompraSeleccionada(compra)
-    setMostrarDetalles(true)
-  }
-
-  function cerrarDetalles() {
-    setMostrarDetalles(false)
-    setCompraSeleccionada(null)
-  }
-
-  const convertirImagenDataURL = (src) => {
-    return new Promise(
-      (resolve, reject) => {
-        const imagen = new Image()
-
-        imagen.onload = () => {
-          const canvas =
-            document.createElement(
-              'canvas'
-            )
-
-          canvas.width =
-            imagen.naturalWidth
-          canvas.height =
-            imagen.naturalHeight
-
-          const contexto =
-            canvas.getContext('2d')
-
-          contexto.drawImage(
-            imagen,
-            0,
-            0
-          )
-
-          resolve(
-            canvas.toDataURL('image/png')
-          )
-        }
-
-        imagen.onerror = reject
-        imagen.src = src
-      }
-    )
-  }
-
-  async function descargarFactura(compra) {
-    if (!compra) {
-      alert(
-        'No se encontró la información de la compra.'
-      )
-      return
+  useEffect(() => {
+    if (seccion === 'pqrs') {
+      cargarPqrs()
     }
-
-    try {
-      const documento = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      })
-
-      const anchoPagina =
-        documento.internal.pageSize.getWidth()
-
-      const altoPagina =
-        documento.internal.pageSize.getHeight()
-
-      const numeroFactura =
-        compra?.numero_factura ||
-        compra?.factura ||
-        compra?.id_pedido ||
-        compra?.id ||
-        'N/A'
-
-      const fechaVenta =
-        compra?.fecha ||
-        compra?.creado_en ||
-        compra?.fecha_pedido ||
-        new Date()
-
-      const estadoFactura =
-        compra?.estado || 'Pagado'
-
-      const productosCompra =
-        obtenerProductosCompra(compra)
-
-      const productos =
-        Array.isArray(productosCompra)
-          ? productosCompra
-          : []
-
-      const usuarioFactura =
-        usuarioActual || usuario || {}
-
-      const nombreCliente =
-        `${usuarioFactura?.nombres || perfil?.nombres || ''} ${
-          usuarioFactura?.apellidos || perfil?.apellidos || ''
-        }`.trim() || 'Cliente'
-
-      const documentoCliente =
-        usuarioFactura?.numero_documento ||
-        usuarioFactura?.documento ||
-        usuarioFactura?.cedula ||
-        compra?.documento_cliente ||
-        compra?.numero_documento_cliente ||
-        ''
-
-      const correoCliente =
-        usuarioFactura?.email ||
-        perfil?.email ||
-        compra?.correo_cliente ||
-        compra?.email_cliente ||
-        ''
-
-      const telefonoCliente =
-        usuarioFactura?.telefono ||
-        perfil?.telefono ||
-        compra?.telefono_cliente ||
-        compra?.telefono ||
-        ''
-
-      const direccionCliente =
-        usuarioFactura?.direccion ||
-        compra?.direccion_cliente ||
-        compra?.direccion ||
-        ''
-
-      const filasProductos =
-        productos.map(
-          (producto, indice) => {
-            const cantidad =
-              Number(
-                producto?.cantidad ??
-                  producto?.quantity ??
-                  1
-              ) || 0
-
-            const precioUnitario =
-              obtenerPrecioProducto(
-                producto
-              )
-
-            const subtotal =
-              cantidad * precioUnitario
-
-            return [
-              indice + 1,
-              obtenerNombreProducto(
-                producto
-              ),
-              cantidad,
-              formatearPrecio(
-                precioUnitario
-              ),
-              formatearPrecio(
-                subtotal
-              ),
-            ]
-          }
-        )
-
-      if (
-        filasProductos.length === 0
-      ) {
-        filasProductos.push([
-          1,
-          'Sin productos registrados',
-          0,
-          formatearPrecio(0),
-          formatearPrecio(0),
-        ])
-      }
-
-      const subtotalCalculado =
-        productos.reduce(
-          (
-            acumulado,
-            producto
-          ) => {
-            const cantidad =
-              Number(
-                producto?.cantidad ??
-                  producto?.quantity ??
-                  1
-              ) || 0
-
-            const precio =
-              obtenerPrecioProducto(
-                producto
-              )
-
-            return (
-              acumulado +
-              cantidad * precio
-            )
-          },
-          0
-        )
-
-      const subtotalRegistrado =
-        Number(
-          compra?.subtotal ??
-            compra?.sub_total
-        )
-
-      const subtotal =
-        Number.isFinite(
-          subtotalRegistrado
-        ) &&
-        subtotalRegistrado > 0
-          ? subtotalRegistrado
-          : subtotalCalculado
-
-      const impuesto =
-        Number(
-          compra?.impuesto ??
-            compra?.iva ??
-            compra?.valor_iva ??
-            0
-        ) || 0
-
-      const descuento =
-        Number(
-          compra?.descuento ?? 0
-        ) || 0
-
-      const totalRegistrado =
-        Number(compra?.total)
-
-      const total =
-        Number.isFinite(
-          totalRegistrado
-        )
-          ? totalRegistrado
-          : subtotal +
-            impuesto -
-            descuento
-
-      documento.setFillColor(
-        8,
-        17,
-        31
-      )
-
-      documento.rect(
-        0,
-        0,
-        anchoPagina,
-        42,
-        'F'
-      )
-
-      try {
-        const logoData =
-          await convertirImagenDataURL(
-            logoDark
-          )
-
-        documento.addImage(
-          logoData,
-          'PNG',
-          14,
-          8,
-          36,
-          22
-        )
-      } catch {
-        documento.setFillColor(
-          37,
-          99,
-          235
-        )
-
-        documento.roundedRect(
-          14,
-          9,
-          36,
-          20,
-          3,
-          3,
-          'F'
-        )
-
-        documento.setTextColor(
-          255,
-          255,
-          255
-        )
-
-        documento.setFont(
-          'helvetica',
-          'bold'
-        )
-
-        documento.setFontSize(11)
-
-        documento.text(
-          'CELLWORLD',
-          18,
-          21
-        )
-      }
-
-      documento.setTextColor(
-        255,
-        255,
-        255
-      )
-
-      documento.setFont(
-        'helvetica',
-        'bold'
-      )
-
-      documento.setFontSize(19)
-
-      documento.text(
-        'FACTURA DE VENTA',
-        58,
-        17
-      )
-
-      documento.setFont(
-        'helvetica',
-        'normal'
-      )
-
-      documento.setFontSize(9)
-
-      documento.text(
-        'Sistema de gestión de ventas - CellWorld',
-        58,
-        24
-      )
-
-      documento.setFont(
-        'helvetica',
-        'bold'
-      )
-
-      documento.setFontSize(10)
-
-      documento.text(
-        `N.º ${numeroFactura}`,
-        anchoPagina - 14,
-        17,
-        {
-          align: 'right',
-        }
-      )
-
-      documento.setFont(
-        'helvetica',
-        'normal'
-      )
-
-      documento.setFontSize(9)
-
-      documento.text(
-        `Fecha: ${formatearFecha(
-          fechaVenta
-        )}`,
-        anchoPagina - 14,
-        25,
-        {
-          align: 'right',
-        }
-      )
-
-      documento.setFillColor(
-        245,
-        247,
-        250
-      )
-
-      documento.roundedRect(
-        14,
-        50,
-        anchoPagina - 28,
-        39,
-        3,
-        3,
-        'F'
-      )
-
-      documento.setTextColor(
-        40,
-        50,
-        65
-      )
-
-      documento.setFont(
-        'helvetica',
-        'bold'
-      )
-
-      documento.setFontSize(11)
-
-      documento.text(
-        'DATOS DEL CLIENTE',
-        20,
-        59
-      )
-
-      documento.setFont(
-        'helvetica',
-        'normal'
-      )
-
-      documento.setFontSize(9)
-
-      documento.text(
-        `Nombre: ${nombreCliente}`,
-        20,
-        67
-      )
-
-      if (documentoCliente) {
-        documento.text(
-          `Documento: ${documentoCliente}`,
-          20,
-          74
-        )
-      }
-
-      if (correoCliente) {
-        documento.text(
-          `Correo: ${correoCliente}`,
-          20,
-          81
-        )
-      }
-
-      if (telefonoCliente) {
-        documento.text(
-          `Teléfono: ${telefonoCliente}`,
-          105,
-          67
-        )
-      }
-
-      if (direccionCliente) {
-        documento.text(
-          `Dirección: ${direccionCliente}`,
-          105,
-          74
-        )
-      }
-
-      documento.setTextColor(
-        100,
-        110,
-        125
-      )
-
-      documento.setFontSize(8)
-
-      documento.text(
-        `Estado: ${estadoFactura}`,
-        105,
-        81
-      )
-
-      autoTable(documento, {
-        startY: 98,
-        head: [[
-          '#',
-          'Producto / Servicio',
-          'Cantidad',
-          'Precio unitario',
-          'Subtotal',
-        ]],
-        body: filasProductos,
-        theme: 'grid',
-        styles: {
-          font: 'helvetica',
-          fontSize: 8,
-          cellPadding: 3,
-          textColor: [35, 45, 60],
-        },
-        headStyles: {
-          fillColor: [37, 99, 235],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-        },
-        alternateRowStyles: {
-          fillColor: [248, 250, 252],
-        },
-        columnStyles: {
-          0: {
-            cellWidth: 10,
-            halign: 'center',
-          },
-          1: {
-            cellWidth: 76,
-          },
-          2: {
-            cellWidth: 22,
-            halign: 'center',
-          },
-          3: {
-            cellWidth: 35,
-            halign: 'right',
-          },
-          4: {
-            cellWidth: 35,
-            halign: 'right',
-          },
-        },
-        margin: {
-          left: 14,
-          right: 14,
-        },
-      })
-
-      const posicionFinal =
-        documento.lastAutoTable
-          ?.finalY || 110
-
-      const resumenInicio =
-        posicionFinal + 10
-
-      documento.setFillColor(
-        248,
-        250,
-        252
-      )
-
-      documento.roundedRect(
-        anchoPagina - 91,
-        resumenInicio,
-        77,
-        54,
-        3,
-        3,
-        'F'
-      )
-
-      documento.setTextColor(
-        70,
-        80,
-        95
-      )
-
-      documento.setFont(
-        'helvetica',
-        'normal'
-      )
-
-      documento.setFontSize(9)
-
-      documento.text(
-        'Subtotal',
-        anchoPagina - 85,
-        resumenInicio + 10
-      )
-
-      documento.text(
-        formatearPrecio(subtotal),
-        anchoPagina - 20,
-        resumenInicio + 10,
-        {
-          align: 'right',
-        }
-      )
-
-      documento.text(
-        'Descuento',
-        anchoPagina - 85,
-        resumenInicio + 20
-      )
-
-      documento.text(
-        formatearPrecio(descuento),
-        anchoPagina - 20,
-        resumenInicio + 20,
-        {
-          align: 'right',
-        }
-      )
-
-      documento.text(
-        'Impuestos',
-        anchoPagina - 85,
-        resumenInicio + 30
-      )
-
-      documento.text(
-        formatearPrecio(impuesto),
-        anchoPagina - 20,
-        resumenInicio + 30,
-        {
-          align: 'right',
-        }
-      )
-
-      documento.setDrawColor(
-        210,
-        215,
-        220
-      )
-
-      documento.line(
-        anchoPagina - 85,
-        resumenInicio + 35,
-        anchoPagina - 20,
-        resumenInicio + 35
-      )
-
-      documento.setTextColor(
-        20,
-        30,
-        45
-      )
-
-      documento.setFont(
-        'helvetica',
-        'bold'
-      )
-
-      documento.setFontSize(11)
-
-      documento.text(
-        'TOTAL',
-        anchoPagina - 85,
-        resumenInicio + 46
-      )
-
-      documento.text(
-        formatearPrecio(total),
-        anchoPagina - 20,
-        resumenInicio + 46,
-        {
-          align: 'right',
-        }
-      )
-
-      documento.setFillColor(
-        8,
-        17,
-        31
-      )
-
-      documento.roundedRect(
-        14,
-        resumenInicio,
-        105,
-        54,
-        3,
-        3,
-        'F'
-      )
-
-      documento.setTextColor(
-        255,
-        255,
-        255
-      )
-
-      documento.setFont(
-        'helvetica',
-        'bold'
-      )
-
-      documento.setFontSize(10)
-
-      documento.text(
-        'INFORMACIÓN DE LA FACTURA',
-        20,
-        resumenInicio + 11
-      )
-
-      documento.setFont(
-        'helvetica',
-        'normal'
-      )
-
-      documento.setFontSize(8)
-
-      documento.text(
-        `Número de factura: ${numeroFactura}`,
-        20,
-        resumenInicio + 21
-      )
-
-      documento.text(
-        `Estado: ${estadoFactura}`,
-        20,
-        resumenInicio + 29
-      )
-
-      documento.text(
-        `Fecha de emisión: ${formatearFecha(
-          fechaVenta
-        )}`,
-        20,
-        resumenInicio + 37
-      )
-
-      documento.text(
-        'Factura generada desde CellWorld.',
-        20,
-        resumenInicio + 46
-      )
-
-      documento.setTextColor(
-        100,
-        110,
-        125
-      )
-
-      documento.setFont(
-        'helvetica',
-        'normal'
-      )
-
-      documento.setFontSize(7)
-
-      documento.text(
-        'CellWorld - Documento generado desde el sistema de gestión de ventas',
-        14,
-        altoPagina - 9
-      )
-
-      documento.text(
-        'Página 1',
-        anchoPagina - 14,
-        altoPagina - 9,
-        {
-          align: 'right',
-        }
-      )
-
-      const numeroArchivo =
-        String(numeroFactura).replace(
-          /[^a-zA-Z0-9_-]/g,
-          ''
-        ) || 'venta'
-
-      documento.save(
-        `CellWorld_Factura_${numeroArchivo}.pdf`
-      )
-    } catch (error) {
-      console.error(
-        'Error al generar factura:',
-        error
-      )
-
-      alert(
-        'No se pudo generar la factura.'
-      )
-    }
-  }
-
-  const nombreUsuario =
-    usuario?.nombres ||
-    perfil.nombres ||
-    'Cliente'
-
-  const totalFavoritos =
-    favoritos.length
+  }, [seccion])
+
+  // =========================
+  // PAGINACIÓN
+  // =========================
 
   const totalCompras =
     compras.length
-
-  const totalPqrs =
-    pqrs.length
 
   const totalPaginasCompras =
     Math.max(
@@ -1405,24 +564,6 @@ export default function PanelCliente({
       Math.ceil(
         totalCompras /
           elementosPorPaginaCompras
-      )
-    )
-
-  const totalPaginasFavoritos =
-    Math.max(
-      1,
-      Math.ceil(
-        totalFavoritos /
-          elementosPorPaginaFavoritos
-      )
-    )
-
-  const totalPaginasPqrs =
-    Math.max(
-      1,
-      Math.ceil(
-        totalPqrs /
-          elementosPorPaginaPqrs
       )
     )
 
@@ -1434,12 +575,36 @@ export default function PanelCliente({
         elementosPorPaginaCompras
     )
 
+  const totalFavoritos =
+    favoritos.length
+
+  const totalPaginasFavoritos =
+    Math.max(
+      1,
+      Math.ceil(
+        totalFavoritos /
+          elementosPorPaginaFavoritos
+      )
+    )
+
   const favoritosPaginaActual =
     favoritos.slice(
       (paginaFavoritos - 1) *
         elementosPorPaginaFavoritos,
       paginaFavoritos *
         elementosPorPaginaFavoritos
+    )
+
+  const totalPqrs =
+    pqrs.length
+
+  const totalPaginasPqrs =
+    Math.max(
+      1,
+      Math.ceil(
+        totalPqrs /
+          elementosPorPaginaPqrs
+      )
     )
 
   const pqrsPaginaActual =
@@ -1492,95 +657,167 @@ export default function PanelCliente({
     totalPaginasPqrs,
   ])
 
-  const fondoPrincipal =
-    modoOscuro
-      ? 'bg-slate-950 text-white'
-      : 'bg-gray-100 text-gray-900'
+  // =========================
+  // MODAL
+  // =========================
 
-  const fondoTarjeta =
-    modoOscuro
-      ? 'bg-slate-900 border-slate-800'
-      : 'bg-white border-gray-200'
+  useEffect(() => {
+    const cerrarConEscape = (event) => {
+      if (event.key === 'Escape') {
+        setMostrarDetalles(false)
+      }
+    }
 
-  const textoSecundario =
-    modoOscuro
-      ? 'text-gray-400'
-      : 'text-gray-500'
+    window.addEventListener(
+      'keydown',
+      cerrarConEscape
+    )
+
+    return () => {
+      window.removeEventListener(
+        'keydown',
+        cerrarConEscape
+      )
+    }
+  }, [])
+
+  // =========================
+  // FACTURA
+  // =========================
+
+  const generarFacturaPDF = (compra) => {
+    const doc = new jsPDF()
+
+    const productos =
+      obtenerProductosCompra(compra)
+
+    const total =
+      obtenerTotalCompra(compra)
+
+    const idPedido =
+      compra?.id_pedido ??
+      compra?.id ??
+      'N/A'
+
+    doc.addImage(
+      logoDark,
+      'PNG',
+      15,
+      10,
+      45,
+      15
+    )
+
+    doc.setFontSize(18)
+    doc.text(
+      'Factura de compra',
+      15,
+      40
+    )
+
+    doc.setFontSize(11)
+
+    doc.text(
+      `Pedido #${idPedido}`,
+      15,
+      50
+    )
+
+    doc.text(
+      `Fecha: ${formatearFecha(
+        obtenerFechaCompra(compra)
+      )}`,
+      15,
+      58
+    )
+
+    doc.text(
+      `Cliente: ${
+        usuarioActual?.nombres || ''
+      } ${
+        usuarioActual?.apellidos || ''
+      }`,
+      15,
+      66
+    )
+
+    const filas =
+      productos.map((producto) => [
+        producto.nombre,
+        producto.cantidad,
+        formatearPrecio(
+          producto.precio
+        ),
+        formatearPrecio(
+          producto.precio *
+            producto.cantidad
+        ),
+      ])
+
+    autoTable(doc, {
+      startY: 75,
+      head: [
+        [
+          'Producto',
+          'Cantidad',
+          'Precio',
+          'Subtotal',
+        ],
+      ],
+      body: filas,
+    })
+
+    const posicionFinal =
+      doc.lastAutoTable?.finalY || 90
+
+    doc.setFontSize(13)
+
+    doc.text(
+      `Total: ${formatearPrecio(total)}`,
+      15,
+      posicionFinal + 15
+    )
+
+    doc.save(
+      `factura-cellworld-${idPedido}.pdf`
+    )
+  }
 
   return (
     <div
-      className={`min-h-screen w-full ${fondoPrincipal}`}
+      className={`min-h-screen ${fondoPrincipal}`}
     >
-      <div className="flex h-screen w-full overflow-hidden">
-        {/* MENÚ LATERAL FIJO */}
-        <aside
-          className={`fixed inset-y-0 left-0 z-40 flex w-[245px] shrink-0 flex-col border-r ${
-            modoOscuro
-              ? 'border-slate-800 bg-slate-900'
-              : 'border-gray-200 bg-white'
-          }`}
-        >
-          <div
-            className={`flex h-[78px] shrink-0 items-center border-b px-5 ${
-              modoOscuro
-                ? 'border-slate-800'
-                : 'border-gray-200'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
-                <ShoppingCart
-                  size={21}
-                />
-              </div>
-
-              <div className="min-w-0">
-                <h1 className="truncate text-base font-bold">
-                  CellWorld
-                </h1>
-
-                <p
-                  className={`text-xs ${textoSecundario}`}
-                >
-                  Panel de cliente
-                </p>
-              </div>
+      {/* SIDEBAR */}
+      <aside
+        className={`fixed left-0 top-0 z-40 h-screen w-[245px] border-r ${
+          modoOscuro
+            ? 'border-slate-800 bg-slate-900'
+            : 'border-gray-200 bg-white'
+        }`}
+      >
+        <div className="flex h-full flex-col p-5">
+          <div className="mb-8 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600">
+              <ShoppingBag
+                size={21}
+                className="text-white"
+              />
             </div>
-          </div>
 
-          <div className="px-4 pt-5">
-            <div
-              className={`flex items-center gap-3 rounded-xl px-3 py-3 ${
-                modoOscuro
-                  ? 'bg-slate-950'
-                  : 'bg-gray-50'
-              }`}
-            >
-              <div
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                  modoOscuro
-                    ? 'bg-blue-500/10 text-blue-400'
-                    : 'bg-blue-50 text-blue-600'
-                }`}
+            <div>
+              <h2 className="text-lg font-bold">
+                CellWorld
+              </h2>
+
+              <p
+                className={`text-xs ${textoSecundario}`}
               >
-                <User size={19} />
-              </div>
-
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">
-                  {nombreUsuario}
-                </p>
-
-                <p
-                  className={`text-xs ${textoSecundario}`}
-                >
-                  Cliente
-                </p>
-              </div>
+                Panel cliente
+              </p>
             </div>
           </div>
 
-          <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-5">
+          <nav className="space-y-2">
             <button
               type="button"
               onClick={() =>
@@ -1595,7 +832,6 @@ export default function PanelCliente({
               <LayoutDashboard
                 size={19}
               />
-
               <span>Resumen</span>
             </button>
 
@@ -1613,24 +849,10 @@ export default function PanelCliente({
               <ShoppingBag
                 size={19}
               />
-
               <span>Mis compras</span>
-
-              {totalCompras > 0 && (
-                <span
-                  className={`ml-auto rounded-full px-2 py-0.5 text-xs ${
-                    seccion === 'compras'
-                      ? 'bg-white/20 text-white'
-                      : modoOscuro
-                        ? 'bg-slate-800 text-gray-300'
-                        : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {totalCompras}
-                </span>
-              )}
             </button>
 
+            {/* PQR */}
             <button
               type="button"
               onClick={() =>
@@ -1678,25 +900,9 @@ export default function PanelCliente({
               }`}
             >
               <Heart size={19} />
-
               <span>
                 Mis seleccionados
               </span>
-
-              {totalFavoritos > 0 && (
-                <span
-                  className={`ml-auto rounded-full px-2 py-0.5 text-xs ${
-                    seccion ===
-                    'seleccionados'
-                      ? 'bg-white/20 text-white'
-                      : modoOscuro
-                        ? 'bg-slate-800 text-gray-300'
-                        : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {totalFavoritos}
-                </span>
-              )}
             </button>
 
             <button
@@ -1711,1490 +917,1033 @@ export default function PanelCliente({
               }`}
             >
               <User size={19} />
-
               <span>Mi perfil</span>
             </button>
           </nav>
 
-          <div
-            className={`shrink-0 border-t p-4 ${
-              modoOscuro
-                ? 'border-slate-800'
-                : 'border-gray-200'
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href =
-                  '/'
-              }}
-              className={`flex w-full items-center justify-center rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+          <div className="mt-auto">
+            <div
+              className={`rounded-xl border p-3 ${
                 modoOscuro
-                  ? 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
-                  : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                  ? 'border-slate-800 bg-slate-950'
+                  : 'border-gray-200 bg-gray-50'
               }`}
             >
-              Volver a la tienda
-            </button>
+              <p className="truncate text-sm font-semibold">
+                {usuarioActual?.nombres ||
+                  'Cliente'}
+              </p>
+
+              <p
+                className={`truncate text-xs ${textoSecundario}`}
+              >
+                {usuarioActual?.email ||
+                  ''}
+              </p>
+            </div>
           </div>
-        </aside>
+        </div>
+      </aside>
 
-        {/* ÁREA DE CONTENIDO */}
-        <main className="min-w-0 flex-1 overflow-hidden lg:ml-[245px]">
-          <div className="h-full overflow-hidden">
-            <header
-              className={`flex min-h-[78px] shrink-0 items-center border-b px-5 sm:px-7 ${
-                modoOscuro
-                  ? 'border-slate-800 bg-slate-900'
-                  : 'border-gray-200 bg-white'
-              }`}
+      {/* CONTENIDO */}
+      <main className="ml-[245px] min-h-screen">
+        <header
+          className={`flex h-[78px] items-center border-b px-8 ${
+            modoOscuro
+              ? 'border-slate-800 bg-slate-950'
+              : 'border-gray-200 bg-gray-100'
+          }`}
+        >
+          <div>
+            <h1 className="text-2xl font-bold">
+              {seccion === 'resumen' &&
+                'Resumen'}
+
+              {seccion === 'compras' &&
+                'Mis compras'}
+
+              {seccion === 'pqrs' &&
+                'Mis PQR'}
+
+              {seccion ===
+                'seleccionados' &&
+                'Mis seleccionados'}
+
+              {seccion === 'perfil' &&
+                'Mi perfil'}
+            </h1>
+
+            <p
+              className={`mt-1 text-sm ${textoSecundario}`}
             >
-              <div>
-                <p
-                  className={`text-xs font-medium uppercase tracking-wide ${textoSecundario}`}
+              {seccion === 'resumen' &&
+                'Consulta el estado de tu cuenta.'}
+
+              {seccion === 'compras' &&
+                'Consulta todas tus compras realizadas.'}
+
+              {seccion === 'pqrs' &&
+                'Consulta tus solicitudes, preguntas, quejas y reclamos.'}
+
+              {seccion ===
+                'seleccionados' &&
+                'Productos que has guardado.'}
+
+              {seccion === 'perfil' &&
+                'Consulta la información de tu cuenta.'}
+            </p>
+          </div>
+        </header>
+
+        <div className="p-8">
+          {/* ========================= */}
+          {/* RESUMEN */}
+          {/* ========================= */}
+
+          {seccion === 'resumen' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                <div
+                  className={`rounded-2xl border p-5 ${fondoTarjeta}`}
                 >
-                  Panel de cliente
-                </p>
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <p
+                        className={`text-sm ${textoSecundario}`}
+                      >
+                        Compras
+                      </p>
 
-                <h1 className="mt-1 text-xl font-bold sm:text-2xl">
-                  {seccion ===
-                    'resumen' &&
-                    'Resumen'}
+                      <p className="mt-1 text-3xl font-bold">
+                        {compras.length}
+                      </p>
+                    </div>
 
-                  {seccion ===
-                    'compras' &&
-                    'Mis compras'}
+                    <div className="rounded-xl bg-blue-600/10 p-3">
+                      <ShoppingBag
+                        className="text-blue-500"
+                        size={22}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-                  {seccion ===
-                    'pqrs' &&
-                    'Mis PQR'}
+                <div
+                  className={`rounded-2xl border p-5 ${fondoTarjeta}`}
+                >
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <p
+                        className={`text-sm ${textoSecundario}`}
+                      >
+                        Seleccionados
+                      </p>
 
-                  {seccion ===
-                    'seleccionados' &&
-                    'Mis seleccionados'}
+                      <p className="mt-1 text-3xl font-bold">
+                        {favoritos.length}
+                      </p>
+                    </div>
 
-                  {seccion ===
-                    'perfil' &&
-                    'Mi perfil'}
-                </h1>
+                    <div className="rounded-xl bg-red-500/10 p-3">
+                      <Heart
+                        className="text-red-500"
+                        size={22}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className={`rounded-2xl border p-5 ${fondoTarjeta}`}
+                >
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <p
+                        className={`text-sm ${textoSecundario}`}
+                      >
+                        PQR
+                      </p>
+
+                      <p className="mt-1 text-3xl font-bold">
+                        {totalPqrs}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-blue-500/10 p-3">
+                      <MessageSquare
+                        className="text-blue-500"
+                        size={22}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-            </header>
 
-            <div className="h-[calc(100%-78px)] overflow-hidden p-5 sm:p-7">
-              {/* RESUMEN */}
-              {seccion ===
-                'resumen' && (
-                <section>
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-bold">
-                      Resumen
-                    </h2>
+              <div
+                className={`rounded-2xl border p-6 ${fondoTarjeta}`}
+              >
+                <h2 className="text-lg font-bold">
+                  Bienvenido a CellWorld
+                </h2>
 
-                    <p
-                      className={`mt-1 ${textoSecundario}`}
-                    >
-                      Aquí puedes consultar rápidamente
-                      tu actividad en CellWorld.
-                    </p>
-                  </div>
+                <p
+                  className={`mt-2 text-sm ${textoSecundario}`}
+                >
+                  Desde este panel puedes consultar
+                  tus compras, productos seleccionados,
+                  PQR y la información de tu perfil.
+                </p>
+              </div>
+            </div>
+          )}
 
-                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                    <div
-                      className={`rounded-3xl border p-6 shadow-sm ${fondoTarjeta}`}
-                    >
-                      <div className="mb-5 flex items-center justify-between">
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                            modoOscuro
-                              ? 'bg-blue-500/10 text-blue-400'
-                              : 'bg-blue-50 text-blue-600'
-                          }`}
-                        >
-                          <ShoppingBag
-                            size={23}
-                          />
-                        </div>
-                      </div>
+          {/* ========================= */}
+          {/* COMPRAS */}
+          {/* ========================= */}
 
-                      <p
-                        className={`text-sm ${textoSecundario}`}
-                      >
-                        Compras realizadas
-                      </p>
-
-                      <p className="mt-1 text-3xl font-bold">
-                        {totalCompras}
-                      </p>
-                    </div>
-
-                    <div
-                      className={`rounded-3xl border p-6 shadow-sm ${fondoTarjeta}`}
-                    >
-                      <div className="mb-5 flex items-center justify-between">
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                            modoOscuro
-                              ? 'bg-red-500/10 text-red-400'
-                              : 'bg-red-50 text-red-500'
-                          }`}
-                        >
-                          <Heart
-                            size={23}
-                          />
-                        </div>
-                      </div>
-
-                      <p
-                        className={`text-sm ${textoSecundario}`}
-                      >
-                        Productos seleccionados
-                      </p>
-
-                      <p className="mt-1 text-3xl font-bold">
-                        {totalFavoritos}
-                      </p>
-                    </div>
-
-                    <div
-                      className={`rounded-3xl border p-6 shadow-sm sm:col-span-2 xl:col-span-1 ${fondoTarjeta}`}
-                    >
-                      <div className="mb-5 flex items-center justify-between">
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                            modoOscuro
-                              ? 'bg-green-500/10 text-green-400'
-                              : 'bg-green-50 text-green-600'
-                          }`}
-                        >
-                          <User
-                            size={23}
-                          />
-                        </div>
-                      </div>
-
-                      <p
-                        className={`text-sm ${textoSecundario}`}
-                      >
-                        Cuenta
-                      </p>
-
-                      <p className="mt-1 truncate text-lg font-bold">
-                        {perfil.email ||
-                          'Cliente'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`mt-6 rounded-3xl border p-6 shadow-sm ${fondoTarjeta}`}
+          {seccion === 'compras' && (
+            <div className="space-y-5">
+              {cargandoCompras ? (
+                <div
+                  className={`rounded-2xl border p-10 text-center ${fondoTarjeta}`}
+                >
+                  <p
+                    className={
+                      textoSecundario
+                    }
                   >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <h3 className="text-lg font-bold">
-                          ¿Buscas algo nuevo?
-                        </h3>
+                    Cargando compras...
+                  </p>
+                </div>
+              ) : compras.length === 0 ? (
+                <div
+                  className={`rounded-2xl border p-10 text-center ${fondoTarjeta}`}
+                >
+                  <ShoppingBag
+                    size={42}
+                    className="mx-auto mb-3 opacity-50"
+                  />
 
-                        <p
-                          className={`mt-1 text-sm ${textoSecundario}`}
-                        >
-                          Explora nuestro catálogo y
-                          encuentra tu próximo celular.
-                        </p>
-                      </div>
+                  <p className="font-semibold">
+                    Aún no tienes compras
+                  </p>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          window.location.href =
-                            '/productos'
-                        }}
-                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
-                      >
-                        <ShoppingCart
-                          size={18}
-                        />
-                        Ver productos
-                      </button>
-                    </div>
-                  </div>
-                </section>
-              )}
+                  <p
+                    className={`mt-1 text-sm ${textoSecundario}`}
+                  >
+                    Cuando realices una compra
+                    aparecerá aquí.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-4">
+                    {comprasPaginaActual.map(
+                      (compra, index) => {
+                        const productos =
+                          obtenerProductosCompra(
+                            compra
+                          )
 
-              {/* COMPRAS */}
-              {seccion ===
-                'compras' && (
-                <section className="flex h-full min-h-0 flex-col">
-                  <div className="mb-5 shrink-0">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                      <div>
-                        <h2 className="text-2xl font-bold">
-                          Mis compras
-                        </h2>
+                        const total =
+                          obtenerTotalCompra(
+                            compra
+                          )
 
-                        <p
-                          className={`mt-1 ${textoSecundario}`}
-                        >
-                          Consulta el historial de tus pedidos realizados.
-                        </p>
-                      </div>
+                        const fecha =
+                          obtenerFechaCompra(
+                            compra
+                          )
 
-                      {totalCompras >
-                        0 && (
-                        <span
-                          className={`text-sm ${textoSecundario}`}
-                        >
-                          {totalCompras}{' '}
-                          {totalCompras ===
-                          1
-                            ? 'compra'
-                            : 'compras'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                        const idPedido =
+                          compra?.id_pedido ??
+                          compra?.id ??
+                          index
 
-                  <div className="min-h-0 flex-1 overflow-hidden">
-                    {cargandoCompras ? (
-                      <div
-                        className={`rounded-3xl border p-10 text-center ${fondoTarjeta}`}
-                      >
-                        <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-
-                        <p
-                          className={
-                            textoSecundario
-                          }
-                        >
-                          Cargando tus compras...
-                        </p>
-                      </div>
-                    ) : compras.length ===
-                      0 ? (
-                      <div
-                        className={`rounded-3xl border p-10 text-center shadow-sm ${fondoTarjeta}`}
-                      >
-                        <div
-                          className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${
-                            modoOscuro
-                              ? 'bg-slate-800 text-gray-400'
-                              : 'bg-gray-100 text-gray-500'
-                          }`}
-                        >
-                          <Package
-                            size={30}
-                          />
-                        </div>
-
-                        <h3 className="text-xl font-bold">
-                          Aún no tienes compras
-                        </h3>
-
-                        <p
-                          className={`mx-auto mt-2 max-w-md ${textoSecundario}`}
-                        >
-                          Cuando realices una compra, aparecerá aquí junto con todos sus detalles.
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            window.location.href =
-                              '/productos'
-                          }}
-                          className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
-                        >
-                          <ShoppingCart
-                            size={18}
-                          />
-                          Ir al catálogo
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex h-full min-h-0 flex-col">
-                        <div className="min-h-0 flex-1 space-y-3 overflow-hidden">
-                          {comprasPaginaActual.map(
-                            (
-                              compra,
-                              indicePagina
-                            ) => {
-                              const productos =
-                                obtenerProductosCompra(
-                                  compra
-                                )
-
-                              const total =
-                                obtenerTotalCompra(
-                                  compra
-                                )
-
-                              const fecha =
-                                obtenerFechaCompra(
-                                  compra
-                                )
-
-                              const idPedido =
-                                compra?.id_pedido ??
-                                compra?.id ??
-                                ((paginaCompras -
-                                  1) *
-                                  elementosPorPaginaCompras +
-                                  indicePagina +
-                                  1)
-
-                              return (
-                                <article
-                                  key={
-                                    compra?.id_pedido ??
-                                    compra?.id ??
-                                    indicePagina
-                                  }
-                                  className={`rounded-2xl border shadow-sm transition hover:shadow-md ${fondoTarjeta}`}
-                                >
-                                  <div className="flex h-[104px] flex-col justify-center gap-3 px-4 py-3 sm:h-[112px] sm:px-5">
-                                    <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                      <div className="min-w-0 flex-1">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          <span
-                                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                              modoOscuro
-                                                ? 'bg-blue-500/10 text-blue-400'
-                                                : 'bg-blue-50 text-blue-700'
-                                            }`}
-                                          >
-                                            Pedido #
-                                            {
-                                              idPedido
-                                            }
-                                          </span>
-
-                                          <span
-                                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                              modoOscuro
-                                                ? 'bg-green-500/10 text-green-400'
-                                                : 'bg-green-50 text-green-700'
-                                            }`}
-                                          >
-                                            {compra?.estado ||
-                                              'Pagado'}
-                                          </span>
-                                        </div>
-
-                                        <div
-                                          className={`mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${textoSecundario}`}
-                                        >
-                                          <span className="inline-flex items-center gap-1.5">
-                                            <CalendarDays
-                                              size={
-                                                15
-                                              }
-                                            />
-                                            {formatearFecha(
-                                              fecha
-                                            )}
-                                          </span>
-
-                                          <span className="inline-flex items-center gap-1.5">
-                                            <Package
-                                              size={
-                                                15
-                                              }
-                                            />
-
-                                            {
-                                              productos.length
-                                            }{' '}
-                                            {productos.length ===
-                                            1
-                                              ? 'producto'
-                                              : 'productos'}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                        <div className="mr-1 min-w-[125px] text-right">
-                                          <p
-                                            className={`text-xs ${textoSecundario}`}
-                                          >
-                                            Total
-                                          </p>
-
-                                          <p className="text-lg font-bold">
-                                            {formatearPrecio(
-                                              total
-                                            )}
-                                          </p>
-                                        </div>
-
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            abrirDetalles(
-                                              compra
-                                            )
-                                          }
-                                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-                                        >
-                                          <Eye
-                                            size={
-                                              17
-                                            }
-                                          />
-                                          Ver detalles
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            descargarFactura(
-                                              compra
-                                            )
-                                          }
-                                          title="Descargar factura"
-                                          className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-semibold transition ${
-                                            modoOscuro
-                                              ? 'border-slate-700 text-slate-200 hover:bg-slate-800'
-                                              : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                                          }`}
-                                        >
-                                          <Download
-                                            size={
-                                              17
-                                            }
-                                          />
-
-                                          <span className="hidden sm:inline">
-                                            Factura
-                                          </span>
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </article>
-                              )
-                            }
-                          )}
-                        </div>
-
-                        {totalPaginasCompras >
-                          1 && (
+                        return (
                           <div
-                            className={`mt-3 flex shrink-0 items-center justify-between rounded-2xl border px-3 py-2 ${fondoTarjeta}`}
+                            key={idPedido}
+                            className={`rounded-2xl border p-5 ${fondoTarjeta}`}
                           >
-                            <button
-                              type="button"
-                              disabled={
-                                paginaCompras ===
-                                1
-                              }
-                              onClick={() =>
-                                setPaginaCompras(
-                                  (
-                                    pagina
-                                  ) =>
-                                    Math.max(
-                                      1,
-                                      pagina -
-                                        1
-                                    )
-                                )
-                              }
-                              className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                                modoOscuro
-                                  ? 'hover:bg-slate-800'
-                                  : 'hover:bg-gray-100'
-                              }`}
-                            >
-                              <ChevronLeft
-                                size={
-                                  17
-                                }
-                              />
-
-                              Anterior
-                            </button>
-
-                            <div className="flex items-center gap-1">
-                              {Array.from(
-                                {
-                                  length:
-                                    totalPaginasCompras,
-                                },
-                                (
-                                  _,
-                                  indice
-                                ) =>
-                                  indice +
-                                  1
-                              ).map(
-                                (
-                                  pagina
-                                ) => (
-                                  <button
-                                    key={
-                                      pagina
-                                    }
-                                    type="button"
-                                    onClick={() =>
-                                      setPaginaCompras(
-                                        pagina
-                                      )
-                                    }
-                                    className={`flex h-9 min-w-9 items-center justify-center rounded-xl px-2 text-sm font-semibold transition ${
-                                      paginaCompras ===
-                                      pagina
-                                        ? 'bg-blue-600 text-white'
-                                        : modoOscuro
-                                          ? 'text-gray-300 hover:bg-slate-800'
-                                          : 'text-gray-600 hover:bg-gray-100'
-                                    }`}
-                                  >
-                                    {
-                                      pagina
-                                    }
-                                  </button>
-                                )
-                              )}
-                            </div>
-
-                            <button
-                              type="button"
-                              disabled={
-                                paginaCompras ===
-                                totalPaginasCompras
-                              }
-                              onClick={() =>
-                                setPaginaCompras(
-                                  (
-                                    pagina
-                                  ) =>
-                                    Math.min(
-                                      totalPaginasCompras,
-                                      pagina +
-                                        1
-                                    )
-                                )
-                              }
-                              className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                                modoOscuro
-                                  ? 'hover:bg-slate-800'
-                                  : 'hover:bg-gray-100'
-                              }`}
-                            >
-                              Siguiente
-                              <ChevronRight
-                                size={
-                                  17
-                                }
-                              />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </section>
-              )}
-
-              {/* PQR */}
-              {seccion ===
-                'pqrs' && (
-                <section className="flex h-full min-h-0 flex-col">
-                  <div className="mb-5 shrink-0">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                      <div>
-                        <h2 className="text-2xl font-bold">
-                          Mis PQR
-                        </h2>
-
-                        <p
-                          className={`mt-1 ${textoSecundario}`}
-                        >
-                          Consulta las solicitudes, peticiones, quejas y reclamos que has realizado.
-                        </p>
-                      </div>
-
-                      {totalPqrs >
-                        0 && (
-                        <span
-                          className={`text-sm ${textoSecundario}`}
-                        >
-                          {totalPqrs}{' '}
-                          {totalPqrs ===
-                          1
-                            ? 'PQR'
-                            : 'PQR'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="min-h-0 flex-1 overflow-hidden">
-                    {cargandoPqrs ? (
-                      <div
-                        className={`rounded-3xl border p-10 text-center ${fondoTarjeta}`}
-                      >
-                        <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-
-                        <p
-                          className={
-                            textoSecundario
-                          }
-                        >
-                          Cargando tus PQR...
-                        </p>
-                      </div>
-                    ) : errorPqrs ? (
-                      <div
-                        className={`rounded-3xl border p-10 text-center shadow-sm ${fondoTarjeta}`}
-                      >
-                        <div
-                          className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${
-                            modoOscuro
-                              ? 'bg-red-500/10 text-red-400'
-                              : 'bg-red-50 text-red-500'
-                          }`}
-                        >
-                          <MessageSquare
-                            size={30}
-                          />
-                        </div>
-
-                        <h3 className="text-xl font-bold">
-                          No se pudieron cargar tus PQR
-                        </h3>
-
-                        <p
-                          className={`mx-auto mt-2 max-w-md ${textoSecundario}`}
-                        >
-                          {errorPqrs}
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={
-                            cargarPqrs
-                          }
-                          className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
-                        >
-                          Intentar nuevamente
-                        </button>
-                      </div>
-                    ) : pqrs.length ===
-                      0 ? (
-                      <div
-                        className={`rounded-3xl border p-10 text-center shadow-sm ${fondoTarjeta}`}
-                      >
-                        <div
-                          className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${
-                            modoOscuro
-                              ? 'bg-slate-800 text-gray-400'
-                              : 'bg-gray-100 text-gray-500'
-                          }`}
-                        >
-                          <MessageSquare
-                            size={30}
-                          />
-                        </div>
-
-                        <h3 className="text-xl font-bold">
-                          Aún no tienes PQR
-                        </h3>
-
-                        <p
-                          className={`mx-auto mt-2 max-w-md ${textoSecundario}`}
-                        >
-                          Cuando realices una PQR, aparecerá aquí para que puedas consultar su estado y respuesta.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex h-full min-h-0 flex-col">
-                        <div className="min-h-0 flex-1 space-y-3 overflow-hidden">
-                          {pqrsPaginaActual.map(
-                            (pqr) => {
-                              const estaRespondida =
-                                String(
-                                  pqr?.estado ||
-                                    ''
-                                )
-                                  .toLowerCase()
-                                  .trim() ===
-                                'respondida'
-
-                              return (
-                                <article
-                                  key={
-                                    pqr?.id_pqr
-                                  }
-                                  className={`rounded-2xl border shadow-sm transition hover:shadow-md ${fondoTarjeta}`}
-                                >
-                                  <div className="p-4 sm:p-5">
-                                    <div className="flex flex-col gap-4">
-                                      {/* CABECERA */}
-                                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                        <div className="min-w-0">
-                                          <div className="flex flex-wrap items-center gap-2">
-                                            <span
-                                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                                modoOscuro
-                                                  ? 'bg-blue-500/10 text-blue-400'
-                                                  : 'bg-blue-50 text-blue-700'
-                                              }`}
-                                            >
-                                              PQR #
-                                              {
-                                                pqr?.id_pqr
-                                              }
-                                            </span>
-
-                                            <span
-                                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                                estaRespondida
-                                                  ? modoOscuro
-                                                    ? 'bg-green-500/10 text-green-400'
-                                                    : 'bg-green-50 text-green-700'
-                                                  : modoOscuro
-                                                    ? 'bg-yellow-500/10 text-yellow-400'
-                                                    : 'bg-yellow-50 text-yellow-700'
-                                              }`}
-                                            >
-                                              {pqr?.estado ||
-                                                'Pendiente'}
-                                            </span>
-
-                                            {pqr?.tipo && (
-                                              <span
-                                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                                  modoOscuro
-                                                    ? 'bg-slate-800 text-gray-300'
-                                                    : 'bg-gray-100 text-gray-700'
-                                                }`}
-                                              >
-                                                {
-                                                  pqr.tipo
-                                                }
-                                              </span>
-                                            )}
-                                          </div>
-
-                                          <h3 className="mt-3 break-words text-lg font-bold">
-                                            {pqr?.asunto ||
-                                              'Sin asunto'}
-                                          </h3>
-
-                                          <p
-                                            className={`mt-1 text-sm ${textoSecundario}`}
-                                          >
-                                            {formatearFecha(
-                                              pqr?.creado_en
-                                            )}
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      {/* DESCRIPCIÓN */}
-                                      <div
-                                        className={`rounded-2xl border p-4 ${
-                                          modoOscuro
-                                            ? 'border-slate-800 bg-slate-950'
-                                            : 'border-gray-200 bg-gray-50'
-                                        }`}
-                                      >
-                                        <p
-                                          className={`mb-2 text-xs font-semibold uppercase tracking-wide ${textoSecundario}`}
-                                        >
-                                          Tu solicitud
-                                        </p>
-
-                                        <p className="break-words text-sm leading-6">
-                                          {pqr?.descripcion ||
-                                            'Sin descripción disponible.'}
-                                        </p>
-                                      </div>
-
-                                      {/* RESPUESTA */}
-                                      <div
-                                        className={`rounded-2xl border p-4 ${
-                                          estaRespondida
-                                            ? modoOscuro
-                                              ? 'border-green-500/20 bg-green-500/5'
-                                              : 'border-green-200 bg-green-50'
-                                            : modoOscuro
-                                              ? 'border-slate-800 bg-slate-950'
-                                              : 'border-gray-200 bg-gray-50'
-                                        }`}
-                                      >
-                                        <div className="mb-2 flex items-center gap-2">
-                                          <MessageSquare
-                                            size={
-                                              17
-                                            }
-                                            className={
-                                              estaRespondida
-                                                ? modoOscuro
-                                                  ? 'text-green-400'
-                                                  : 'text-green-600'
-                                                : textoSecundario
-                                            }
-                                          />
-
-                                          <p
-                                            className={`text-xs font-semibold uppercase tracking-wide ${
-                                              estaRespondida
-                                                ? modoOscuro
-                                                  ? 'text-green-400'
-                                                  : 'text-green-700'
-                                                : textoSecundario
-                                            }`}
-                                          >
-                                            Respuesta
-                                          </p>
-                                        </div>
-
-                                        {pqr?.respuesta ? (
-                                          <p className="break-words text-sm leading-6">
-                                            {
-                                              pqr.respuesta
-                                            }
-                                          </p>
-                                        ) : (
-                                          <p
-                                            className={`text-sm ${textoSecundario}`}
-                                          >
-                                            Tu PQR está pendiente de respuesta.
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </article>
-                              )
-                            }
-                          )}
-                        </div>
-
-                        {totalPaginasPqrs >
-                          1 && (
-                          <div
-                            className={`mt-3 flex shrink-0 items-center justify-between rounded-2xl border px-3 py-2 ${fondoTarjeta}`}
-                          >
-                            <button
-                              type="button"
-                              disabled={
-                                paginaPqrs ===
-                                1
-                              }
-                              onClick={() =>
-                                setPaginaPqrs(
-                                  (
-                                    pagina
-                                  ) =>
-                                    Math.max(
-                                      1,
-                                      pagina -
-                                        1
-                                    )
-                                )
-                              }
-                              className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                                modoOscuro
-                                  ? 'hover:bg-slate-800'
-                                  : 'hover:bg-gray-100'
-                              }`}
-                            >
-                              <ChevronLeft
-                                size={
-                                  17
-                                }
-                              />
-
-                              Anterior
-                            </button>
-
-                            <div className="flex items-center gap-1">
-                              {Array.from(
-                                {
-                                  length:
-                                    totalPaginasPqrs,
-                                },
-                                (
-                                  _,
-                                  indice
-                                ) =>
-                                  indice +
-                                  1
-                              ).map(
-                                (
-                                  pagina
-                                ) => (
-                                  <button
-                                    key={
-                                      pagina
-                                    }
-                                    type="button"
-                                    onClick={() =>
-                                      setPaginaPqrs(
-                                        pagina
-                                      )
-                                    }
-                                    className={`flex h-9 min-w-9 items-center justify-center rounded-xl px-2 text-sm font-semibold transition ${
-                                      paginaPqrs ===
-                                      pagina
-                                        ? 'bg-blue-600 text-white'
-                                        : modoOscuro
-                                          ? 'text-gray-300 hover:bg-slate-800'
-                                          : 'text-gray-600 hover:bg-gray-100'
-                                    }`}
-                                  >
-                                    {
-                                      pagina
-                                    }
-                                  </button>
-                                )
-                              )}
-                            </div>
-
-                            <button
-                              type="button"
-                              disabled={
-                                paginaPqrs ===
-                                totalPaginasPqrs
-                              }
-                              onClick={() =>
-                                setPaginaPqrs(
-                                  (
-                                    pagina
-                                  ) =>
-                                    Math.min(
-                                      totalPaginasPqrs,
-                                      pagina +
-                                        1
-                                    )
-                                )
-                              }
-                              className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                                modoOscuro
-                                  ? 'hover:bg-slate-800'
-                                  : 'hover:bg-gray-100'
-                              }`}
-                            >
-                              Siguiente
-                              <ChevronRight
-                                size={
-                                  17
-                                }
-                              />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </section>
-              )}
-
-              {/* SELECCIONADOS */}
-              {seccion ===
-                'seleccionados' && (
-                <section>
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-bold">
-                      Mis seleccionados
-                    </h2>
-
-                    <p
-                      className={`mt-1 ${textoSecundario}`}
-                    >
-                      Aquí encontrarás los productos que marcaste como favoritos.
-                    </p>
-                  </div>
-
-                  {favoritos.length ===
-                  0 ? (
-                    <div
-                      className={`rounded-3xl border p-10 text-center shadow-sm ${fondoTarjeta}`}
-                    >
-                      <div
-                        className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${
-                          modoOscuro
-                            ? 'bg-slate-800 text-gray-400'
-                            : 'bg-gray-100 text-gray-500'
-                        }`}
-                      >
-                        <Heart
-                          size={30}
-                        />
-                      </div>
-
-                      <h3 className="text-xl font-bold">
-                        No tienes productos seleccionados
-                      </h3>
-
-                      <p
-                        className={`mx-auto mt-2 max-w-md ${textoSecundario}`}
-                      >
-                        Presiona el corazón en cualquier producto para guardarlo aquí.
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          window.location.href =
-                            '/productos'
-                        }}
-                        className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
-                      >
-                        Ver productos
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                        {favoritosPaginaActual.map(
-                          (
-                            producto,
-                            indice
-                          ) => {
-                            const id =
-                              obtenerIdProducto(
-                                producto
-                              ) ??
-                              indice
-
-                            const nombre =
-                              obtenerNombreProducto(
-                                producto
-                              )
-
-                            const precio =
-                              obtenerPrecioProducto(
-                                producto
-                              )
-
-                            const imagen =
-                              obtenerImagenProducto(
-                                producto
-                              )
-
-                            return (
-                              <article
-                                key={String(
-                                  id
-                                )}
-                                className={`group overflow-hidden rounded-3xl border shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${fondoTarjeta}`}
-                              >
-                                <div
-                                  className={`relative flex h-56 items-center justify-center ${
-                                    modoOscuro
-                                      ? 'bg-slate-950'
-                                      : 'bg-gray-50'
-                                  }`}
-                                >
-                                  {imagen ? (
-                                    <img
-                                      src={
-                                        imagen
-                                      }
-                                      alt={
-                                        nombre
-                                      }
-                                      className="h-full w-full object-contain p-6 transition duration-300 group-hover:scale-105"
-                                    />
-                                  ) : (
-                                    <Package
-                                      size={
-                                        45
-                                      }
-                                      className={
-                                        textoSecundario
-                                      }
-                                    />
-                                  )}
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      quitarFavorito(
-                                        id
-                                      )
-                                    }
-                                    title="Quitar de seleccionados"
-                                    className={`absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full shadow-sm transition hover:scale-105 ${
-                                      modoOscuro
-                                        ? 'bg-slate-900 text-red-400 hover:bg-red-500/10'
-                                        : 'bg-white text-red-500 hover:bg-red-50'
-                                    }`}
-                                  >
-                                    <Trash2
-                                      size={
-                                        18
-                                      }
-                                    />
-                                  </button>
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-4">
+                                <div className="rounded-xl bg-blue-500/10 p-3">
+                                  <Package
+                                    size={24}
+                                    className="text-blue-500"
+                                  />
                                 </div>
 
-                                <div className="p-5">
-                                  <h3 className="truncate text-lg font-bold">
-                                    {
-                                      nombre
-                                    }
+                                <div>
+                                  <h3 className="font-bold">
+                                    Pedido #
+                                    {idPedido}
                                   </h3>
 
-                                  <p
-                                    className={`mt-2 text-xl font-bold ${
-                                      modoOscuro
-                                        ? 'text-blue-400'
-                                        : 'text-blue-600'
-                                    }`}
+                                  <div
+                                    className={`mt-1 flex flex-wrap gap-4 text-sm ${textoSecundario}`}
                                   >
-                                    {formatearPrecio(
-                                      precio
-                                    )}
-                                  </p>
+                                    <span className="flex items-center gap-1">
+                                      <CalendarDays
+                                        size={15}
+                                      />
+                                      {formatearFecha(
+                                        fecha
+                                      )}
+                                    </span>
 
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      agregarFavoritoAlCarrito(
-                                        producto
-                                      )
-                                    }
-                                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
-                                  >
-                                    <ShoppingCart
-                                      size={
-                                        18
-                                      }
-                                    />
-
-                                    Agregar al carrito
-                                  </button>
+                                    <span className="flex items-center gap-1">
+                                      <CreditCard
+                                        size={15}
+                                      />
+                                      {formatearPrecio(
+                                        total
+                                      )}
+                                    </span>
+                                  </div>
                                 </div>
-                              </article>
-                            )
-                          }
-                        )}
-                      </div>
+                              </div>
 
-                      {totalPaginasFavoritos >
-                        1 && (
-                        <div
-                          className={`mt-4 flex items-center justify-between rounded-2xl border px-3 py-2 ${fondoTarjeta}`}
-                        >
-                          <button
-                            type="button"
-                            disabled={
-                              paginaFavoritos ===
-                              1
-                            }
-                            onClick={() =>
-                              setPaginaFavoritos(
-                                (
-                                  pagina
-                                ) =>
-                                  Math.max(
-                                    1,
-                                    pagina -
-                                      1
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCompraSeleccionada(
+                                    compra
                                   )
+                                  setMostrarDetalles(
+                                    true
+                                  )
+                                }}
+                                className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                              >
+                                <Eye
+                                  size={17}
+                                />
+                                Ver detalles
+                              </button>
+                            </div>
+
+                            {productos.length >
+                              0 && (
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                {productos
+                                  .slice(
+                                    0,
+                                    4
+                                  )
+                                  .map(
+                                    (
+                                      producto,
+                                      productoIndex
+                                    ) => (
+                                      <span
+                                        key={`${idPedido}-${productoIndex}`}
+                                        className={`rounded-lg px-3 py-1.5 text-xs ${
+                                          modoOscuro
+                                            ? 'bg-slate-800 text-gray-300'
+                                            : 'bg-gray-100 text-gray-700'
+                                        }`}
+                                      >
+                                        {
+                                          producto.nombre
+                                        }{' '}
+                                        x
+                                        {
+                                          producto.cantidad
+                                        }
+                                      </span>
+                                    )
+                                  )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+                    )}
+                  </div>
+
+                  {totalPaginasCompras >
+                    1 && (
+                    <div className="flex items-center justify-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        disabled={
+                          paginaCompras ===
+                          1
+                        }
+                        onClick={() =>
+                          setPaginaCompras(
+                            (pagina) =>
+                              Math.max(
+                                1,
+                                pagina - 1
                               )
-                            }
-                            className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                          )
+                        }
+                        className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
+                          paginaCompras ===
+                          1
+                            ? 'cursor-not-allowed opacity-40'
+                            : 'hover:bg-blue-600 hover:text-white'
+                        }`}
+                      >
+                        <ChevronLeft
+                          size={17}
+                        />
+                        Anterior
+                      </button>
+
+                      <span
+                        className={`text-sm ${textoSecundario}`}
+                      >
+                        Página{' '}
+                        {paginaCompras}{' '}
+                        de{' '}
+                        {totalPaginasCompras}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={
+                          paginaCompras ===
+                          totalPaginasCompras
+                        }
+                        onClick={() =>
+                          setPaginaCompras(
+                            (pagina) =>
+                              Math.min(
+                                totalPaginasCompras,
+                                pagina + 1
+                              )
+                          )
+                        }
+                        className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
+                          paginaCompras ===
+                          totalPaginasCompras
+                            ? 'cursor-not-allowed opacity-40'
+                            : 'hover:bg-blue-600 hover:text-white'
+                        }`}
+                      >
+                        Siguiente
+                        <ChevronRight
+                          size={17}
+                        />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ========================= */}
+          {/* PQR */}
+          {/* ========================= */}
+
+          {seccion === 'pqrs' && (
+            <div className="space-y-5">
+              <div
+                className={`rounded-2xl border p-5 ${fondoTarjeta}`}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold">
+                      Mis PQR
+                    </h2>
+
+                    <p
+                      className={`mt-1 text-sm ${textoSecundario}`}
+                    >
+                      Aquí puedes consultar las PQR
+                      que has realizado y las respuestas
+                      recibidas.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-blue-500/10 p-3">
+                    <MessageSquare
+                      size={24}
+                      className="text-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {cargandoPqrs ? (
+                <div
+                  className={`rounded-2xl border p-10 text-center ${fondoTarjeta}`}
+                >
+                  <MessageSquare
+                    size={40}
+                    className="mx-auto mb-3 opacity-50"
+                  />
+
+                  <p
+                    className={`text-sm ${textoSecundario}`}
+                  >
+                    Cargando tus PQR...
+                  </p>
+                </div>
+              ) : errorPqrs ? (
+                <div
+                  className={`rounded-2xl border p-8 text-center ${fondoTarjeta}`}
+                >
+                  <p className="font-semibold text-red-500">
+                    {errorPqrs}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={cargarPqrs}
+                    className="mt-4 rounded-xl bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    Intentar nuevamente
+                  </button>
+                </div>
+              ) : pqrs.length === 0 ? (
+                <div
+                  className={`rounded-2xl border p-10 text-center ${fondoTarjeta}`}
+                >
+                  <MessageSquare
+                    size={42}
+                    className="mx-auto mb-3 opacity-40"
+                  />
+
+                  <p className="font-semibold">
+                    No tienes PQR realizadas
+                  </p>
+
+                  <p
+                    className={`mt-1 text-sm ${textoSecundario}`}
+                  >
+                    Cuando realices una PQR aparecerá
+                    aquí.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* IMPORTANTE:
+                      No hay overflow ni scroll aquí.
+                      Solo se muestran las 5 PQR de la página actual.
+                  */}
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    {pqrsPaginaActual.map(
+                      (pqr) => (
+                        <div
+                          key={pqr.id_pqr}
+                          className={`rounded-2xl border p-5 ${fondoTarjeta}`}
+                        >
+                          {/* CABECERA */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
+                                <MessageSquare
+                                  size={19}
+                                  className="text-blue-500"
+                                />
+                              </div>
+
+                              <div className="min-w-0">
+                                <p className="font-bold">
+                                  PQR #
+                                  {
+                                    pqr.id_pqr
+                                  }
+                                </p>
+
+                                <p
+                                  className={`mt-0.5 text-xs ${textoSecundario}`}
+                                >
+                                  {formatearFecha(
+                                    pqr.creado_en
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+
+                            <span
+                              className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                                String(
+                                  pqr.estado ||
+                                    ''
+                                ).toLowerCase() ===
+                                'respondida'
+                                  ? 'bg-green-500/10 text-green-500'
+                                  : 'bg-yellow-500/10 text-yellow-500'
+                              }`}
+                            >
+                              {pqr.estado ||
+                                'Pendiente'}
+                            </span>
+                          </div>
+
+                          {/* TIPO */}
+                          <div className="mt-4">
+                            <span
+                              className={`text-xs font-medium ${textoSecundario}`}
+                            >
+                              Tipo
+                            </span>
+
+                            <p className="mt-0.5 text-sm font-semibold">
+                              {pqr.tipo}
+                            </p>
+                          </div>
+
+                          {/* ASUNTO */}
+                          <div className="mt-3">
+                            <span
+                              className={`text-xs font-medium ${textoSecundario}`}
+                            >
+                              Asunto
+                            </span>
+
+                            <p className="mt-0.5 line-clamp-2 text-sm font-semibold">
+                              {pqr.asunto}
+                            </p>
+                          </div>
+
+                          {/* DESCRIPCIÓN */}
+                          <div className="mt-3">
+                            <span
+                              className={`text-xs font-medium ${textoSecundario}`}
+                            >
+                              Descripción
+                            </span>
+
+                            <p
+                              className={`mt-1 line-clamp-3 text-sm ${textoSecundario}`}
+                            >
+                              {pqr.descripcion}
+                            </p>
+                          </div>
+
+                          {/* RESPUESTA */}
+                          <div
+                            className={`mt-4 rounded-xl border p-3 ${
                               modoOscuro
-                                ? 'hover:bg-slate-800'
-                                : 'hover:bg-gray-100'
+                                ? 'border-slate-800 bg-slate-950'
+                                : 'border-gray-200 bg-gray-50'
                             }`}
                           >
-                            <ChevronLeft
-                              size={
-                                17
-                              }
-                            />
+                            <p className="text-xs font-bold">
+                              Respuesta
+                            </p>
 
-                            Anterior
-                          </button>
+                            {pqr.respuesta ? (
+                              <p className="mt-1 line-clamp-4 text-sm">
+                                {pqr.respuesta}
+                              </p>
+                            ) : (
+                              <p
+                                className={`mt-1 text-sm ${textoSecundario}`}
+                              >
+                                Tu PQR está pendiente
+                                de respuesta.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
 
-                          <div className="flex items-center gap-1">
-                            {Array.from(
-                              {
-                                length:
-                                  totalPaginasFavoritos,
-                              },
-                              (
-                                _,
-                                indice
-                              ) =>
-                                indice +
-                                1
-                            ).map(
-                              (
-                                pagina
-                              ) => (
-                                <button
-                                  key={
-                                    pagina
-                                  }
-                                  type="button"
-                                  onClick={() =>
-                                    setPaginaFavoritos(
-                                      pagina
-                                    )
-                                  }
-                                  className={`flex h-9 min-w-9 items-center justify-center rounded-xl px-2 text-sm font-semibold transition ${
-                                    paginaFavoritos ===
-                                    pagina
-                                      ? 'bg-blue-600 text-white'
-                                      : modoOscuro
-                                        ? 'text-gray-300 hover:bg-slate-800'
-                                        : 'text-gray-600 hover:bg-gray-100'
-                                  }`}
-                                >
-                                  {
-                                    pagina
-                                  }
-                                </button>
+                  {/* PAGINACIÓN PQR */}
+                  {totalPaginasPqrs >
+                    1 && (
+                    <div className="flex items-center justify-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        disabled={
+                          paginaPqrs ===
+                          1
+                        }
+                        onClick={() =>
+                          setPaginaPqrs(
+                            (pagina) =>
+                              Math.max(
+                                1,
+                                pagina - 1
                               )
+                          )
+                        }
+                        className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
+                          paginaPqrs === 1
+                            ? 'cursor-not-allowed opacity-40'
+                            : 'hover:bg-blue-600 hover:text-white'
+                        }`}
+                      >
+                        <ChevronLeft
+                          size={17}
+                        />
+                        Anterior
+                      </button>
+
+                      <span
+                        className={`text-sm ${textoSecundario}`}
+                      >
+                        Página{' '}
+                        {paginaPqrs}{' '}
+                        de{' '}
+                        {totalPaginasPqrs}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={
+                          paginaPqrs ===
+                          totalPaginasPqrs
+                        }
+                        onClick={() =>
+                          setPaginaPqrs(
+                            (pagina) =>
+                              Math.min(
+                                totalPaginasPqrs,
+                                pagina + 1
+                              )
+                          )
+                        }
+                        className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
+                          paginaPqrs ===
+                          totalPaginasPqrs
+                            ? 'cursor-not-allowed opacity-40'
+                            : 'hover:bg-blue-600 hover:text-white'
+                        }`}
+                      >
+                        Siguiente
+                        <ChevronRight
+                          size={17}
+                        />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ========================= */}
+          {/* SELECCIONADOS */}
+          {/* ========================= */}
+
+          {seccion ===
+            'seleccionados' && (
+            <div className="space-y-5">
+              {favoritos.length === 0 ? (
+                <div
+                  className={`rounded-2xl border p-10 text-center ${fondoTarjeta}`}
+                >
+                  <Heart
+                    size={42}
+                    className="mx-auto mb-3 opacity-40"
+                  />
+
+                  <p className="font-semibold">
+                    No tienes productos seleccionados
+                  </p>
+
+                  <p
+                    className={`mt-1 text-sm ${textoSecundario}`}
+                  >
+                    Los productos que marques como
+                    favoritos aparecerán aquí.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    {favoritosPaginaActual.map(
+                      (producto) => (
+                        <div
+                          key={obtenerIdProducto(
+                            producto
+                          )}
+                          className={`overflow-hidden rounded-2xl border ${fondoTarjeta}`}
+                        >
+                          <div
+                            className={`flex h-44 items-center justify-center ${
+                              modoOscuro
+                                ? 'bg-slate-950'
+                                : 'bg-gray-50'
+                            }`}
+                          >
+                            {obtenerImagenProducto(
+                              producto
+                            ) ? (
+                              <img
+                                src={obtenerImagenProducto(
+                                  producto
+                                )}
+                                alt={obtenerNombreProducto(
+                                  producto
+                                )}
+                                className="h-full w-full object-contain p-5"
+                              />
+                            ) : (
+                              <Package
+                                size={45}
+                                className="opacity-30"
+                              />
                             )}
                           </div>
 
-                          <button
-                            type="button"
-                            disabled={
-                              paginaFavoritos ===
-                              totalPaginasFavoritos
-                            }
-                            onClick={() =>
-                              setPaginaFavoritos(
-                                (
-                                  pagina
-                                ) =>
-                                  Math.min(
-                                    totalPaginasFavoritos,
-                                    pagina +
-                                      1
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <h3 className="font-semibold">
+                                  {obtenerNombreProducto(
+                                    producto
+                                  )}
+                                </h3>
+
+                                <p className="mt-1 font-bold text-blue-500">
+                                  {formatearPrecio(
+                                    obtenerPrecioProducto(
+                                      producto
+                                    )
+                                  )}
+                                </p>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  quitarFavorito(
+                                    obtenerIdProducto(
+                                      producto
+                                    )
                                   )
-                              )
-                            }
-                            className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                              modoOscuro
-                                ? 'hover:bg-slate-800'
-                                : 'hover:bg-gray-100'
-                            }`}
-                          >
-                            Siguiente
-                            <ChevronRight
-                              size={
-                                17
-                              }
-                            />
-                          </button>
+                                }
+                                className="rounded-lg p-2 text-red-500 transition hover:bg-red-500/10"
+                                title="Quitar de seleccionados"
+                              >
+                                <Trash2
+                                  size={18}
+                                />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </>
-                  )}
-                </section>
-              )}
-
-              {/* PERFIL */}
-              {seccion ===
-                'perfil' && (
-                <section>
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-bold">
-                      Mi perfil
-                    </h2>
-
-                    <p
-                      className={`mt-1 ${textoSecundario}`}
-                    >
-                      Información de tu cuenta en CellWorld.
-                    </p>
+                      )
+                    )}
                   </div>
 
-                  <div
-                    className={`rounded-3xl border p-5 shadow-sm sm:p-7 ${fondoTarjeta}`}
-                  >
-                    <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-center">
-                      <div
-                        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl ${
-                          modoOscuro
-                            ? 'bg-blue-500/10 text-blue-400'
-                            : 'bg-blue-50 text-blue-600'
+                  {totalPaginasFavoritos >
+                    1 && (
+                    <div className="flex items-center justify-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        disabled={
+                          paginaFavoritos ===
+                          1
+                        }
+                        onClick={() =>
+                          setPaginaFavoritos(
+                            (pagina) =>
+                              Math.max(
+                                1,
+                                pagina - 1
+                              )
+                          )
+                        }
+                        className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
+                          paginaFavoritos ===
+                          1
+                            ? 'cursor-not-allowed opacity-40'
+                            : 'hover:bg-blue-600 hover:text-white'
                         }`}
                       >
-                        <User
-                          size={30}
+                        <ChevronLeft
+                          size={17}
                         />
-                      </div>
+                        Anterior
+                      </button>
 
-                      <div className="min-w-0">
-                        <h3 className="text-xl font-bold">
-                          {perfil.nombres}{' '}
-                          {perfil.apellidos}
-                        </h3>
+                      <span
+                        className={`text-sm ${textoSecundario}`}
+                      >
+                        Página{' '}
+                        {
+                          paginaFavoritos
+                        }{' '}
+                        de{' '}
+                        {
+                          totalPaginasFavoritos
+                        }
+                      </span>
 
-                        <p
-                          className={`mt-1 truncate ${textoSecundario}`}
-                        >
-                          {perfil.email ||
-                            'Correo no disponible'}
-                        </p>
-                      </div>
+                      <button
+                        type="button"
+                        disabled={
+                          paginaFavoritos ===
+                          totalPaginasFavoritos
+                        }
+                        onClick={() =>
+                          setPaginaFavoritos(
+                            (pagina) =>
+                              Math.min(
+                                totalPaginasFavoritos,
+                                pagina + 1
+                              )
+                          )
+                        }
+                        className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
+                          paginaFavoritos ===
+                          totalPaginasFavoritos
+                            ? 'cursor-not-allowed opacity-40'
+                            : 'hover:bg-blue-600 hover:text-white'
+                        }`}
+                      >
+                        Siguiente
+                        <ChevronRight
+                          size={17}
+                        />
+                      </button>
                     </div>
-
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                      <div>
-                        <label
-                          className={`mb-2 block text-sm font-semibold ${textoSecundario}`}
-                        >
-                          Nombres
-                        </label>
-
-                        <input
-                          type="text"
-                          value={
-                            perfil.nombres
-                          }
-                          readOnly
-                          className={`w-full rounded-2xl border px-4 py-3 outline-none ${
-                            modoOscuro
-                              ? 'border-slate-700 bg-slate-950 text-white'
-                              : 'border-gray-200 bg-gray-50 text-gray-900'
-                          }`}
-                        />
-                      </div>
-
-                      <div>
-                        <label
-                          className={`mb-2 block text-sm font-semibold ${textoSecundario}`}
-                        >
-                          Apellidos
-                        </label>
-
-                        <input
-                          type="text"
-                          value={
-                            perfil.apellidos
-                          }
-                          readOnly
-                          className={`w-full rounded-2xl border px-4 py-3 outline-none ${
-                            modoOscuro
-                              ? 'border-slate-700 bg-slate-950 text-white'
-                              : 'border-gray-200 bg-gray-50 text-gray-900'
-                          }`}
-                        />
-                      </div>
-
-                      <div>
-                        <label
-                          className={`mb-2 block text-sm font-semibold ${textoSecundario}`}
-                        >
-                          Correo electrónico
-                        </label>
-
-                        <input
-                          type="email"
-                          value={
-                            perfil.email
-                          }
-                          readOnly
-                          className={`w-full rounded-2xl border px-4 py-3 outline-none ${
-                            modoOscuro
-                              ? 'border-slate-700 bg-slate-950 text-white'
-                              : 'border-gray-200 bg-gray-50 text-gray-900'
-                          }`}
-                        />
-                      </div>
-
-                      <div>
-                        <label
-                          className={`mb-2 block text-sm font-semibold ${textoSecundario}`}
-                        >
-                          Teléfono
-                        </label>
-
-                        <input
-                          type="text"
-                          value={
-                            perfil.telefono
-                          }
-                          readOnly
-                          className={`w-full rounded-2xl border px-4 py-3 outline-none ${
-                            modoOscuro
-                              ? 'border-slate-700 bg-slate-950 text-white'
-                              : 'border-gray-200 bg-gray-50 text-gray-900'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </section>
+                  )}
+                </>
               )}
             </div>
-          </div>
-        </main>
-      </div>
+          )}
 
-      {/* MODAL DETALLES DE COMPRA */}
+          {/* ========================= */}
+          {/* PERFIL */}
+          {/* ========================= */}
+
+          {seccion === 'perfil' && (
+            <div
+              className={`rounded-2xl border p-6 ${fondoTarjeta}`}
+            >
+              <div className="mb-6 flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600">
+                  <User
+                    size={27}
+                    className="text-white"
+                  />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold">
+                    Información personal
+                  </h2>
+
+                  <p
+                    className={`text-sm ${textoSecundario}`}
+                  >
+                    Datos de tu cuenta CellWorld.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div>
+                  <label
+                    className={`mb-2 block text-sm font-medium ${textoSecundario}`}
+                  >
+                    Nombres
+                  </label>
+
+                  <input
+                    type="text"
+                    value={perfil.nombres}
+                    readOnly
+                    className={`w-full rounded-xl border px-4 py-3 outline-none ${
+                      modoOscuro
+                        ? 'border-slate-700 bg-slate-950'
+                        : 'border-gray-200 bg-gray-50'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    className={`mb-2 block text-sm font-medium ${textoSecundario}`}
+                  >
+                    Apellidos
+                  </label>
+
+                  <input
+                    type="text"
+                    value={perfil.apellidos}
+                    readOnly
+                    className={`w-full rounded-xl border px-4 py-3 outline-none ${
+                      modoOscuro
+                        ? 'border-slate-700 bg-slate-950'
+                        : 'border-gray-200 bg-gray-50'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    className={`mb-2 block text-sm font-medium ${textoSecundario}`}
+                  >
+                    Correo electrónico
+                  </label>
+
+                  <input
+                    type="email"
+                    value={perfil.email}
+                    readOnly
+                    className={`w-full rounded-xl border px-4 py-3 outline-none ${
+                      modoOscuro
+                        ? 'border-slate-700 bg-slate-950'
+                        : 'border-gray-200 bg-gray-50'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    className={`mb-2 block text-sm font-medium ${textoSecundario}`}
+                  >
+                    Teléfono
+                  </label>
+
+                  <input
+                    type="text"
+                    value={perfil.telefono}
+                    readOnly
+                    className={`w-full rounded-xl border px-4 py-3 outline-none ${
+                      modoOscuro
+                        ? 'border-slate-700 bg-slate-950'
+                        : 'border-gray-200 bg-gray-50'
+                    }`}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* ========================= */}
+      {/* MODAL DETALLES COMPRA */}
+      {/* ========================= */}
+
       {mostrarDetalles &&
         compraSeleccionada && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm sm:p-5"
-            onMouseDown={(evento) => {
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-5"
+            onMouseDown={(event) => {
               if (
-                evento.target ===
-                evento.currentTarget
+                event.target ===
+                event.currentTarget
               ) {
-                cerrarDetalles()
+                setMostrarDetalles(false)
               }
             }}
           >
             <div
-              className={`flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border shadow-2xl ${
-                modoOscuro
-                  ? 'border-slate-800 bg-slate-900 text-white'
-                  : 'border-gray-200 bg-white text-gray-900'
-              }`}
+              className={`w-full max-w-2xl rounded-2xl border ${fondoTarjeta}`}
             >
-              {/* HEADER MODAL */}
-              <div
-                className={`flex shrink-0 items-start justify-between gap-4 border-b p-5 sm:p-6 ${
-                  modoOscuro
-                    ? 'border-slate-800'
-                    : 'border-gray-200'
-                }`}
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        modoOscuro
-                          ? 'bg-blue-500/10 text-blue-400'
-                          : 'bg-blue-50 text-blue-700'
-                      }`}
-                    >
-                      Pedido #
-                      {compraSeleccionada?.id_pedido ??
-                        compraSeleccionada?.id ??
-                        '—'}
-                    </span>
-
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        modoOscuro
-                          ? 'bg-green-500/10 text-green-400'
-                          : 'bg-green-50 text-green-700'
-                      }`}
-                    >
-                      {compraSeleccionada?.estado ||
-                        'Pagado'}
-                    </span>
-                  </div>
-
-                  <h3 className="mt-3 text-xl font-bold sm:text-2xl">
-                    Detalles de la compra
-                  </h3>
+              <div className="flex items-center justify-between border-b p-5">
+                <div>
+                  <h2 className="text-lg font-bold">
+                    Detalles del pedido #
+                    {compraSeleccionada?.id_pedido ??
+                      compraSeleccionada?.id}
+                  </h2>
 
                   <p
                     className={`mt-1 text-sm ${textoSecundario}`}
@@ -3209,234 +1958,123 @@ export default function PanelCliente({
 
                 <button
                   type="button"
-                  onClick={
-                    cerrarDetalles
+                  onClick={() =>
+                    setMostrarDetalles(false)
                   }
-                  aria-label="Cerrar"
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition ${
-                    modoOscuro
-                      ? 'text-gray-400 hover:bg-slate-800 hover:text-white'
-                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
+                  className={`rounded-xl p-2 ${textoSecundario} hover:bg-gray-500/10`}
                 >
-                  <X size={22} />
+                  <X size={20} />
                 </button>
               </div>
 
-              {/* CONTENIDO MODAL */}
-              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-                <div className="space-y-4">
+              <div className="max-h-[65vh] overflow-y-auto p-5">
+                <div className="space-y-3">
                   {obtenerProductosCompra(
                     compraSeleccionada
                   ).map(
                     (
                       producto,
-                      indice
-                    ) => {
-                      const nombre =
-                        obtenerNombreProducto(
-                          producto
-                        )
-
-                      const precio =
-                        obtenerPrecioProducto(
-                          producto
-                        )
-
-                      const cantidad =
-                        Number(
-                          producto?.cantidad ??
-                            producto?.quantity ??
-                            1
-                        )
-
-                      const imagen =
-                        obtenerImagenProducto(
-                          producto
-                        )
-
-                      const subtotal =
-                        precio *
-                        cantidad
-
-                      return (
-                        <div
-                          key={
-                            indice
-                          }
-                          className={`grid grid-cols-1 gap-5 rounded-2xl border p-5 lg:grid-cols-[110px_minmax(0,1fr)_180px] lg:items-center ${
-                            modoOscuro
-                              ? 'border-slate-800 bg-slate-950'
-                              : 'border-gray-200 bg-gray-50'
-                          }`}
-                        >
-                          {/* IMAGEN */}
-                          <div
-                            className={`mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl lg:mx-0 ${
-                              modoOscuro
-                                ? 'bg-slate-900'
-                                : 'bg-white'
-                            }`}
-                          >
-                            {imagen ? (
+                      index
+                    ) => (
+                      <div
+                        key={index}
+                        className={`flex items-center justify-between gap-4 rounded-xl border p-4 ${
+                          modoOscuro
+                            ? 'border-slate-800 bg-slate-950'
+                            : 'border-gray-200 bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white">
+                            {producto.imagen ? (
                               <img
                                 src={
-                                  imagen
+                                  producto.imagen
                                 }
                                 alt={
-                                  nombre
+                                  producto.nombre
                                 }
-                                className="h-full w-full object-contain p-3"
+                                className="h-full w-full rounded-lg object-contain"
                               />
                             ) : (
                               <Package
-                                size={
-                                  35
-                                }
-                                className={
-                                  textoSecundario
-                                }
+                                size={22}
+                                className="text-gray-400"
                               />
                             )}
                           </div>
 
-                          {/* INFORMACIÓN */}
-                          <div className="min-w-0 text-center lg:text-left">
-                            <h4 className="break-words text-lg font-bold">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">
                               {
-                                nombre
+                                producto.nombre
                               }
-                            </h4>
+                            </p>
 
-                            <div
-                              className={`mt-3 flex flex-wrap justify-center gap-2 text-sm lg:justify-start`}
-                            >
-                              <span
-                                className={`rounded-full px-3 py-1 ${
-                                  modoOscuro
-                                    ? 'bg-slate-800 text-gray-300'
-                                    : 'bg-white text-gray-600'
-                                }`}
-                              >
-                                Cantidad:{' '}
-                                {
-                                  cantidad
-                                }
-                              </span>
-
-                              <span
-                                className={`rounded-full px-3 py-1 ${
-                                  modoOscuro
-                                    ? 'bg-slate-800 text-gray-300'
-                                    : 'bg-white text-gray-600'
-                                }`}
-                              >
-                                Unitario:{' '}
-                                {formatearPrecio(
-                                  precio
-                                )}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* SUBTOTAL */}
-                          <div className="border-t pt-4 text-center lg:border-l lg:border-t-0 lg:pl-5 lg:text-right">
                             <p
                               className={`text-sm ${textoSecundario}`}
                             >
-                              Subtotal
-                            </p>
-
-                            <p className="mt-1 text-xl font-bold">
-                              {formatearPrecio(
-                                subtotal
-                              )}
+                              Cantidad:{' '}
+                              {
+                                producto.cantidad
+                              }
                             </p>
                           </div>
                         </div>
-                      )
-                    }
+
+                        <p className="shrink-0 font-semibold">
+                          {formatearPrecio(
+                            producto.precio *
+                              producto.cantidad
+                          )}
+                        </p>
+                      </div>
+                    )
                   )}
                 </div>
 
-                {/* TOTAL */}
                 <div
-                  className={`mt-6 rounded-2xl border p-5 sm:p-6 ${
-                    modoOscuro
-                      ? 'border-slate-800 bg-slate-950'
-                      : 'border-gray-200 bg-gray-50'
-                  }`}
+                  className={`mt-5 flex items-center justify-between border-t pt-5`}
                 >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-                          modoOscuro
-                            ? 'bg-blue-500/10 text-blue-400'
-                            : 'bg-blue-50 text-blue-600'
-                        }`}
-                      >
-                        <CreditCard
-                          size={21}
-                        />
-                      </div>
+                  <span className="font-semibold">
+                    Total
+                  </span>
 
-                      <div>
-                        <p
-                          className={`text-sm ${textoSecundario}`}
-                        >
-                          Total pagado
-                        </p>
-
-                        <p className="font-semibold">
-                          Compra realizada
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="text-2xl font-bold sm:text-3xl">
-                      {formatearPrecio(
-                        obtenerTotalCompra(
-                          compraSeleccionada
-                        )
-                      )}
-                    </p>
-                  </div>
+                  <span className="text-xl font-bold text-blue-500">
+                    {formatearPrecio(
+                      obtenerTotalCompra(
+                        compraSeleccionada
+                      )
+                    )}
+                  </span>
                 </div>
               </div>
 
-              {/* FOOTER MODAL */}
-              <div
-                className={`flex shrink-0 flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:justify-end sm:p-5 ${
-                  modoOscuro
-                    ? 'border-slate-800'
-                    : 'border-gray-200'
-                }`}
-              >
+              <div className="flex justify-end gap-3 border-t p-5">
                 <button
                   type="button"
                   onClick={() =>
-                    descargarFactura(
+                    generarFacturaPDF(
                       compraSeleccionada
                     )
                   }
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 sm:w-auto"
+                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
                 >
                   <Download
-                    size={18}
+                    size={17}
                   />
                   Descargar factura
                 </button>
 
                 <button
                   type="button"
-                  onClick={
-                    cerrarDetalles
+                  onClick={() =>
+                    setMostrarDetalles(false)
                   }
-                  className={`w-full rounded-2xl px-5 py-3 font-semibold transition sm:w-auto ${
+                  className={`rounded-xl border px-4 py-2.5 text-sm font-medium ${
                     modoOscuro
-                      ? 'bg-slate-800 text-white hover:bg-slate-700'
-                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                      ? 'border-slate-700 hover:bg-slate-800'
+                      : 'border-gray-200 hover:bg-gray-100'
                   }`}
                 >
                   Cerrar
