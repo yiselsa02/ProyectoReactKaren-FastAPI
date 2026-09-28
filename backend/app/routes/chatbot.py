@@ -25,136 +25,160 @@ class ChatRequest(BaseModel):
 
 @router.post("")
 def responder_chatbot(data: ChatRequest):
-    # ============================================================
-    # VARIABLES DE ENTORNO
-    # ============================================================
-
-    api_key = os.getenv("OPENAI_API_KEY")
-    modelo = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-
-    if not api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="La IA no está configurada. Se usará el asistente local.",
-        )
-
-    # ============================================================
-    # MENSAJES PARA OPENAI
-    # ============================================================
-
-    mensajes = [
-        {
-            "role": "system",
-            "content": (
-                "Eres CellBot, el asistente virtual de CellWorld, una tienda "
-                "colombiana de celulares y accesorios. Responde en español, "
-                "de forma clara, amable y breve. Ayuda con catálogo, precios, "
-                "pedidos, carrito, pagos, entregas, cuenta, garantías y PQR. "
-                "No inventes stock, precios, pedidos ni políticas. Si no tienes "
-                "un dato real, indica que debe revisarse en el catálogo, el "
-                "panel del cliente o con soporte. Nunca solicites contraseñas "
-                "ni claves."
-            ),
-        }
-    ]
-
-    mensajes.extend(
-        {
-            "role": item.role,
-            "content": item.content,
-        }
-        for item in data.history[-20:]
-    )
-
-    mensajes.append(
-        {
-            "role": "user",
-            "content": data.message,
-        }
-    )
-
-    # ============================================================
-    # CUERPO DE LA PETICIÓN
-    # ============================================================
-
-    cuerpo = json.dumps(
-        {
-            "model": modelo,
-            "messages": mensajes,
-            "temperature": 0.7,
-            "max_tokens": 350,
-        }
-    ).encode("utf-8")
-
-    # ============================================================
-    # PETICIÓN A OPENAI
-    # ============================================================
-
-    solicitud = Request(
-        "https://api.openai.com/v1/chat/completions",
-        data=cuerpo,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-
     try:
-        with urlopen(
-            solicitud,
-            timeout=30,
-        ) as respuesta:
-            resultado = json.loads(
-                respuesta.read().decode("utf-8")
+        # ========================================================
+        # VARIABLES DE ENTORNO
+        # ========================================================
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        modelo = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+        if not api_key:
+            raise HTTPException(
+                status_code=503,
+                detail="OPENAI_API_KEY no está configurada.",
             )
 
-    except HTTPError as error:
-        detalle = error.read().decode(
-            "utf-8",
-            errors="replace",
+        # ========================================================
+        # MENSAJES
+        # ========================================================
+
+        mensajes = [
+            {
+                "role": "system",
+                "content": (
+                    "Eres CellBot, el asistente virtual de CellWorld, "
+                    "una tienda colombiana de celulares y accesorios. "
+                    "Responde en español, de forma clara, amable y breve. "
+                    "Ayuda con catálogo, precios, pedidos, carrito, pagos, "
+                    "entregas, cuenta, garantías y PQR. "
+                    "No inventes stock, precios, pedidos ni políticas. "
+                    "Si no tienes un dato real, indica que debe revisarse "
+                    "en el catálogo, el panel del cliente o con soporte. "
+                    "Nunca solicites contraseñas ni claves."
+                ),
+            }
+        ]
+
+        mensajes.extend(
+            {
+                "role": item.role,
+                "content": item.content,
+            }
+            for item in data.history[-20:]
         )
 
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "error": "OpenAI rechazó la solicitud",
-                "status": error.code,
-                "respuesta": detalle[:1000],
+        mensajes.append(
+            {
+                "role": "user",
+                "content": data.message,
+            }
+        )
+
+        # ========================================================
+        # PETICIÓN
+        # ========================================================
+
+        cuerpo = json.dumps(
+            {
+                "model": modelo,
+                "messages": mensajes,
+                "temperature": 0.7,
+                "max_tokens": 350,
+            }
+        ).encode("utf-8")
+
+        solicitud = Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=cuerpo,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
             },
-        ) from error
-
-    except (URLError, TimeoutError) as error:
-        raise HTTPException(
-            status_code=504,
-            detail="La IA tardó demasiado en responder.",
-        ) from error
-
-    # ============================================================
-    # PROCESAR RESPUESTA DE OPENAI
-    # ============================================================
-
-    try:
-        respuesta_ia = (
-            resultado["choices"][0]["message"]["content"]
-            .strip()
+            method="POST",
         )
 
-    except (
-        KeyError,
-        IndexError,
-        TypeError,
-    ) as error:
+        # ========================================================
+        # LLAMADA A OPENAI
+        # ========================================================
+
+        try:
+            with urlopen(
+                solicitud,
+                timeout=30,
+            ) as respuesta:
+                resultado = json.loads(
+                    respuesta.read().decode("utf-8")
+                )
+
+        except HTTPError as error:
+            detalle = error.read().decode(
+                "utf-8",
+                errors="replace",
+            )
+
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "error": "OpenAI rechazó la solicitud",
+                    "status": error.code,
+                    "respuesta": detalle[:1000],
+                },
+            )
+
+        except URLError as error:
+            raise HTTPException(
+                status_code=504,
+                detail={
+                    "error": "No se pudo conectar con OpenAI",
+                    "detalle": str(error.reason),
+                },
+            )
+
+        except TimeoutError:
+            raise HTTPException(
+                status_code=504,
+                detail="La conexión con OpenAI agotó el tiempo de espera.",
+            )
+
+        # ========================================================
+        # RESPUESTA
+        # ========================================================
+
+        try:
+            respuesta_ia = (
+                resultado["choices"][0]["message"]["content"]
+                .strip()
+            )
+
+        except (
+            KeyError,
+            IndexError,
+            TypeError,
+        ) as error:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "error": "La IA devolvió una respuesta inválida",
+                    "tipo": type(error).__name__,
+                },
+            )
+
+        return {
+            "success": True,
+            "reply": respuesta_ia,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        # No muestra la API key ni información sensible.
         raise HTTPException(
-            status_code=502,
-            detail="La IA devolvió una respuesta inválida.",
-        ) from error
-
-    # ============================================================
-    # RESPUESTA
-    # ============================================================
-
-    return {
-        "success": True,
-        "reply": respuesta_ia,
-    }
+            status_code=500,
+            detail={
+                "error": "Error interno del chatbot",
+                "tipo": type(error).__name__,
+                "mensaje": str(error)[:500],
+            },
+        )
