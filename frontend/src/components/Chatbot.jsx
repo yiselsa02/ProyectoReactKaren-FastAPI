@@ -3,6 +3,14 @@ import { Bot, Send, X } from 'lucide-react'
 import { API_URL } from '../config'
 
 
+
+const SUGGESTIONS = [
+  'Quiero saber más de los productos',
+  '¿Cómo hago un pedido?',
+  'Necesito ayuda con mi cuenta',
+  'Quiero reportar un problema',
+]
+
 function obtenerRespuesta(texto, numeroRespuesta = 0) {
   const mensaje = texto
     .toLowerCase()
