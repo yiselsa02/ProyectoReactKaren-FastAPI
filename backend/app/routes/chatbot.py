@@ -24,18 +24,23 @@ class ChatRequest(BaseModel):
 
 
 @router.post("")
-@router.post("")
 def responder_chatbot(data: ChatRequest):
-    api_key = os.getenv("OPENAI_API_KEY")
-    modelo = os.getenv("OPENAI_MODEL")
+    # ============================================================
+    # VARIABLES DE ENTORNO
+    # ============================================================
 
-    return {
-        "success": True,
-        "api_key_configurada": bool(api_key),
-        "modelo_configurado": bool(modelo),
-        "modelo": modelo,
-        "mensaje_recibido": data.message,
-    },
+    api_key = os.getenv("OPENAI_API_KEY")
+    modelo = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="La IA no está configurada. Se usará el asistente local.",
+        )
+
+    # ============================================================
+    # MENSAJES PARA OPENAI
+    # ============================================================
 
     mensajes = [
         {
@@ -68,17 +73,22 @@ def responder_chatbot(data: ChatRequest):
         }
     )
 
+    # ============================================================
+    # CUERPO DE LA PETICIÓN
+    # ============================================================
+
     cuerpo = json.dumps(
         {
-            "model": os.getenv(
-                "OPENAI_MODEL",
-                "gpt-4o-mini",
-            ),
+            "model": modelo,
             "messages": mensajes,
             "temperature": 0.7,
             "max_tokens": 350,
         }
     ).encode("utf-8")
+
+    # ============================================================
+    # PETICIÓN A OPENAI
+    # ============================================================
 
     solicitud = Request(
         "https://api.openai.com/v1/chat/completions",
@@ -107,7 +117,11 @@ def responder_chatbot(data: ChatRequest):
 
         raise HTTPException(
             status_code=502,
-            detail=f"No fue posible consultar la IA: {detalle[:300]}",
+            detail={
+                "error": "OpenAI rechazó la solicitud",
+                "status": error.code,
+                "respuesta": detalle[:1000],
+            },
         ) from error
 
     except (URLError, TimeoutError) as error:
@@ -115,6 +129,10 @@ def responder_chatbot(data: ChatRequest):
             status_code=504,
             detail="La IA tardó demasiado en responder.",
         ) from error
+
+    # ============================================================
+    # PROCESAR RESPUESTA DE OPENAI
+    # ============================================================
 
     try:
         respuesta_ia = (
@@ -131,6 +149,10 @@ def responder_chatbot(data: ChatRequest):
             status_code=502,
             detail="La IA devolvió una respuesta inválida.",
         ) from error
+
+    # ============================================================
+    # RESPUESTA
+    # ============================================================
 
     return {
         "success": True,
