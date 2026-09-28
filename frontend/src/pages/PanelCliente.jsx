@@ -10,11 +10,13 @@ import {
   CreditCard,
   Eye,
   Trash2,
-  ShoppingCart,
   Download,
   ChevronLeft,
   ChevronRight,
   MessageSquare,
+  Pencil,
+  Save,
+  Home,
 } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { API_URL } from '../config'
@@ -26,7 +28,12 @@ const COMPRAS_KEY = 'cellworld_compras'
 
 function obtenerClaveFavoritos(usuario) {
   if (!usuario) return 'cellworld_favorites'
-  return `cellworld_favorites_${usuario.id_usuario || usuario.id || 'usuario'}`
+
+  return `cellworld_favorites_${
+    usuario.id_usuario ||
+    usuario.id ||
+    'usuario'
+  }`
 }
 
 function obtenerIdProducto(producto) {
@@ -109,7 +116,9 @@ function obtenerProductosCompra(compra) {
     compra?.items ??
     []
 
-  if (!Array.isArray(productos)) return []
+  if (!Array.isArray(productos)) {
+    return []
+  }
 
   return productos.map((item) => ({
     ...item,
@@ -119,13 +128,12 @@ function obtenerProductosCompra(compra) {
       item?.producto?.nombre ??
       'Producto',
     cantidad: Number(item?.cantidad ?? 1),
-    precio:
-      Number(
-        item?.precio ??
-          item?.precio_unitario ??
-          item?.producto?.precio ??
-          0
-      ),
+    precio: Number(
+      item?.precio ??
+        item?.precio_unitario ??
+        item?.producto?.precio ??
+        0
+    ),
     imagen:
       item?.imagen ??
       item?.imagen_url ??
@@ -147,7 +155,9 @@ function obtenerTotalCompra(compra) {
 
   return productos.reduce(
     (total, producto) =>
-      total + producto.precio * producto.cantidad,
+      total +
+      producto.precio *
+        producto.cantidad,
     0
   )
 }
@@ -166,24 +176,72 @@ export default function PanelCliente({
   modoOscuro = false,
   usuario = null,
 }) {
-  const { carrito, eliminarDelCarrito } = useCart()
+  const [usuarioActual, setUsuarioActual] =
+    useState(usuario)
 
-  const [usuarioActual, setUsuarioActual] = useState(usuario)
-  const [seccion, setSeccion] = useState('resumen')
+  const [seccion, setSeccion] =
+    useState('resumen')
 
-  const [favoritos, setFavoritos] = useState([])
-  const [favoritosCargados, setFavoritosCargados] = useState(false)
+  const [favoritos, setFavoritos] =
+    useState([])
 
-  const [compras, setCompras] = useState([])
-  const [mostrarDetalles, setMostrarDetalles] = useState(false)
-  const [compraSeleccionada, setCompraSeleccionada] = useState(null)
-  const [cargandoCompras, setCargandoCompras] = useState(false)
+  const [
+    favoritosCargados,
+    setFavoritosCargados,
+  ] = useState(false)
 
-  const [paginaCompras, setPaginaCompras] = useState(1)
-  const [paginaFavoritos, setPaginaFavoritos] = useState(1)
+  const [compras, setCompras] =
+    useState([])
 
-  const elementosPorPaginaCompras = 5
-  const elementosPorPaginaFavoritos = 6
+  const [
+    mostrarDetalles,
+    setMostrarDetalles,
+  ] = useState(false)
+
+  const [
+    compraSeleccionada,
+    setCompraSeleccionada,
+  ] = useState(null)
+
+  const [
+    cargandoCompras,
+    setCargandoCompras,
+  ] = useState(false)
+
+  const [
+    paginaCompras,
+    setPaginaCompras,
+  ] = useState(1)
+
+  const [
+    paginaFavoritos,
+    setPaginaFavoritos,
+  ] = useState(1)
+
+  // =========================
+  // PQR
+  // =========================
+
+  const [pqrs, setPqrs] = useState([])
+
+  const [
+    cargandoPqrs,
+    setCargandoPqrs,
+  ] = useState(false)
+
+  const [
+    errorPqrs,
+    setErrorPqrs,
+  ] = useState('')
+
+  const [
+    paginaPqrs,
+    setPaginaPqrs,
+  ] = useState(1)
+
+  // =========================
+  // PERFIL
+  // =========================
 
   const [perfil, setPerfil] = useState({
     nombres: '',
@@ -192,14 +250,38 @@ export default function PanelCliente({
     telefono: '',
   })
 
-  // =========================
-  // PQR
-  // =========================
-  const [pqrs, setPqrs] = useState([])
-  const [cargandoPqrs, setCargandoPqrs] = useState(false)
-  const [errorPqrs, setErrorPqrs] = useState('')
-  const [paginaPqrs, setPaginaPqrs] = useState(1)
+  const [
+    perfilOriginal,
+    setPerfilOriginal,
+  ] = useState({
+    nombres: '',
+    apellidos: '',
+    email: '',
+    telefono: '',
+  })
 
+  const [
+    editandoPerfil,
+    setEditandoPerfil,
+  ] = useState(false)
+
+  const [
+    guardandoPerfil,
+    setGuardandoPerfil,
+  ] = useState(false)
+
+  const [
+    mensajePerfil,
+    setMensajePerfil,
+  ] = useState('')
+
+  const [
+    errorPerfil,
+    setErrorPerfil,
+  ] = useState('')
+
+  const elementosPorPaginaCompras = 5
+  const elementosPorPaginaFavoritos = 6
   const elementosPorPaginaPqrs = 5
 
   const fondoPrincipal = modoOscuro
@@ -228,26 +310,49 @@ export default function PanelCliente({
           const usuarioParseado =
             JSON.parse(usuarioGuardado)
 
-          setUsuarioActual(usuarioParseado)
+          setUsuarioActual(
+            usuarioParseado
+          )
 
-          setPerfil({
-            nombres: usuarioParseado?.nombres || '',
+          const datosPerfil = {
+            nombres:
+              usuarioParseado?.nombres ||
+              '',
             apellidos:
-              usuarioParseado?.apellidos || '',
-            email: usuarioParseado?.email || '',
+              usuarioParseado?.apellidos ||
+              '',
+            email:
+              usuarioParseado?.email ||
+              '',
             telefono:
-              usuarioParseado?.telefono || '',
-          })
+              usuarioParseado?.telefono ||
+              '',
+          }
+
+          setPerfil(datosPerfil)
+          setPerfilOriginal(datosPerfil)
         } else {
           setUsuarioActual(usuario)
+
+          const datosPerfil = {
+            nombres:
+              usuario?.nombres || '',
+            apellidos:
+              usuario?.apellidos || '',
+            email:
+              usuario?.email || '',
+            telefono:
+              usuario?.telefono || '',
+          }
+
+          setPerfil(datosPerfil)
+          setPerfilOriginal(datosPerfil)
         }
       } catch (error) {
         console.error(
           'Error cargando usuario:',
           error
         )
-
-        setUsuarioActual(usuario)
       }
     }
 
@@ -294,18 +399,23 @@ export default function PanelCliente({
     const cargarFavoritos = () => {
       try {
         const clave =
-          obtenerClaveFavoritos(usuarioActual)
+          obtenerClaveFavoritos(
+            usuarioActual
+          )
 
         const favoritosGuardados =
           localStorage.getItem(clave)
 
         if (favoritosGuardados) {
-          const datos =
-            JSON.parse(favoritosGuardados)
+          const datos = JSON.parse(
+            favoritosGuardados
+          )
 
           setFavoritos(
             Array.isArray(datos)
-              ? datos.map(normalizarProducto)
+              ? datos.map(
+                  normalizarProducto
+                )
               : []
           )
         } else {
@@ -353,7 +463,9 @@ export default function PanelCliente({
 
     try {
       const clave =
-        obtenerClaveFavoritos(usuarioActual)
+        obtenerClaveFavoritos(
+          usuarioActual
+        )
 
       localStorage.setItem(
         clave,
@@ -371,15 +483,17 @@ export default function PanelCliente({
     usuarioActual,
   ])
 
-  const quitarFavorito = (idProducto) => {
-    const nuevosFavoritos =
-      favoritos.filter(
+  const quitarFavorito = (
+    idProducto
+  ) => {
+    setFavoritos((actuales) =>
+      actuales.filter(
         (producto) =>
-          obtenerIdProducto(producto) !==
-          idProducto
+          obtenerIdProducto(
+            producto
+          ) !== idProducto
       )
-
-    setFavoritos(nuevosFavoritos)
+    )
 
     window.dispatchEvent(
       new Event('favoritosActualizados')
@@ -406,7 +520,9 @@ export default function PanelCliente({
           )
 
         setCompras(
-          Array.isArray(comprasLocales)
+          Array.isArray(
+            comprasLocales
+          )
             ? comprasLocales
             : []
         )
@@ -425,7 +541,8 @@ export default function PanelCliente({
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
         }
       )
@@ -459,7 +576,9 @@ export default function PanelCliente({
           )
 
         setCompras(
-          Array.isArray(comprasLocales)
+          Array.isArray(
+            comprasLocales
+          )
             ? comprasLocales
             : []
         )
@@ -508,7 +627,8 @@ export default function PanelCliente({
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
         }
       )
@@ -555,14 +675,11 @@ export default function PanelCliente({
   // PAGINACIÓN
   // =========================
 
-  const totalCompras =
-    compras.length
-
   const totalPaginasCompras =
     Math.max(
       1,
       Math.ceil(
-        totalCompras /
+        compras.length /
           elementosPorPaginaCompras
       )
     )
@@ -575,14 +692,11 @@ export default function PanelCliente({
         elementosPorPaginaCompras
     )
 
-  const totalFavoritos =
-    favoritos.length
-
   const totalPaginasFavoritos =
     Math.max(
       1,
       Math.ceil(
-        totalFavoritos /
+        favoritos.length /
           elementosPorPaginaFavoritos
       )
     )
@@ -595,8 +709,7 @@ export default function PanelCliente({
         elementosPorPaginaFavoritos
     )
 
-  const totalPqrs =
-    pqrs.length
+  const totalPqrs = pqrs.length
 
   const totalPaginasPqrs =
     Math.max(
@@ -658,11 +771,170 @@ export default function PanelCliente({
   ])
 
   // =========================
-  // MODAL
+  // EDITAR PERFIL
+  // =========================
+
+  const comenzarEdicionPerfil = () => {
+    setMensajePerfil('')
+    setErrorPerfil('')
+    setPerfilOriginal({
+      ...perfil,
+    })
+    setEditandoPerfil(true)
+  }
+
+  const cancelarEdicionPerfil = () => {
+    setPerfil({
+      ...perfilOriginal,
+    })
+
+    setMensajePerfil('')
+    setErrorPerfil('')
+    setEditandoPerfil(false)
+  }
+
+  const manejarCambioPerfil = (
+    campo,
+    valor
+  ) => {
+    setPerfil((actual) => ({
+      ...actual,
+      [campo]: valor,
+    }))
+  }
+
+  const guardarPerfil = async () => {
+    setMensajePerfil('')
+    setErrorPerfil('')
+
+    const token =
+      localStorage.getItem('token')
+
+    if (!token) {
+      setErrorPerfil(
+        'Debes iniciar sesión para editar tu perfil.'
+      )
+      return
+    }
+
+    if (
+      !perfil.nombres.trim() ||
+      !perfil.apellidos.trim() ||
+      !perfil.email.trim()
+    ) {
+      setErrorPerfil(
+        'Nombres, apellidos y correo son obligatorios.'
+      )
+      return
+    }
+
+    setGuardandoPerfil(true)
+
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/usuarios/perfil`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            nombres:
+              perfil.nombres.trim(),
+            apellidos:
+              perfil.apellidos.trim(),
+            email:
+              perfil.email.trim(),
+            telefono:
+              perfil.telefono.trim(),
+          }),
+        }
+      )
+
+      const data =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          data?.detail ||
+            'No se pudo actualizar el perfil.'
+        )
+      }
+
+      const usuarioActualizado =
+        data?.usuario || {
+          ...usuarioActual,
+          ...perfil,
+        }
+
+      localStorage.setItem(
+        'usuario',
+        JSON.stringify(
+          usuarioActualizado
+        )
+      )
+
+      setUsuarioActual(
+        usuarioActualizado
+      )
+
+      const datosActualizados = {
+        nombres:
+          usuarioActualizado?.nombres ||
+          '',
+        apellidos:
+          usuarioActualizado?.apellidos ||
+          '',
+        email:
+          usuarioActualizado?.email ||
+          '',
+        telefono:
+          usuarioActualizado?.telefono ||
+          '',
+      }
+
+      setPerfil(
+        datosActualizados
+      )
+
+      setPerfilOriginal(
+        datosActualizados
+      )
+
+      setEditandoPerfil(false)
+
+      setMensajePerfil(
+        'Perfil actualizado correctamente.'
+      )
+
+      window.dispatchEvent(
+        new Event('usuarioCambio')
+      )
+    } catch (error) {
+      console.error(
+        'Error actualizando perfil:',
+        error
+      )
+
+      setErrorPerfil(
+        error?.message ||
+          'No se pudo actualizar el perfil.'
+      )
+    } finally {
+      setGuardandoPerfil(false)
+    }
+  }
+
+  // =========================
+  // ESCAPE
   // =========================
 
   useEffect(() => {
-    const cerrarConEscape = (event) => {
+    const cerrarConEscape = (
+      event
+    ) => {
       if (event.key === 'Escape') {
         setMostrarDetalles(false)
       }
@@ -685,11 +957,15 @@ export default function PanelCliente({
   // FACTURA
   // =========================
 
-  const generarFacturaPDF = (compra) => {
+  const generarFacturaPDF = (
+    compra
+  ) => {
     const doc = new jsPDF()
 
     const productos =
-      obtenerProductosCompra(compra)
+      obtenerProductosCompra(
+        compra
+      )
 
     const total =
       obtenerTotalCompra(compra)
@@ -709,6 +985,7 @@ export default function PanelCliente({
     )
 
     doc.setFontSize(18)
+
     doc.text(
       'Factura de compra',
       15,
@@ -725,7 +1002,9 @@ export default function PanelCliente({
 
     doc.text(
       `Fecha: ${formatearFecha(
-        obtenerFechaCompra(compra)
+        obtenerFechaCompra(
+          compra
+        )
       )}`,
       15,
       58
@@ -733,9 +1012,11 @@ export default function PanelCliente({
 
     doc.text(
       `Cliente: ${
-        usuarioActual?.nombres || ''
+        usuarioActual?.nombres ||
+        ''
       } ${
-        usuarioActual?.apellidos || ''
+        usuarioActual?.apellidos ||
+        ''
       }`,
       15,
       66
@@ -768,12 +1049,15 @@ export default function PanelCliente({
     })
 
     const posicionFinal =
-      doc.lastAutoTable?.finalY || 90
+      doc.lastAutoTable?.finalY ||
+      90
 
     doc.setFontSize(13)
 
     doc.text(
-      `Total: ${formatearPrecio(total)}`,
+      `Total: ${formatearPrecio(
+        total
+      )}`,
       15,
       posicionFinal + 15
     )
@@ -787,7 +1071,10 @@ export default function PanelCliente({
     <div
       className={`min-h-screen ${fondoPrincipal}`}
     >
-      {/* SIDEBAR */}
+      {/* ========================= */}
+      {/* MENÚ LATERAL */}
+      {/* ========================= */}
+
       <aside
         className={`fixed left-0 top-0 z-40 h-screen w-[245px] border-r ${
           modoOscuro
@@ -818,6 +1105,18 @@ export default function PanelCliente({
           </div>
 
           <nav className="space-y-2">
+            {/* VOLVER AL INICIO */}
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = '/'
+              }}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${textoSecundario} hover:bg-blue-500/10`}
+            >
+              <Home size={19} />
+              <span>Volver al inicio</span>
+            </button>
+
             <button
               type="button"
               onClick={() =>
@@ -852,7 +1151,6 @@ export default function PanelCliente({
               <span>Mis compras</span>
             </button>
 
-            {/* PQR */}
             <button
               type="button"
               onClick={() =>
@@ -945,7 +1243,10 @@ export default function PanelCliente({
         </div>
       </aside>
 
+      {/* ========================= */}
       {/* CONTENIDO */}
+      {/* ========================= */}
+
       <main className="ml-[245px] min-h-screen">
         <header
           className={`flex h-[78px] items-center border-b px-8 ${
@@ -990,7 +1291,7 @@ export default function PanelCliente({
                 'Productos que has guardado.'}
 
               {seccion === 'perfil' &&
-                'Consulta la información de tu cuenta.'}
+                'Consulta y edita la información de tu cuenta.'}
             </p>
           </div>
         </header>
@@ -1006,7 +1307,7 @@ export default function PanelCliente({
                 <div
                   className={`rounded-2xl border p-5 ${fondoTarjeta}`}
                 >
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center justify-between">
                     <div>
                       <p
                         className={`text-sm ${textoSecundario}`}
@@ -1019,7 +1320,7 @@ export default function PanelCliente({
                       </p>
                     </div>
 
-                    <div className="rounded-xl bg-blue-600/10 p-3">
+                    <div className="rounded-xl bg-blue-500/10 p-3">
                       <ShoppingBag
                         className="text-blue-500"
                         size={22}
@@ -1031,7 +1332,7 @@ export default function PanelCliente({
                 <div
                   className={`rounded-2xl border p-5 ${fondoTarjeta}`}
                 >
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center justify-between">
                     <div>
                       <p
                         className={`text-sm ${textoSecundario}`}
@@ -1056,7 +1357,7 @@ export default function PanelCliente({
                 <div
                   className={`rounded-2xl border p-5 ${fondoTarjeta}`}
                 >
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center justify-between">
                     <div>
                       <p
                         className={`text-sm ${textoSecundario}`}
@@ -1150,11 +1451,6 @@ export default function PanelCliente({
                             compra
                           )
 
-                        const fecha =
-                          obtenerFechaCompra(
-                            compra
-                          )
-
                         const idPedido =
                           compra?.id_pedido ??
                           compra?.id ??
@@ -1187,8 +1483,11 @@ export default function PanelCliente({
                                       <CalendarDays
                                         size={15}
                                       />
+
                                       {formatearFecha(
-                                        fecha
+                                        obtenerFechaCompra(
+                                          compra
+                                        )
                                       )}
                                     </span>
 
@@ -1196,6 +1495,7 @@ export default function PanelCliente({
                                       <CreditCard
                                         size={15}
                                       />
+
                                       {formatearPrecio(
                                         total
                                       )}
@@ -1210,15 +1510,17 @@ export default function PanelCliente({
                                   setCompraSeleccionada(
                                     compra
                                   )
+
                                   setMostrarDetalles(
                                     true
                                   )
                                 }}
-                                className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                                className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                               >
                                 <Eye
                                   size={17}
                                 />
+
                                 Ver detalles
                               </button>
                             </div>
@@ -1290,6 +1592,7 @@ export default function PanelCliente({
                         <ChevronLeft
                           size={17}
                         />
+
                         Anterior
                       </button>
 
@@ -1325,6 +1628,7 @@ export default function PanelCliente({
                         }`}
                       >
                         Siguiente
+
                         <ChevronRight
                           size={17}
                         />
@@ -1354,9 +1658,8 @@ export default function PanelCliente({
                     <p
                       className={`mt-1 text-sm ${textoSecundario}`}
                     >
-                      Aquí puedes consultar las PQR
-                      que has realizado y las respuestas
-                      recibidas.
+                      Consulta las PQR que has realizado
+                      y sus respuestas.
                     </p>
                   </div>
 
@@ -1422,18 +1725,14 @@ export default function PanelCliente({
                 </div>
               ) : (
                 <>
-                  {/* IMPORTANTE:
-                      No hay overflow ni scroll aquí.
-                      Solo se muestran las 5 PQR de la página actual.
-                  */}
-                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  {/* SOLO LAS PQR DE LA PÁGINA ACTUAL */}
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {pqrsPaginaActual.map(
                       (pqr) => (
                         <div
                           key={pqr.id_pqr}
                           className={`rounded-2xl border p-5 ${fondoTarjeta}`}
                         >
-                          {/* CABECERA */}
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-3">
                               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
@@ -1452,7 +1751,7 @@ export default function PanelCliente({
                                 </p>
 
                                 <p
-                                  className={`mt-0.5 text-xs ${textoSecundario}`}
+                                  className={`text-xs ${textoSecundario}`}
                                 >
                                   {formatearFecha(
                                     pqr.creado_en
@@ -1477,48 +1776,56 @@ export default function PanelCliente({
                             </span>
                           </div>
 
-                          {/* TIPO */}
-                          <div className="mt-4">
-                            <span
-                              className={`text-xs font-medium ${textoSecundario}`}
-                            >
-                              Tipo
-                            </span>
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div>
+                              <p
+                                className={`text-xs ${textoSecundario}`}
+                              >
+                                Tipo
+                              </p>
 
-                            <p className="mt-0.5 text-sm font-semibold">
-                              {pqr.tipo}
-                            </p>
+                              <p className="mt-1 text-sm font-semibold">
+                                {pqr.tipo}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p
+                                className={`text-xs ${textoSecundario}`}
+                              >
+                                Estado
+                              </p>
+
+                              <p className="mt-1 text-sm font-semibold">
+                                {pqr.estado}
+                              </p>
+                            </div>
                           </div>
 
-                          {/* ASUNTO */}
                           <div className="mt-3">
-                            <span
-                              className={`text-xs font-medium ${textoSecundario}`}
+                            <p
+                              className={`text-xs ${textoSecundario}`}
                             >
                               Asunto
-                            </span>
+                            </p>
 
-                            <p className="mt-0.5 line-clamp-2 text-sm font-semibold">
+                            <p className="mt-1 text-sm font-semibold">
                               {pqr.asunto}
                             </p>
                           </div>
 
-                          {/* DESCRIPCIÓN */}
                           <div className="mt-3">
-                            <span
-                              className={`text-xs font-medium ${textoSecundario}`}
+                            <p
+                              className={`text-xs ${textoSecundario}`}
                             >
                               Descripción
-                            </span>
+                            </p>
 
-                            <p
-                              className={`mt-1 line-clamp-3 text-sm ${textoSecundario}`}
-                            >
+                            <p className="mt-1 text-sm line-clamp-2">
                               {pqr.descripcion}
                             </p>
                           </div>
 
-                          {/* RESPUESTA */}
                           <div
                             className={`mt-4 rounded-xl border p-3 ${
                               modoOscuro
@@ -1531,7 +1838,7 @@ export default function PanelCliente({
                             </p>
 
                             {pqr.respuesta ? (
-                              <p className="mt-1 line-clamp-4 text-sm">
+                              <p className="mt-1 text-sm line-clamp-3">
                                 {pqr.respuesta}
                               </p>
                             ) : (
@@ -1548,7 +1855,7 @@ export default function PanelCliente({
                     )}
                   </div>
 
-                  {/* PAGINACIÓN PQR */}
+                  {/* PAGINACIÓN */}
                   {totalPaginasPqrs >
                     1 && (
                     <div className="flex items-center justify-center gap-3 pt-2">
@@ -1714,8 +2021,7 @@ export default function PanelCliente({
                                     )
                                   )
                                 }
-                                className="rounded-lg p-2 text-red-500 transition hover:bg-red-500/10"
-                                title="Quitar de seleccionados"
+                                className="rounded-lg p-2 text-red-500 hover:bg-red-500/10"
                               >
                                 <Trash2
                                   size={18}
@@ -1807,33 +2113,63 @@ export default function PanelCliente({
           )}
 
           {/* ========================= */}
-          {/* PERFIL */}
+          {/* MI PERFIL */}
           {/* ========================= */}
 
           {seccion === 'perfil' && (
             <div
               className={`rounded-2xl border p-6 ${fondoTarjeta}`}
             >
-              <div className="mb-6 flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600">
-                  <User
-                    size={27}
-                    className="text-white"
-                  />
+              <div className="mb-6 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600">
+                    <User
+                      size={27}
+                      className="text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <h2 className="text-lg font-bold">
+                      Información personal
+                    </h2>
+
+                    <p
+                      className={`text-sm ${textoSecundario}`}
+                    >
+                      Consulta y edita los datos de tu
+                      cuenta.
+                    </p>
+                  </div>
                 </div>
 
-                <div>
-                  <h2 className="text-lg font-bold">
-                    Información personal
-                  </h2>
-
-                  <p
-                    className={`text-sm ${textoSecundario}`}
+                {!editandoPerfil && (
+                  <button
+                    type="button"
+                    onClick={
+                      comenzarEdicionPerfil
+                    }
+                    className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
                   >
-                    Datos de tu cuenta CellWorld.
-                  </p>
-                </div>
+                    <Pencil
+                      size={17}
+                    />
+                    Editar perfil
+                  </button>
+                )}
               </div>
+
+              {mensajePerfil && (
+                <div className="mb-5 rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-500">
+                  {mensajePerfil}
+                </div>
+              )}
+
+              {errorPerfil && (
+                <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+                  {errorPerfil}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div>
@@ -1846,11 +2182,23 @@ export default function PanelCliente({
                   <input
                     type="text"
                     value={perfil.nombres}
-                    readOnly
+                    disabled={
+                      !editandoPerfil
+                    }
+                    onChange={(event) =>
+                      manejarCambioPerfil(
+                        'nombres',
+                        event.target.value
+                      )
+                    }
                     className={`w-full rounded-xl border px-4 py-3 outline-none ${
                       modoOscuro
-                        ? 'border-slate-700 bg-slate-950'
-                        : 'border-gray-200 bg-gray-50'
+                        ? 'border-slate-700 bg-slate-950 disabled:bg-slate-900'
+                        : 'border-gray-200 bg-gray-50 disabled:bg-gray-100'
+                    } ${
+                      editandoPerfil
+                        ? 'focus:border-blue-500'
+                        : ''
                     }`}
                   />
                 </div>
@@ -1865,11 +2213,23 @@ export default function PanelCliente({
                   <input
                     type="text"
                     value={perfil.apellidos}
-                    readOnly
+                    disabled={
+                      !editandoPerfil
+                    }
+                    onChange={(event) =>
+                      manejarCambioPerfil(
+                        'apellidos',
+                        event.target.value
+                      )
+                    }
                     className={`w-full rounded-xl border px-4 py-3 outline-none ${
                       modoOscuro
-                        ? 'border-slate-700 bg-slate-950'
-                        : 'border-gray-200 bg-gray-50'
+                        ? 'border-slate-700 bg-slate-950 disabled:bg-slate-900'
+                        : 'border-gray-200 bg-gray-50 disabled:bg-gray-100'
+                    } ${
+                      editandoPerfil
+                        ? 'focus:border-blue-500'
+                        : ''
                     }`}
                   />
                 </div>
@@ -1884,11 +2244,23 @@ export default function PanelCliente({
                   <input
                     type="email"
                     value={perfil.email}
-                    readOnly
+                    disabled={
+                      !editandoPerfil
+                    }
+                    onChange={(event) =>
+                      manejarCambioPerfil(
+                        'email',
+                        event.target.value
+                      )
+                    }
                     className={`w-full rounded-xl border px-4 py-3 outline-none ${
                       modoOscuro
-                        ? 'border-slate-700 bg-slate-950'
-                        : 'border-gray-200 bg-gray-50'
+                        ? 'border-slate-700 bg-slate-950 disabled:bg-slate-900'
+                        : 'border-gray-200 bg-gray-50 disabled:bg-gray-100'
+                    } ${
+                      editandoPerfil
+                        ? 'focus:border-blue-500'
+                        : ''
                     }`}
                   />
                 </div>
@@ -1903,22 +2275,70 @@ export default function PanelCliente({
                   <input
                     type="text"
                     value={perfil.telefono}
-                    readOnly
+                    disabled={
+                      !editandoPerfil
+                    }
+                    onChange={(event) =>
+                      manejarCambioPerfil(
+                        'telefono',
+                        event.target.value
+                      )
+                    }
                     className={`w-full rounded-xl border px-4 py-3 outline-none ${
                       modoOscuro
-                        ? 'border-slate-700 bg-slate-950'
-                        : 'border-gray-200 bg-gray-50'
+                        ? 'border-slate-700 bg-slate-950 disabled:bg-slate-900'
+                        : 'border-gray-200 bg-gray-50 disabled:bg-gray-100'
+                    } ${
+                      editandoPerfil
+                        ? 'focus:border-blue-500'
+                        : ''
                     }`}
                   />
                 </div>
               </div>
+
+              {editandoPerfil && (
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={
+                      cancelarEdicionPerfil
+                    }
+                    disabled={
+                      guardandoPerfil
+                    }
+                    className={`rounded-xl border px-5 py-2.5 text-sm font-medium ${
+                      modoOscuro
+                        ? 'border-slate-700 hover:bg-slate-800'
+                        : 'border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={guardarPerfil}
+                    disabled={
+                      guardandoPerfil
+                    }
+                    className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Save size={17} />
+
+                    {guardandoPerfil
+                      ? 'Guardando...'
+                      : 'Guardar cambios'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
       </main>
 
       {/* ========================= */}
-      {/* MODAL DETALLES COMPRA */}
+      {/* MODAL COMPRA */}
       {/* ========================= */}
 
       {mostrarDetalles &&
@@ -1959,7 +2379,9 @@ export default function PanelCliente({
                 <button
                   type="button"
                   onClick={() =>
-                    setMostrarDetalles(false)
+                    setMostrarDetalles(
+                      false
+                    )
                   }
                   className={`rounded-xl p-2 ${textoSecundario} hover:bg-gray-500/10`}
                 >
@@ -2033,9 +2455,7 @@ export default function PanelCliente({
                   )}
                 </div>
 
-                <div
-                  className={`mt-5 flex items-center justify-between border-t pt-5`}
-                >
+                <div className="mt-5 flex items-center justify-between border-t pt-5">
                   <span className="font-semibold">
                     Total
                   </span>
@@ -2069,7 +2489,9 @@ export default function PanelCliente({
                 <button
                   type="button"
                   onClick={() =>
-                    setMostrarDetalles(false)
+                    setMostrarDetalles(
+                      false
+                    )
                   }
                   className={`rounded-xl border px-4 py-2.5 text-sm font-medium ${
                     modoOscuro
