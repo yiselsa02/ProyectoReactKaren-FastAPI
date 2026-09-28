@@ -15,7 +15,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-
 # ============================================================
 # CORS
 # ============================================================
@@ -27,6 +26,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://cellworld-flax.vercel.app",
+        "https://cellworld-hii0n0whd-yiselsa02.vercel.app",
     ],
 
     allow_origin_regex=r"https://cellworld-[a-z0-9-]+\.vercel\.app",
