@@ -14,11 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageSquare,
-  Pencil,
-  Save,
   Home,
 } from 'lucide-react'
-import { useCart } from '../context/CartContext'
 import { API_URL } from '../config'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -218,10 +215,6 @@ export default function PanelCliente({
     setPaginaFavoritos,
   ] = useState(1)
 
-  // =========================
-  // PQR
-  // =========================
-
   const [pqrs, setPqrs] = useState([])
 
   const [
@@ -239,52 +232,7 @@ export default function PanelCliente({
     setPaginaPqrs,
   ] = useState(1)
 
-  // =========================
-  // PERFIL
-  // =========================
-
-  const [perfil, setPerfil] = useState({
-    nombres: '',
-    apellidos: '',
-    email: '',
-    telefono: '',
-  })
-
-  const [
-    perfilOriginal,
-    setPerfilOriginal,
-  ] = useState({
-    nombres: '',
-    apellidos: '',
-    email: '',
-    telefono: '',
-  })
-
-  const [
-    editandoPerfil,
-    setEditandoPerfil,
-  ] = useState(false)
-
-  const [
-    guardandoPerfil,
-    setGuardandoPerfil,
-  ] = useState(false)
-
-  const [
-    mensajePerfil,
-    setMensajePerfil,
-  ] = useState('')
-
-  const [
-    errorPerfil,
-    setErrorPerfil,
-  ] = useState('')
-
-  // =========================
-  // PAGINACIÓN
-  // =========================
-
-  const elementosPorPaginaCompras = 3
+  const elementosPorPaginaCompras = 5
   const elementosPorPaginaFavoritos = 6
   const elementosPorPaginaPqrs = 4
 
@@ -300,10 +248,6 @@ export default function PanelCliente({
     ? 'text-gray-400'
     : 'text-gray-500'
 
-  // =========================
-  // USUARIO
-  // =========================
-
   useEffect(() => {
     const cargarUsuario = () => {
       try {
@@ -317,40 +261,8 @@ export default function PanelCliente({
           setUsuarioActual(
             usuarioParseado
           )
-
-          const datosPerfil = {
-            nombres:
-              usuarioParseado?.nombres ||
-              '',
-            apellidos:
-              usuarioParseado?.apellidos ||
-              '',
-            email:
-              usuarioParseado?.email ||
-              '',
-            telefono:
-              usuarioParseado?.telefono ||
-              '',
-          }
-
-          setPerfil(datosPerfil)
-          setPerfilOriginal(datosPerfil)
         } else {
           setUsuarioActual(usuario)
-
-          const datosPerfil = {
-            nombres:
-              usuario?.nombres || '',
-            apellidos:
-              usuario?.apellidos || '',
-            email:
-              usuario?.email || '',
-            telefono:
-              usuario?.telefono || '',
-          }
-
-          setPerfil(datosPerfil)
-          setPerfilOriginal(datosPerfil)
         }
       } catch (error) {
         console.error(
@@ -394,10 +306,6 @@ export default function PanelCliente({
       )
     }
   }, [usuario])
-
-  // =========================
-  // FAVORITOS
-  // =========================
 
   useEffect(() => {
     const cargarFavoritos = () => {
@@ -504,10 +412,6 @@ export default function PanelCliente({
     )
   }
 
-  // =========================
-  // COMPRAS
-  // =========================
-
   async function cargarCompras() {
     setCargandoCompras(true)
 
@@ -604,10 +508,6 @@ export default function PanelCliente({
     }
   }, [seccion])
 
-  // =========================
-  // PQR
-  // =========================
-
   async function cargarPqrs() {
     setCargandoPqrs(true)
     setErrorPqrs('')
@@ -674,10 +574,6 @@ export default function PanelCliente({
       cargarPqrs()
     }
   }, [seccion])
-
-  // =========================
-  // PAGINACIÓN
-  // =========================
 
   const totalPaginasCompras =
     Math.max(
@@ -774,169 +670,6 @@ export default function PanelCliente({
     totalPaginasPqrs,
   ])
 
-  // =========================
-  // EDITAR PERFIL
-  // =========================
-
-  const comenzarEdicionPerfil = () => {
-    setMensajePerfil('')
-    setErrorPerfil('')
-
-    setPerfilOriginal({
-      ...perfil,
-    })
-
-    setEditandoPerfil(true)
-  }
-
-  const cancelarEdicionPerfil = () => {
-    setPerfil({
-      ...perfilOriginal,
-    })
-
-    setMensajePerfil('')
-    setErrorPerfil('')
-    setEditandoPerfil(false)
-  }
-
-  const manejarCambioPerfil = (
-    campo,
-    valor
-  ) => {
-    setPerfil((actual) => ({
-      ...actual,
-      [campo]: valor,
-    }))
-  }
-
-  const guardarPerfil = async () => {
-    setMensajePerfil('')
-    setErrorPerfil('')
-
-    const token =
-      localStorage.getItem('token')
-
-    if (!token) {
-      setErrorPerfil(
-        'Debes iniciar sesión para editar tu perfil.'
-      )
-      return
-    }
-
-    if (
-      !perfil.nombres.trim() ||
-      !perfil.apellidos.trim() ||
-      !perfil.email.trim()
-    ) {
-      setErrorPerfil(
-        'Nombres, apellidos y correo son obligatorios.'
-      )
-      return
-    }
-
-    setGuardandoPerfil(true)
-
-    try {
-      const respuesta = await fetch(
-        `${API_URL}/api/usuarios/perfil`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type':
-              'application/json',
-          },
-          body: JSON.stringify({
-            nombres:
-              perfil.nombres.trim(),
-            apellidos:
-              perfil.apellidos.trim(),
-            email:
-              perfil.email.trim(),
-            telefono:
-              perfil.telefono.trim(),
-          }),
-        }
-      )
-
-      const data =
-        await respuesta.json()
-
-      if (!respuesta.ok) {
-        throw new Error(
-          data?.detail ||
-            'No se pudo actualizar el perfil.'
-        )
-      }
-
-      const usuarioActualizado =
-        data?.usuario || {
-          ...usuarioActual,
-          ...perfil,
-        }
-
-      localStorage.setItem(
-        'usuario',
-        JSON.stringify(
-          usuarioActualizado
-        )
-      )
-
-      setUsuarioActual(
-        usuarioActualizado
-      )
-
-      const datosActualizados = {
-        nombres:
-          usuarioActualizado?.nombres ||
-          '',
-        apellidos:
-          usuarioActualizado?.apellidos ||
-          '',
-        email:
-          usuarioActualizado?.email ||
-          '',
-        telefono:
-          usuarioActualizado?.telefono ||
-          '',
-      }
-
-      setPerfil(
-        datosActualizados
-      )
-
-      setPerfilOriginal(
-        datosActualizados
-      )
-
-      setEditandoPerfil(false)
-
-      setMensajePerfil(
-        'Perfil actualizado correctamente.'
-      )
-
-      window.dispatchEvent(
-        new Event('usuarioCambio')
-      )
-    } catch (error) {
-      console.error(
-        'Error actualizando perfil:',
-        error
-      )
-
-      setErrorPerfil(
-        error?.message ||
-          'No se pudo actualizar el perfil.'
-      )
-    } finally {
-      setGuardandoPerfil(false)
-    }
-  }
-
-  // =========================
-  // ESCAPE
-  // =========================
-
   useEffect(() => {
     const cerrarConEscape = (
       event
@@ -958,10 +691,6 @@ export default function PanelCliente({
       )
     }
   }, [])
-
-  // =========================
-  // FACTURA
-  // =========================
 
   const generarFacturaPDF = (
     compra
@@ -1075,12 +804,8 @@ export default function PanelCliente({
 
   return (
     <div
-      className={`h-screen overflow-hidden ${fondoPrincipal}`}
+      className={`min-h-screen ${fondoPrincipal}`}
     >
-      {/* ========================= */}
-      {/* MENÚ LATERAL */}
-      {/* ========================= */}
-
       <aside
         className={`fixed left-0 top-0 z-40 h-screen w-[245px] border-r ${
           modoOscuro
@@ -1111,18 +836,6 @@ export default function PanelCliente({
           </div>
 
           <nav className="space-y-2">
-            {/* VOLVER AL INICIO */}
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href = '/'
-              }}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${textoSecundario} hover:bg-blue-500/10`}
-            >
-              <Home size={19} />
-              <span>Volver al inicio</span>
-            </button>
-
             <button
               type="button"
               onClick={() =>
@@ -1226,7 +939,7 @@ export default function PanelCliente({
             </button>
           </nav>
 
-          <div className="mt-auto">
+          <div className="mt-auto space-y-3">
             <div
               className={`rounded-xl border p-3 ${
                 modoOscuro
@@ -1246,17 +959,24 @@ export default function PanelCliente({
                   ''}
               </p>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = '/'
+              }}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${textoSecundario} hover:bg-blue-500/10`}
+            >
+              <Home size={19} />
+              <span>Volver al inicio</span>
+            </button>
           </div>
         </div>
       </aside>
 
-      {/* ========================= */}
-      {/* CONTENIDO */}
-      {/* ========================= */}
-
-      <main className="ml-[245px] flex h-screen flex-col overflow-hidden">
+      <main className="ml-[245px] min-h-screen">
         <header
-          className={`flex h-[78px] shrink-0 items-center border-b px-8 ${
+          className={`flex h-[78px] items-center border-b px-8 ${
             modoOscuro
               ? 'border-slate-800 bg-slate-950'
               : 'border-gray-200 bg-gray-100'
@@ -1298,16 +1018,12 @@ export default function PanelCliente({
                 'Productos que has guardado.'}
 
               {seccion === 'perfil' &&
-                'Consulta y edita la información de tu cuenta.'}
+                'Consulta la información de tu cuenta.'}
             </p>
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-hidden p-8">
-          {/* ========================= */}
-          {/* RESUMEN */}
-          {/* ========================= */}
-
+        <div className="p-8">
           {seccion === 'resumen' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
@@ -1405,10 +1121,6 @@ export default function PanelCliente({
             </div>
           )}
 
-          {/* ========================= */}
-          {/* COMPRAS */}
-          {/* ========================= */}
-
           {seccion === 'compras' && (
             <div className="space-y-5">
               {cargandoCompras ? (
@@ -1445,7 +1157,8 @@ export default function PanelCliente({
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  {/* DISTRIBUCIÓN ORIGINAL: UNA COMPRA DEBAJO DE OTRA */}
+                  <div className="grid gap-4">
                     {comprasPaginaActual.map(
                       (compra, index) => {
                         const productos =
@@ -1647,14 +1360,10 @@ export default function PanelCliente({
             </div>
           )}
 
-          {/* ========================= */}
-          {/* PQR */}
-          {/* ========================= */}
-
           {seccion === 'pqrs' && (
-            <div className="space-y-4">
+            <div className="flex min-h-[calc(100vh-150px)] flex-col">
               <div
-                className={`rounded-2xl border p-4 ${fondoTarjeta}`}
+                className={`mb-5 shrink-0 rounded-2xl border p-5 ${fondoTarjeta}`}
               >
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -1732,213 +1441,220 @@ export default function PanelCliente({
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    {pqrsPaginaActual.map(
-                      (pqr) => (
-                        <div
-                          key={pqr.id_pqr}
-                          className={`rounded-2xl border p-4 ${fondoTarjeta}`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex min-w-0 items-center gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
-                                <MessageSquare
-                                  size={18}
-                                  className="text-blue-500"
-                                />
+                  {/* 
+                    EL ÁREA DE TARJETAS ES LA QUE HACE SCROLL.
+                    LA PAGINACIÓN QUEDA FUERA DEL SCROLL.
+                  */}
+                  <div className="min-h-0 flex-1 overflow-y-auto pr-2">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      {pqrsPaginaActual.map(
+                        (pqr) => (
+                          <div
+                            key={pqr.id_pqr}
+                            className={`rounded-2xl border p-5 ${fondoTarjeta}`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
+                                  <MessageSquare
+                                    size={19}
+                                    className="text-blue-500"
+                                  />
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p className="font-bold">
+                                    PQR #
+                                    {
+                                      pqr.id_pqr
+                                    }
+                                  </p>
+
+                                  <p
+                                    className={`text-xs ${textoSecundario}`}
+                                  >
+                                    {formatearFecha(
+                                      pqr.creado_en
+                                    )}
+                                  </p>
+                                </div>
                               </div>
 
-                              <div className="min-w-0">
-                                <p className="font-bold">
-                                  PQR #
-                                  {
-                                    pqr.id_pqr
-                                  }
-                                </p>
+                              <span
+                                className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                                  String(
+                                    pqr.estado ||
+                                      ''
+                                  ).toLowerCase() ===
+                                  'respondida'
+                                    ? 'bg-green-500/10 text-green-500'
+                                    : 'bg-yellow-500/10 text-yellow-500'
+                                }`}
+                              >
+                                {pqr.estado ||
+                                  'Pendiente'}
+                              </span>
+                            </div>
 
+                            <div className="mt-4 grid grid-cols-2 gap-3">
+                              <div>
                                 <p
                                   className={`text-xs ${textoSecundario}`}
                                 >
-                                  {formatearFecha(
-                                    pqr.creado_en
-                                  )}
+                                  Tipo
+                                </p>
+
+                                <p className="mt-1 text-sm font-semibold">
+                                  {pqr.tipo}
+                                </p>
+                              </div>
+
+                              <div>
+                                <p
+                                  className={`text-xs ${textoSecundario}`}
+                                >
+                                  Estado
+                                </p>
+
+                                <p className="mt-1 text-sm font-semibold">
+                                  {pqr.estado}
                                 </p>
                               </div>
                             </div>
 
-                            <span
-                              className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-                                String(
-                                  pqr.estado ||
-                                    ''
-                                ).toLowerCase() ===
-                                'respondida'
-                                  ? 'bg-green-500/10 text-green-500'
-                                  : 'bg-yellow-500/10 text-yellow-500'
+                            <div className="mt-3">
+                              <p
+                                className={`text-xs ${textoSecundario}`}
+                              >
+                                Asunto
+                              </p>
+
+                              <p className="mt-1 text-sm font-semibold">
+                                {pqr.asunto}
+                              </p>
+                            </div>
+
+                            <div className="mt-3">
+                              <p
+                                className={`text-xs ${textoSecundario}`}
+                              >
+                                Descripción
+                              </p>
+
+                              <p className="mt-1 text-sm">
+                                {pqr.descripcion}
+                              </p>
+                            </div>
+
+                            <div
+                              className={`mt-4 rounded-xl border p-3 ${
+                                modoOscuro
+                                  ? 'border-slate-800 bg-slate-950'
+                                  : 'border-gray-200 bg-gray-50'
                               }`}
                             >
-                              {pqr.estado ||
-                                'Pendiente'}
-                            </span>
-                          </div>
-
-                          <div className="mt-3 grid grid-cols-2 gap-3">
-                            <div>
-                              <p
-                                className={`text-xs ${textoSecundario}`}
-                              >
-                                Tipo
+                              <p className="text-xs font-bold">
+                                Respuesta
                               </p>
 
-                              <p className="mt-0.5 truncate text-sm font-semibold">
-                                {pqr.tipo}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p
-                                className={`text-xs ${textoSecundario}`}
-                              >
-                                Estado
-                              </p>
-
-                              <p className="mt-0.5 truncate text-sm font-semibold">
-                                {pqr.estado}
-                              </p>
+                              {pqr.respuesta ? (
+                                <p className="mt-1 text-sm">
+                                  {pqr.respuesta}
+                                </p>
+                              ) : (
+                                <p
+                                  className={`mt-1 text-sm ${textoSecundario}`}
+                                >
+                                  Tu PQR está pendiente
+                                  de respuesta.
+                                </p>
+                              )}
                             </div>
                           </div>
-
-                          <div className="mt-3">
-                            <p
-                              className={`text-xs ${textoSecundario}`}
-                            >
-                              Asunto
-                            </p>
-
-                            <p className="mt-0.5 truncate text-sm font-semibold">
-                              {pqr.asunto}
-                            </p>
-                          </div>
-
-                          <div className="mt-3">
-                            <p
-                              className={`text-xs ${textoSecundario}`}
-                            >
-                              Descripción
-                            </p>
-
-                            <p className="mt-1 text-sm">
-                              {pqr.descripcion}
-                            </p>
-                          </div>
-
-                          <div
-                            className={`mt-3 rounded-xl border p-3 ${
-                              modoOscuro
-                                ? 'border-slate-800 bg-slate-950'
-                                : 'border-gray-200 bg-gray-50'
-                            }`}
-                          >
-                            <p className="text-xs font-bold">
-                              Respuesta
-                            </p>
-
-                            {pqr.respuesta ? (
-                              <p className="mt-1 text-sm">
-                                {pqr.respuesta}
-                              </p>
-                            ) : (
-                              <p
-                                className={`mt-1 text-sm ${textoSecundario}`}
-                              >
-                                Tu PQR está pendiente
-                                de respuesta.
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    )}
+                        )
+                      )}
+                    </div>
                   </div>
 
+                  {/* PAGINACIÓN FIJA DEBAJO DEL ÁREA SCROLLEABLE */}
                   {totalPaginasPqrs >
                     1 && (
-                    <div className="flex items-center justify-center gap-3 pt-2">
-                      <button
-                        type="button"
-                        disabled={
-                          paginaPqrs ===
-                          1
-                        }
-                        onClick={() =>
-                          setPaginaPqrs(
-                            (pagina) =>
-                              Math.max(
-                                1,
-                                pagina - 1
-                              )
-                          )
-                        }
-                        className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
-                          paginaPqrs === 1
-                            ? 'cursor-not-allowed opacity-40'
-                            : 'hover:bg-blue-600 hover:text-white'
-                        }`}
-                      >
-                        <ChevronLeft
-                          size={17}
-                        />
+                    <div className="shrink-0 border-t pt-4 mt-4">
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          disabled={
+                            paginaPqrs ===
+                            1
+                          }
+                          onClick={() =>
+                            setPaginaPqrs(
+                              (pagina) =>
+                                Math.max(
+                                  1,
+                                  pagina - 1
+                                )
+                            )
+                          }
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
+                            paginaPqrs === 1
+                              ? 'cursor-not-allowed opacity-40'
+                              : 'hover:bg-blue-600 hover:text-white'
+                          }`}
+                        >
+                          <ChevronLeft
+                            size={17}
+                          />
 
-                        Anterior
-                      </button>
+                          Anterior
+                        </button>
 
-                      <span
-                        className={`text-sm ${textoSecundario}`}
-                      >
-                        Página{' '}
-                        {paginaPqrs}{' '}
-                        de{' '}
-                        {totalPaginasPqrs}
-                      </span>
+                        <span
+                          className={`text-sm ${textoSecundario}`}
+                        >
+                          Página{' '}
+                          {paginaPqrs}{' '}
+                          de{' '}
+                          {
+                            totalPaginasPqrs
+                          }
+                        </span>
 
-                      <button
-                        type="button"
-                        disabled={
-                          paginaPqrs ===
-                          totalPaginasPqrs
-                        }
-                        onClick={() =>
-                          setPaginaPqrs(
-                            (pagina) =>
-                              Math.min(
-                                totalPaginasPqrs,
-                                pagina + 1
-                              )
-                          )
-                        }
-                        className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
-                          paginaPqrs ===
-                          totalPaginasPqrs
-                            ? 'cursor-not-allowed opacity-40'
-                            : 'hover:bg-blue-600 hover:text-white'
-                        }`}
-                      >
-                        Siguiente
+                        <button
+                          type="button"
+                          disabled={
+                            paginaPqrs ===
+                            totalPaginasPqrs
+                          }
+                          onClick={() =>
+                            setPaginaPqrs(
+                              (pagina) =>
+                                Math.min(
+                                  totalPaginasPqrs,
+                                  pagina + 1
+                                )
+                            )
+                          }
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm ${
+                            paginaPqrs ===
+                            totalPaginasPqrs
+                              ? 'cursor-not-allowed opacity-40'
+                              : 'hover:bg-blue-600 hover:text-white'
+                          }`}
+                        >
+                          Siguiente
 
-                        <ChevronRight
-                          size={17}
-                        />
-                      </button>
+                          <ChevronRight
+                            size={17}
+                          />
+                        </button>
+                      </div>
                     </div>
                   )}
                 </>
               )}
             </div>
           )}
-
-          {/* ========================= */}
-          {/* SELECCIONADOS */}
-          {/* ========================= */}
 
           {seccion ===
             'seleccionados' && (
@@ -2121,64 +1837,30 @@ export default function PanelCliente({
             </div>
           )}
 
-          {/* ========================= */}
-          {/* MI PERFIL */}
-          {/* ========================= */}
-
           {seccion === 'perfil' && (
             <div
               className={`rounded-2xl border p-6 ${fondoTarjeta}`}
             >
-              <div className="mb-6 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600">
-                    <User
-                      size={27}
-                      className="text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <h2 className="text-lg font-bold">
-                      Información personal
-                    </h2>
-
-                    <p
-                      className={`text-sm ${textoSecundario}`}
-                    >
-                      Consulta y edita los datos de tu
-                      cuenta.
-                    </p>
-                  </div>
+              <div className="mb-6 flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600">
+                  <User
+                    size={27}
+                    className="text-white"
+                  />
                 </div>
 
-                {!editandoPerfil && (
-                  <button
-                    type="button"
-                    onClick={
-                      comenzarEdicionPerfil
-                    }
-                    className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+                <div>
+                  <h2 className="text-lg font-bold">
+                    Información personal
+                  </h2>
+
+                  <p
+                    className={`text-sm ${textoSecundario}`}
                   >
-                    <Pencil
-                      size={17}
-                    />
-                    Editar perfil
-                  </button>
-                )}
+                    Información de tu cuenta.
+                  </p>
+                </div>
               </div>
-
-              {mensajePerfil && (
-                <div className="mb-5 rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-500">
-                  {mensajePerfil}
-                </div>
-              )}
-
-              {errorPerfil && (
-                <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
-                  {errorPerfil}
-                </div>
-              )}
 
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div>
@@ -2188,28 +1870,16 @@ export default function PanelCliente({
                     Nombres
                   </label>
 
-                  <input
-                    type="text"
-                    value={perfil.nombres}
-                    disabled={
-                      !editandoPerfil
-                    }
-                    onChange={(event) =>
-                      manejarCambioPerfil(
-                        'nombres',
-                        event.target.value
-                      )
-                    }
-                    className={`w-full rounded-xl border px-4 py-3 outline-none ${
+                  <div
+                    className={`w-full rounded-xl border px-4 py-3 ${
                       modoOscuro
-                        ? 'border-slate-700 bg-slate-950 disabled:bg-slate-900'
-                        : 'border-gray-200 bg-gray-50 disabled:bg-gray-100'
-                    } ${
-                      editandoPerfil
-                        ? 'focus:border-blue-500'
-                        : ''
+                        ? 'border-slate-700 bg-slate-950'
+                        : 'border-gray-200 bg-gray-50'
                     }`}
-                  />
+                  >
+                    {usuarioActual?.nombres ||
+                      'No registrado'}
+                  </div>
                 </div>
 
                 <div>
@@ -2219,28 +1889,16 @@ export default function PanelCliente({
                     Apellidos
                   </label>
 
-                  <input
-                    type="text"
-                    value={perfil.apellidos}
-                    disabled={
-                      !editandoPerfil
-                    }
-                    onChange={(event) =>
-                      manejarCambioPerfil(
-                        'apellidos',
-                        event.target.value
-                      )
-                    }
-                    className={`w-full rounded-xl border px-4 py-3 outline-none ${
+                  <div
+                    className={`w-full rounded-xl border px-4 py-3 ${
                       modoOscuro
-                        ? 'border-slate-700 bg-slate-950 disabled:bg-slate-900'
-                        : 'border-gray-200 bg-gray-50 disabled:bg-gray-100'
-                    } ${
-                      editandoPerfil
-                        ? 'focus:border-blue-500'
-                        : ''
+                        ? 'border-slate-700 bg-slate-950'
+                        : 'border-gray-200 bg-gray-50'
                     }`}
-                  />
+                  >
+                    {usuarioActual?.apellidos ||
+                      'No registrado'}
+                  </div>
                 </div>
 
                 <div>
@@ -2250,28 +1908,16 @@ export default function PanelCliente({
                     Correo electrónico
                   </label>
 
-                  <input
-                    type="email"
-                    value={perfil.email}
-                    disabled={
-                      !editandoPerfil
-                    }
-                    onChange={(event) =>
-                      manejarCambioPerfil(
-                        'email',
-                        event.target.value
-                      )
-                    }
-                    className={`w-full rounded-xl border px-4 py-3 outline-none ${
+                  <div
+                    className={`w-full rounded-xl border px-4 py-3 ${
                       modoOscuro
-                        ? 'border-slate-700 bg-slate-950 disabled:bg-slate-900'
-                        : 'border-gray-200 bg-gray-50 disabled:bg-gray-100'
-                    } ${
-                      editandoPerfil
-                        ? 'focus:border-blue-500'
-                        : ''
+                        ? 'border-slate-700 bg-slate-950'
+                        : 'border-gray-200 bg-gray-50'
                     }`}
-                  />
+                  >
+                    {usuarioActual?.email ||
+                      'No registrado'}
+                  </div>
                 </div>
 
                 <div>
@@ -2281,79 +1927,28 @@ export default function PanelCliente({
                     Teléfono
                   </label>
 
-                  <input
-                    type="text"
-                    value={perfil.telefono}
-                    disabled={
-                      !editandoPerfil
-                    }
-                    onChange={(event) =>
-                      manejarCambioPerfil(
-                        'telefono',
-                        event.target.value
-                      )
-                    }
-                    className={`w-full rounded-xl border px-4 py-3 outline-none ${
+                  <div
+                    className={`w-full rounded-xl border px-4 py-3 ${
                       modoOscuro
-                        ? 'border-slate-700 bg-slate-950 disabled:bg-slate-900'
-                        : 'border-gray-200 bg-gray-50 disabled:bg-gray-100'
-                    } ${
-                      editandoPerfil
-                        ? 'focus:border-blue-500'
-                        : ''
+                        ? 'border-slate-700 bg-slate-950'
+                        : 'border-gray-200 bg-gray-50'
                     }`}
-                  />
+                  >
+                    {usuarioActual?.telefono ||
+                      'No registrado'}
+                  </div>
                 </div>
               </div>
-
-              {editandoPerfil && (
-                <div className="mt-6 flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={
-                      cancelarEdicionPerfil
-                    }
-                    disabled={
-                      guardandoPerfil
-                    }
-                    className={`rounded-xl border px-5 py-2.5 text-sm font-medium ${
-                      modoOscuro
-                        ? 'border-slate-700 hover:bg-slate-800'
-                        : 'border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    Cancelar
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={guardarPerfil}
-                    disabled={
-                      guardandoPerfil
-                    }
-                    className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Save size={17} />
-
-                    {guardandoPerfil
-                      ? 'Guardando...'
-                      : 'Guardar cambios'}
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>
       </main>
 
-      {/* ========================= */}
-      {/* MODAL COMPRA */}
-      {/* ========================= */}
-
+      {/* MODAL DE DETALLES DE COMPRA */}
       {mostrarDetalles &&
         compraSeleccionada && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-5"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6"
             onMouseDown={(event) => {
               if (
                 event.target ===
@@ -2364,9 +1959,13 @@ export default function PanelCliente({
             }}
           >
             <div
-              className={`w-full max-w-2xl rounded-2xl border ${fondoTarjeta}`}
+              className={`flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl ${fondoTarjeta}`}
+              onMouseDown={(event) =>
+                event.stopPropagation()
+              }
             >
-              <div className="flex items-center justify-between border-b p-5">
+              {/* CABECERA */}
+              <div className="flex shrink-0 items-center justify-between border-b p-5">
                 <div>
                   <h2 className="text-lg font-bold">
                     Detalles del pedido #
@@ -2374,15 +1973,33 @@ export default function PanelCliente({
                       compraSeleccionada?.id}
                   </h2>
 
-                  <p
-                    className={`mt-1 text-sm ${textoSecundario}`}
+                  <div
+                    className={`mt-1 flex flex-wrap items-center gap-3 text-sm ${textoSecundario}`}
                   >
-                    {formatearFecha(
-                      obtenerFechaCompra(
-                        compraSeleccionada
-                      )
-                    )}
-                  </p>
+                    <span className="flex items-center gap-1">
+                      <CalendarDays
+                        size={15}
+                      />
+
+                      {formatearFecha(
+                        obtenerFechaCompra(
+                          compraSeleccionada
+                        )
+                      )}
+                    </span>
+
+                    <span className="flex items-center gap-1">
+                      <CreditCard
+                        size={15}
+                      />
+
+                      {formatearPrecio(
+                        obtenerTotalCompra(
+                          compraSeleccionada
+                        )
+                      )}
+                    </span>
+                  </div>
                 </div>
 
                 <button
@@ -2398,75 +2015,122 @@ export default function PanelCliente({
                 </button>
               </div>
 
-              <div className="max-h-[65vh] overflow-y-auto p-5">
+              {/* CONTENIDO CON SCROLL */}
+              <div className="min-h-0 flex-1 overflow-y-auto p-5">
                 <div className="space-y-3">
                   {obtenerProductosCompra(
                     compraSeleccionada
-                  ).map(
-                    (
-                      producto,
-                      index
-                    ) => (
-                      <div
-                        key={index}
-                        className={`flex items-center justify-between gap-4 rounded-xl border p-4 ${
-                          modoOscuro
-                            ? 'border-slate-800 bg-slate-950'
-                            : 'border-gray-200 bg-gray-50'
-                        }`}
+                  ).length === 0 ? (
+                    <div
+                      className={`rounded-xl border p-8 text-center ${
+                        modoOscuro
+                          ? 'border-slate-800 bg-slate-950'
+                          : 'border-gray-200 bg-gray-50'
+                      }`}
+                    >
+                      <Package
+                        size={36}
+                        className="mx-auto mb-2 opacity-40"
+                      />
+
+                      <p
+                        className={`text-sm ${textoSecundario}`}
                       >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white">
-                            {producto.imagen ? (
-                              <img
-                                src={
-                                  producto.imagen
-                                }
-                                alt={
+                        No hay productos registrados
+                        para este pedido.
+                      </p>
+                    </div>
+                  ) : (
+                    obtenerProductosCompra(
+                      compraSeleccionada
+                    ).map(
+                      (
+                        producto,
+                        index
+                      ) => (
+                        <div
+                          key={index}
+                          className={`flex items-center justify-between gap-4 rounded-xl border p-4 ${
+                            modoOscuro
+                              ? 'border-slate-800 bg-slate-950'
+                              : 'border-gray-200 bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div
+                              className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl ${
+                                modoOscuro
+                                  ? 'bg-slate-900'
+                                  : 'bg-white'
+                              }`}
+                            >
+                              {producto.imagen ? (
+                                <img
+                                  src={
+                                    producto.imagen
+                                  }
+                                  alt={
+                                    producto.nombre
+                                  }
+                                  className="h-full w-full object-contain p-1"
+                                />
+                              ) : (
+                                <Package
+                                  size={24}
+                                  className="text-gray-400"
+                                />
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="font-semibold">
+                                {
                                   producto.nombre
                                 }
-                                className="h-full w-full rounded-lg object-contain"
-                              />
-                            ) : (
-                              <Package
-                                size={22}
-                                className="text-gray-400"
-                              />
-                            )}
+                              </p>
+
+                              <p
+                                className={`mt-1 text-sm ${textoSecundario}`}
+                              >
+                                Cantidad:{' '}
+                                {
+                                  producto.cantidad
+                                }
+                              </p>
+
+                              <p
+                                className={`text-sm ${textoSecundario}`}
+                              >
+                                Precio unitario:{' '}
+                                {formatearPrecio(
+                                  producto.precio
+                                )}
+                              </p>
+                            </div>
                           </div>
 
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold">
-                              {
-                                producto.nombre
-                              }
-                            </p>
-
-                            <p
-                              className={`text-sm ${textoSecundario}`}
-                            >
-                              Cantidad:{' '}
-                              {
+                          <p className="shrink-0 text-right font-semibold">
+                            {formatearPrecio(
+                              producto.precio *
                                 producto.cantidad
-                              }
-                            </p>
-                          </div>
+                            )}
+                          </p>
                         </div>
-
-                        <p className="shrink-0 font-semibold">
-                          {formatearPrecio(
-                            producto.precio *
-                              producto.cantidad
-                          )}
-                        </p>
-                      </div>
+                      )
                     )
                   )}
                 </div>
 
-                <div className="mt-5 flex items-center justify-between border-t pt-5">
+                {/* TOTAL */}
+                <div
+                  className={`mt-5 flex items-center justify-between border-t pt-5 ${
+                    modoOscuro
+                      ? 'border-slate-800'
+                      : 'border-gray-200'
+                  }`}
+                >
                   <span className="font-semibold">
-                    Total
+                    Total de la compra
                   </span>
 
                   <span className="text-xl font-bold text-blue-500">
@@ -2479,7 +2143,8 @@ export default function PanelCliente({
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 border-t p-5">
+              {/* BOTONES */}
+              <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t p-5">
                 <button
                   type="button"
                   onClick={() =>
@@ -2492,6 +2157,7 @@ export default function PanelCliente({
                   <Download
                     size={17}
                   />
+
                   Descargar factura
                 </button>
 
