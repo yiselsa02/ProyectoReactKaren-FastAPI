@@ -36,43 +36,26 @@ function PanelEmpleado({ modoOscuro }) {
   })
 
   const [ventas, setVentas] = useState([])
-
   const [reporte, setReporte] = useState(null)
 
-  const [cargandoVentas, setCargandoVentas] =
-    useState(false)
+  const [cargandoVentas, setCargandoVentas] = useState(false)
+  const [cargandoReporte, setCargandoReporte] = useState(false)
+  const [ventasCargadas, setVentasCargadas] = useState(false)
 
-  const [cargandoReporte, setCargandoReporte] =
-    useState(false)
+  const [errorVentas, setErrorVentas] = useState('')
+  const [errorReporte, setErrorReporte] = useState('')
 
-  const [ventasCargadas, setVentasCargadas] =
-    useState(false)
+  const [paginaVentas, setPaginaVentas] = useState(1)
+  const [paginaReporte, setPaginaReporte] = useState(1)
 
-  const [errorVentas, setErrorVentas] =
-    useState('')
+  const [fechaReporte, setFechaReporte] = useState(() => {
+    const hoy = new Date()
+    const año = hoy.getFullYear()
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0')
+    const dia = String(hoy.getDate()).padStart(2, '0')
 
-  const [errorReporte, setErrorReporte] =
-    useState('')
-
-  const [paginaVentas, setPaginaVentas] =
-    useState(1)
-
-  const [paginaReporte, setPaginaReporte] =
-    useState(1)
-
-  const [fechaReporte, setFechaReporte] =
-    useState(() => {
-      const hoy = new Date()
-      const año = hoy.getFullYear()
-      const mes = String(
-        hoy.getMonth() + 1
-      ).padStart(2, '0')
-      const dia = String(
-        hoy.getDate()
-      ).padStart(2, '0')
-
-      return `${año}-${mes}-${dia}`
-    })
+    return `${año}-${mes}-${dia}`
+  })
 
   const elementosPorPagina = 5
 
@@ -137,9 +120,7 @@ function PanelEmpleado({ modoOscuro }) {
   const formatearFechaCorta = (fecha) => {
     if (!fecha) return 'Sin fecha'
 
-    const fechaObj = new Date(
-      `${fecha}T00:00:00`
-    )
+    const fechaObj = new Date(`${fecha}T00:00:00`)
 
     if (Number.isNaN(fechaObj.getTime())) {
       return fecha
@@ -184,14 +165,11 @@ function PanelEmpleado({ modoOscuro }) {
           },
         }),
 
-        fetch(
-          `${API_URL}/api/usuarios/estadisticas`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        ),
+        fetch(`${API_URL}/api/usuarios/estadisticas`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
       ])
 
       if (
@@ -206,25 +184,18 @@ function PanelEmpleado({ modoOscuro }) {
         return
       }
 
-      const productos =
-        await productosResponse.json()
+      const productos = await productosResponse.json()
+      const clientes = await clientesResponse.json()
 
-      const clientes =
-        await clientesResponse.json()
-
-      const listaProductos =
-        Array.isArray(productos)
-          ? productos
-          : Array.isArray(productos.productos)
-            ? productos.productos
-            : []
+      const listaProductos = Array.isArray(productos)
+        ? productos
+        : Array.isArray(productos.productos)
+          ? productos.productos
+          : []
 
       setEstadisticas({
-        totalProductos:
-          listaProductos.length,
-
-        totalClientes:
-          Number(clientes.total_clientes) || 0,
+        totalProductos: listaProductos.length,
+        totalClientes: Number(clientes.total_clientes) || 0,
       })
     } catch (error) {
       console.error(
@@ -301,11 +272,8 @@ function PanelEmpleado({ modoOscuro }) {
   // =========================================================
 
   useEffect(() => {
-    const token =
-      localStorage.getItem('token')
-
-    const usuarioGuardado =
-      localStorage.getItem('usuario')
+    const token = localStorage.getItem('token')
+    const usuarioGuardado = localStorage.getItem('usuario')
 
     if (!token || !usuarioGuardado) {
       navigate('/login')
@@ -313,8 +281,7 @@ function PanelEmpleado({ modoOscuro }) {
     }
 
     try {
-      const actual =
-        JSON.parse(usuarioGuardado)
+      const actual = JSON.parse(usuarioGuardado)
 
       if (Number(actual.rol_id) !== 3) {
         navigate('/')
@@ -339,8 +306,7 @@ function PanelEmpleado({ modoOscuro }) {
   const cargarReporte = async (
     fecha = fechaReporte
   ) => {
-    const token =
-      localStorage.getItem('token')
+    const token = localStorage.getItem('token')
 
     if (!token) {
       navigate('/login')
@@ -379,8 +345,7 @@ function PanelEmpleado({ modoOscuro }) {
         return
       }
 
-      const data =
-        await respuesta.json()
+      const data = await respuesta.json()
 
       if (!respuesta.ok) {
         throw new Error(
@@ -428,30 +393,24 @@ function PanelEmpleado({ modoOscuro }) {
   const totalHistorial = useMemo(() => {
     return ventas.reduce(
       (total, venta) =>
-        total +
-        (Number(venta.total) || 0),
+        total + (Number(venta.total) || 0),
       0
     )
   }, [ventas])
 
   const unidadesHistorial = useMemo(() => {
-    return ventas.reduce(
-      (total, venta) => {
-        const cantidad = (
-          venta.productos || []
-        ).reduce(
-          (suma, producto) =>
-            suma +
-            (Number(
-              producto.cantidad
-            ) || 0),
-          0
-        )
+    return ventas.reduce((total, venta) => {
+      const cantidad = (
+        venta.productos || []
+      ).reduce(
+        (suma, producto) =>
+          suma +
+          (Number(producto.cantidad) || 0),
+        0
+      )
 
-        return total + cantidad
-      },
-      0
-    )
+      return total + cantidad
+    }, 0)
   }, [ventas])
 
   // =========================================================
@@ -464,19 +423,13 @@ function PanelEmpleado({ modoOscuro }) {
     ventas.forEach((venta) => {
       if (!venta.fecha) return
 
-      const fechaObj =
-        new Date(venta.fecha)
+      const fechaObj = new Date(venta.fecha)
 
-      if (
-        Number.isNaN(
-          fechaObj.getTime()
-        )
-      ) {
+      if (Number.isNaN(fechaObj.getTime())) {
         return
       }
 
-      const año =
-        fechaObj.getFullYear()
+      const año = fechaObj.getFullYear()
 
       const mes = String(
         fechaObj.getMonth() + 1
@@ -486,8 +439,7 @@ function PanelEmpleado({ modoOscuro }) {
         fechaObj.getDate()
       ).padStart(2, '0')
 
-      const clave =
-        `${año}-${mes}-${dia}`
+      const clave = `${año}-${mes}-${dia}`
 
       if (!agrupadas[clave]) {
         agrupadas[clave] = {
@@ -530,37 +482,32 @@ function PanelEmpleado({ modoOscuro }) {
     const agrupados = {}
 
     ventas.forEach((venta) => {
-      const productos =
-        Array.isArray(venta.productos)
-          ? venta.productos
-          : []
+      const productos = Array.isArray(
+        venta.productos
+      )
+        ? venta.productos
+        : []
 
       productos.forEach((producto) => {
         const nombre =
-          producto.nombre ||
-          'Producto'
+          producto.nombre || 'Producto'
 
         const cantidad =
-          Number(
-            producto.cantidad
-          ) || 0
+          Number(producto.cantidad) || 0
 
         if (!agrupados[nombre]) {
           agrupados[nombre] = 0
         }
 
-        agrupados[nombre] +=
-          cantidad
+        agrupados[nombre] += cantidad
       })
     })
 
     return Object.entries(agrupados)
-      .map(
-        ([nombre, cantidad]) => ({
-          nombre,
-          cantidad,
-        })
-      )
+      .map(([nombre, cantidad]) => ({
+        nombre,
+        cantidad,
+      }))
       .sort(
         (a, b) =>
           b.cantidad - a.cantidad
@@ -569,16 +516,13 @@ function PanelEmpleado({ modoOscuro }) {
   }, [ventas])
 
   const maxProductoVendido = useMemo(() => {
-    if (
-      !productosMasVendidos.length
-    ) {
+    if (!productosMasVendidos.length) {
       return 0
     }
 
     return Math.max(
       ...productosMasVendidos.map(
-        (producto) =>
-          producto.cantidad
+        (producto) => producto.cantidad
       )
     )
   }, [productosMasVendidos])
@@ -596,10 +540,7 @@ function PanelEmpleado({ modoOscuro }) {
       inicio,
       inicio + elementosPorPagina
     )
-  }, [
-    ventas,
-    paginaVentas,
-  ])
+  }, [ventas, paginaVentas])
 
   const ventasReporte =
     reporte?.ventas || []
@@ -612,8 +553,7 @@ function PanelEmpleado({ modoOscuro }) {
 
       return ventasReporte.slice(
         inicio,
-        inicio +
-          elementosPorPagina
+        inicio + elementosPorPagina
       )
     }, [
       ventasReporte,
@@ -660,9 +600,7 @@ function PanelEmpleado({ modoOscuro }) {
   // ESTADO DE VENTA
   // =========================================================
 
-  const obtenerEstiloEstado = (
-    estado
-  ) => {
+  const obtenerEstiloEstado = (estado) => {
     const estadoNormalizado =
       String(estado || '')
         .trim()
@@ -670,10 +608,8 @@ function PanelEmpleado({ modoOscuro }) {
 
     if (
       estadoNormalizado === 'pagado' ||
-      estadoNormalizado ===
-        'completado' ||
-      estadoNormalizado ===
-        'entregado'
+      estadoNormalizado === 'completado' ||
+      estadoNormalizado === 'entregado'
     ) {
       return modoOscuro
         ? 'bg-emerald-900/50 text-emerald-300 border border-emerald-700'
@@ -681,12 +617,9 @@ function PanelEmpleado({ modoOscuro }) {
     }
 
     if (
-      estadoNormalizado ===
-        'pendiente' ||
-      estadoNormalizado ===
-        'en proceso' ||
-      estadoNormalizado ===
-        'procesando'
+      estadoNormalizado === 'pendiente' ||
+      estadoNormalizado === 'en proceso' ||
+      estadoNormalizado === 'procesando'
     ) {
       return modoOscuro
         ? 'bg-amber-900/50 text-amber-300 border border-amber-700'
@@ -694,10 +627,8 @@ function PanelEmpleado({ modoOscuro }) {
     }
 
     if (
-      estadoNormalizado ===
-        'cancelado' ||
-      estadoNormalizado ===
-        'cancelada'
+      estadoNormalizado === 'cancelado' ||
+      estadoNormalizado === 'cancelada'
     ) {
       return modoOscuro
         ? 'bg-red-900/50 text-red-300 border border-red-700'
@@ -709,17 +640,12 @@ function PanelEmpleado({ modoOscuro }) {
       : 'bg-slate-100 text-slate-600 border border-slate-200'
   }
 
-  const obtenerTextoEstado = (
-    estado
-  ) => {
+  const obtenerTextoEstado = (estado) => {
     if (!estado) return 'Sin estado'
 
-    const texto =
-      String(estado).trim()
+    const texto = String(estado).trim()
 
-    if (!texto) {
-      return 'Sin estado'
-    }
+    if (!texto) return 'Sin estado'
 
     return (
       texto.charAt(0).toUpperCase() +
@@ -746,10 +672,7 @@ function PanelEmpleado({ modoOscuro }) {
           type="button"
           onClick={() =>
             setPagina((actual) =>
-              Math.max(
-                1,
-                actual - 1
-              )
+              Math.max(1, actual - 1)
             )
           }
           disabled={pagina === 1}
@@ -765,8 +688,7 @@ function PanelEmpleado({ modoOscuro }) {
         <span
           className={`text-xs ${secundario}`}
         >
-          Página {pagina} de{' '}
-          {totalPaginas}
+          Página {pagina} de {totalPaginas}
         </span>
 
         <button
@@ -798,9 +720,7 @@ function PanelEmpleado({ modoOscuro }) {
   // MENÚ
   // =========================================================
 
-  const cambiarVista = (
-    nuevaVista
-  ) => {
+  const cambiarVista = (nuevaVista) => {
     setVista(nuevaVista)
   }
 
@@ -837,6 +757,7 @@ function PanelEmpleado({ modoOscuro }) {
               : 'border-slate-200 bg-white'
           }`}
         >
+
           <div
             className={`flex h-[90px] shrink-0 items-center justify-center border-b ${
               modoOscuro
@@ -857,6 +778,7 @@ function PanelEmpleado({ modoOscuro }) {
 
           <div className="px-5 py-5">
             <div className="flex items-center gap-3">
+
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
                 <User size={21} />
               </div>
@@ -873,6 +795,7 @@ function PanelEmpleado({ modoOscuro }) {
                   {usuario.apellidos}
                 </p>
               </div>
+
             </div>
           </div>
 
@@ -983,6 +906,7 @@ function PanelEmpleado({ modoOscuro }) {
               Volver al inicio
             </Link>
           </div>
+
         </aside>
 
         {/* =================================================
@@ -990,13 +914,13 @@ function PanelEmpleado({ modoOscuro }) {
         ================================================== */}
 
         <main
-          className={`ml-[245px] h-screen min-w-0 flex-1 overflow-hidden ${
+          className={`ml-[245px] h-screen min-w-0 flex-1 overflow-y-auto ${
             modoOscuro
               ? 'bg-[#08111f]'
               : 'bg-slate-50'
           }`}
         >
-          <div className="h-full w-full overflow-hidden p-5 lg:p-6">
+          <div className="min-h-full w-full p-5 lg:p-6">
 
             {/* =================================================
                 RESUMEN
@@ -1006,6 +930,7 @@ function PanelEmpleado({ modoOscuro }) {
               <div className="space-y-5">
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+
                   <div>
                     <h1 className="text-2xl font-bold">
                       Resumen
@@ -1034,20 +959,20 @@ function PanelEmpleado({ modoOscuro }) {
                     />
                     Actualizar gráficos
                   </button>
+
                 </div>
 
                 {cargando ? (
                   <div
                     className={`rounded-2xl border p-8 text-center shadow-sm ${tarjeta}`}
                   >
-                    <p
-                      className={secundario}
-                    >
+                    <p className={secundario}>
                       Cargando estadísticas...
                     </p>
                   </div>
                 ) : (
                   <>
+
                     {/* TARJETAS PRINCIPALES */}
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1056,6 +981,7 @@ function PanelEmpleado({ modoOscuro }) {
                         className={`rounded-2xl border p-4 shadow-sm ${tarjeta}`}
                       >
                         <div className="flex items-center justify-between">
+
                           <div>
                             <p
                               className={`text-xs font-medium uppercase tracking-wide ${secundario}`}
@@ -1073,6 +999,7 @@ function PanelEmpleado({ modoOscuro }) {
                           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
                             <Package size={20} />
                           </div>
+
                         </div>
                       </div>
 
@@ -1080,6 +1007,7 @@ function PanelEmpleado({ modoOscuro }) {
                         className={`rounded-2xl border p-4 shadow-sm ${tarjeta}`}
                       >
                         <div className="flex items-center justify-between">
+
                           <div>
                             <p
                               className={`text-xs font-medium uppercase tracking-wide ${secundario}`}
@@ -1097,6 +1025,7 @@ function PanelEmpleado({ modoOscuro }) {
                           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
                             <Users size={20} />
                           </div>
+
                         </div>
                       </div>
 
@@ -1104,6 +1033,7 @@ function PanelEmpleado({ modoOscuro }) {
                         className={`rounded-2xl border p-4 shadow-sm ${tarjeta}`}
                       >
                         <div className="flex items-center justify-between">
+
                           <div>
                             <p
                               className={`text-xs font-medium uppercase tracking-wide ${secundario}`}
@@ -1112,15 +1042,14 @@ function PanelEmpleado({ modoOscuro }) {
                             </p>
 
                             <p className="mt-1 text-2xl font-bold">
-                              {
-                                ventas.length
-                              }
+                              {ventas.length}
                             </p>
                           </div>
 
                           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
                             <ShoppingBag size={20} />
                           </div>
+
                         </div>
                       </div>
 
@@ -1135,6 +1064,7 @@ function PanelEmpleado({ modoOscuro }) {
                     >
 
                       <div className="mb-5 flex items-start gap-3">
+
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
                           <BarChart3 size={20} />
                         </div>
@@ -1150,9 +1080,11 @@ function PanelEmpleado({ modoOscuro }) {
                             Visualiza el comportamiento de las ventas y los productos con mayor movimiento.
                           </p>
                         </div>
+
                       </div>
 
                       {cargandoVentas ? (
+
                         <div
                           className={`flex h-[230px] items-center justify-center rounded-xl border ${
                             modoOscuro
@@ -1161,6 +1093,7 @@ function PanelEmpleado({ modoOscuro }) {
                           }`}
                         >
                           <div className="flex items-center gap-2">
+
                             <RefreshCw
                               size={18}
                               className="animate-spin text-blue-500"
@@ -1171,9 +1104,12 @@ function PanelEmpleado({ modoOscuro }) {
                             >
                               Cargando información de ventas...
                             </span>
+
                           </div>
                         </div>
+
                       ) : ventas.length === 0 ? (
+
                         <div
                           className={`flex h-[230px] items-center justify-center rounded-xl border ${
                             modoOscuro
@@ -1182,6 +1118,7 @@ function PanelEmpleado({ modoOscuro }) {
                           }`}
                         >
                           <div className="text-center">
+
                             <ShoppingBag
                               size={28}
                               className={`mx-auto mb-2 ${secundario}`}
@@ -1196,9 +1133,12 @@ function PanelEmpleado({ modoOscuro }) {
                             >
                               Los gráficos aparecerán cuando se registren ventas.
                             </p>
+
                           </div>
                         </div>
+
                       ) : (
+
                         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
 
                           {/* =================================================
@@ -1214,6 +1154,7 @@ function PanelEmpleado({ modoOscuro }) {
                           >
 
                             <div className="mb-4 flex items-center justify-between">
+
                               <div>
                                 <h3 className="text-sm font-bold">
                                   Ventas por fecha
@@ -1230,24 +1171,26 @@ function PanelEmpleado({ modoOscuro }) {
                                 size={18}
                                 className="text-blue-500"
                               />
+
                             </div>
 
-                            {ventasPorFecha.length ===
-                            0 ? (
+                            {ventasPorFecha.length === 0 ? (
+
                               <div
                                 className={`flex h-[175px] items-center justify-center text-xs ${secundario}`}
                               >
                                 No hay fechas disponibles.
                               </div>
+
                             ) : (
+
                               <div className="h-[190px]">
+
                                 <svg
                                   viewBox="0 0 700 230"
                                   className="h-full w-full"
                                   preserveAspectRatio="none"
                                 >
-
-                                  {/* LÍNEAS DE REFERENCIA */}
 
                                   <line
                                     x1="45"
@@ -1288,38 +1231,28 @@ function PanelEmpleado({ modoOscuro }) {
                                     strokeWidth="1"
                                   />
 
-                                  {/* BARRAS */}
-
                                   {ventasPorFecha.map(
-                                    (
-                                      item,
-                                      index
-                                    ) => {
+                                    (item, index) => {
                                       const cantidad =
                                         ventasPorFecha.length
 
                                       const espacio =
-                                        635 /
-                                        cantidad
+                                        635 / cantidad
 
                                       const ancho =
                                         Math.min(
                                           55,
-                                          espacio *
-                                            0.55
+                                          espacio * 0.55
                                         )
 
                                       const x =
                                         45 +
-                                        index *
-                                          espacio +
-                                        (espacio -
-                                          ancho) /
+                                        index * espacio +
+                                        (espacio - ancho) /
                                           2
 
                                       const porcentaje =
-                                        maxVentaFecha >
-                                        0
+                                        maxVentaFecha > 0
                                           ? item.total /
                                             maxVentaFecha
                                           : 0
@@ -1327,13 +1260,11 @@ function PanelEmpleado({ modoOscuro }) {
                                       const altura =
                                         Math.max(
                                           5,
-                                          porcentaje *
-                                            140
+                                          porcentaje * 140
                                         )
 
                                       const y =
-                                        160 -
-                                        altura
+                                        160 - altura
 
                                       const fechaObj =
                                         new Date(
@@ -1355,19 +1286,14 @@ function PanelEmpleado({ modoOscuro }) {
 
                                       return (
                                         <g
-                                          key={
-                                            item.fecha
-                                          }
+                                          key={item.fecha}
                                         >
+
                                           <rect
                                             x={x}
                                             y={y}
-                                            width={
-                                              ancho
-                                            }
-                                            height={
-                                              altura
-                                            }
+                                            width={ancho}
+                                            height={altura}
                                             rx="6"
                                             className="fill-blue-500"
                                           >
@@ -1377,9 +1303,7 @@ function PanelEmpleado({ modoOscuro }) {
                                                 item.total
                                               )}{' '}
                                               ·{' '}
-                                              {
-                                                item.ventas
-                                              }{' '}
+                                              {item.ventas}{' '}
                                               ventas
                                             </title>
                                           </rect>
@@ -1387,8 +1311,7 @@ function PanelEmpleado({ modoOscuro }) {
                                           <text
                                             x={
                                               x +
-                                              ancho /
-                                                2
+                                              ancho / 2
                                             }
                                             y="184"
                                             textAnchor="middle"
@@ -1401,43 +1324,34 @@ function PanelEmpleado({ modoOscuro }) {
                                           >
                                             {etiqueta}
                                           </text>
+
                                         </g>
                                       )
                                     }
                                   )}
 
-                                  {/* VALORES */}
-
                                   {ventasPorFecha.map(
-                                    (
-                                      item,
-                                      index
-                                    ) => {
+                                    (item, index) => {
                                       const cantidad =
                                         ventasPorFecha.length
 
                                       const espacio =
-                                        635 /
-                                        cantidad
+                                        635 / cantidad
 
                                       const ancho =
                                         Math.min(
                                           55,
-                                          espacio *
-                                            0.55
+                                          espacio * 0.55
                                         )
 
                                       const x =
                                         45 +
-                                        index *
-                                          espacio +
-                                        (espacio -
-                                          ancho) /
+                                        index * espacio +
+                                        (espacio - ancho) /
                                           2
 
                                       const porcentaje =
-                                        maxVentaFecha >
-                                        0
+                                        maxVentaFecha > 0
                                           ? item.total /
                                             maxVentaFecha
                                           : 0
@@ -1445,29 +1359,23 @@ function PanelEmpleado({ modoOscuro }) {
                                       const altura =
                                         Math.max(
                                           5,
-                                          porcentaje *
-                                            140
+                                          porcentaje * 140
                                         )
 
                                       const y =
-                                        160 -
-                                        altura
+                                        160 - altura
 
                                       return (
                                         <text
                                           key={`valor-${item.fecha}`}
                                           x={
                                             x +
-                                            ancho /
-                                              2
+                                            ancho / 2
                                           }
-                                          y={
-                                            Math.max(
-                                              12,
-                                              y -
-                                                6
-                                            )
-                                          }
+                                          y={Math.max(
+                                            12,
+                                            y - 6
+                                          )}
                                           textAnchor="middle"
                                           className={
                                             modoOscuro
@@ -1489,7 +1397,9 @@ function PanelEmpleado({ modoOscuro }) {
                                   )}
 
                                 </svg>
+
                               </div>
+
                             )}
 
                           </div>
@@ -1507,6 +1417,7 @@ function PanelEmpleado({ modoOscuro }) {
                           >
 
                             <div className="mb-4 flex items-center justify-between">
+
                               <div>
                                 <h3 className="text-sm font-bold">
                                   Productos más vendidos
@@ -1523,26 +1434,25 @@ function PanelEmpleado({ modoOscuro }) {
                                 size={18}
                                 className="text-emerald-500"
                               />
+
                             </div>
 
-                            {productosMasVendidos.length ===
-                            0 ? (
+                            {productosMasVendidos.length === 0 ? (
+
                               <div
                                 className={`flex h-[175px] items-center justify-center text-xs ${secundario}`}
                               >
                                 No hay productos vendidos.
                               </div>
+
                             ) : (
+
                               <div className="space-y-3">
 
                                 {productosMasVendidos.map(
-                                  (
-                                    producto,
-                                    index
-                                  ) => {
+                                  (producto, index) => {
                                     const porcentaje =
-                                      maxProductoVendido >
-                                      0
+                                      maxProductoVendido > 0
                                         ? (producto.cantidad /
                                             maxProductoVendido) *
                                           100
@@ -1556,7 +1466,9 @@ function PanelEmpleado({ modoOscuro }) {
                                       >
 
                                         <div className="mb-1 flex items-center justify-between gap-3">
+
                                           <div className="flex min-w-0 items-center gap-2">
+
                                             <span
                                               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${
                                                 modoOscuro
@@ -1564,8 +1476,7 @@ function PanelEmpleado({ modoOscuro }) {
                                                   : 'bg-slate-200 text-slate-600'
                                               }`}
                                             >
-                                              {index +
-                                                1}
+                                              {index + 1}
                                             </span>
 
                                             <span className="truncate text-xs font-medium">
@@ -1573,6 +1484,7 @@ function PanelEmpleado({ modoOscuro }) {
                                                 producto.nombre
                                               }
                                             </span>
+
                                           </div>
 
                                           <span className="shrink-0 text-xs font-bold">
@@ -1580,6 +1492,7 @@ function PanelEmpleado({ modoOscuro }) {
                                               producto.cantidad
                                             }
                                           </span>
+
                                         </div>
 
                                         <div
@@ -1603,6 +1516,7 @@ function PanelEmpleado({ modoOscuro }) {
                                 )}
 
                               </div>
+
                             )}
 
                           </div>
@@ -1613,8 +1527,7 @@ function PanelEmpleado({ modoOscuro }) {
                       {/* RESUMEN NUMÉRICO */}
 
                       {!cargandoVentas &&
-                        ventas.length >
-                          0 && (
+                        ventas.length > 0 && (
                           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
 
                             <div
@@ -1625,6 +1538,7 @@ function PanelEmpleado({ modoOscuro }) {
                               }`}
                             >
                               <div className="flex items-center justify-between">
+
                                 <div>
                                   <p
                                     className={`text-[11px] uppercase tracking-wide ${secundario}`}
@@ -1643,6 +1557,7 @@ function PanelEmpleado({ modoOscuro }) {
                                   size={20}
                                   className="text-purple-500"
                                 />
+
                               </div>
                             </div>
 
@@ -1654,6 +1569,7 @@ function PanelEmpleado({ modoOscuro }) {
                               }`}
                             >
                               <div className="flex items-center justify-between">
+
                                 <div>
                                   <p
                                     className={`text-[11px] uppercase tracking-wide ${secundario}`}
@@ -1672,6 +1588,7 @@ function PanelEmpleado({ modoOscuro }) {
                                   size={20}
                                   className="text-emerald-500"
                                 />
+
                               </div>
                             </div>
 
@@ -1689,7 +1606,9 @@ function PanelEmpleado({ modoOscuro }) {
                       <div
                         className={`rounded-2xl border p-5 shadow-sm ${tarjeta}`}
                       >
+
                         <div className="flex items-center gap-3">
+
                           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
                             <Package size={20} />
                           </div>
@@ -1705,26 +1624,28 @@ function PanelEmpleado({ modoOscuro }) {
                               Agrega y administra productos del catálogo.
                             </p>
                           </div>
+
                         </div>
 
                         <button
                           type="button"
                           onClick={() =>
-                            setVista(
-                              'productos'
-                            )
+                            setVista('productos')
                           }
                           className="mt-4 flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
                         >
                           <Plus size={17} />
                           Gestionar productos
                         </button>
+
                       </div>
 
                       <div
                         className={`rounded-2xl border p-5 shadow-sm ${tarjeta}`}
                       >
+
                         <div className="flex items-center gap-3">
+
                           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
                             <BarChart3 size={20} />
                           </div>
@@ -1740,15 +1661,15 @@ function PanelEmpleado({ modoOscuro }) {
                               Consulta el historial y los resultados diarios.
                             </p>
                           </div>
+
                         </div>
 
                         <div className="mt-4 flex gap-2">
+
                           <button
                             type="button"
                             onClick={() =>
-                              setVista(
-                                'historial'
-                              )
+                              setVista('historial')
                             }
                             className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
                               modoOscuro
@@ -1762,20 +1683,22 @@ function PanelEmpleado({ modoOscuro }) {
                           <button
                             type="button"
                             onClick={() =>
-                              setVista(
-                                'reporte'
-                              )
+                              setVista('reporte')
                             }
                             className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
                           >
                             Ver reporte
                           </button>
+
                         </div>
+
                       </div>
 
                     </div>
+
                   </>
                 )}
+
               </div>
             )}
 
@@ -1787,6 +1710,7 @@ function PanelEmpleado({ modoOscuro }) {
               <div className="space-y-5">
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
                   <div>
                     <h1 className="text-2xl font-bold">
                       Gestión de productos
@@ -1802,26 +1726,21 @@ function PanelEmpleado({ modoOscuro }) {
                   <button
                     type="button"
                     onClick={() =>
-                      navigate(
-                        '/productos'
-                      )
+                      navigate('/productos')
                     }
                     className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition ${botonSecundario}`}
                   >
                     <Package size={17} />
                     Ver catálogo
                   </button>
+
                 </div>
 
                 <EmployeeProductForm
-                  modoOscuro={
-                    modoOscuro
-                  }
+                  modoOscuro={modoOscuro}
                   onCreated={() =>
                     cargarDatos(
-                      localStorage.getItem(
-                        'token'
-                      )
+                      localStorage.getItem('token')
                     )
                   }
                 />
@@ -1837,6 +1756,7 @@ function PanelEmpleado({ modoOscuro }) {
               <div className="space-y-4">
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
                   <div>
                     <h1 className="text-2xl font-bold">
                       Historial de ventas
@@ -1851,12 +1771,8 @@ function PanelEmpleado({ modoOscuro }) {
 
                   <button
                     type="button"
-                    onClick={
-                      cargarVentas
-                    }
-                    disabled={
-                      cargandoVentas
-                    }
+                    onClick={cargarVentas}
+                    disabled={cargandoVentas}
                     className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition ${botonSecundario}`}
                   >
                     <RefreshCw
@@ -1870,6 +1786,7 @@ function PanelEmpleado({ modoOscuro }) {
 
                     Actualizar
                   </button>
+
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1878,6 +1795,7 @@ function PanelEmpleado({ modoOscuro }) {
                     className={`rounded-2xl border p-4 shadow-sm ${tarjeta}`}
                   >
                     <div className="flex items-center justify-between">
+
                       <div>
                         <p
                           className={`text-xs font-medium uppercase tracking-wide ${secundario}`}
@@ -1893,6 +1811,7 @@ function PanelEmpleado({ modoOscuro }) {
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
                         <ShoppingBag size={20} />
                       </div>
+
                     </div>
                   </div>
 
@@ -1900,6 +1819,7 @@ function PanelEmpleado({ modoOscuro }) {
                     className={`rounded-2xl border p-4 shadow-sm ${tarjeta}`}
                   >
                     <div className="flex items-center justify-between">
+
                       <div>
                         <p
                           className={`text-xs font-medium uppercase tracking-wide ${secundario}`}
@@ -1917,6 +1837,7 @@ function PanelEmpleado({ modoOscuro }) {
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
                         <Boxes size={20} />
                       </div>
+
                     </div>
                   </div>
 
@@ -1924,6 +1845,7 @@ function PanelEmpleado({ modoOscuro }) {
                     className={`rounded-2xl border p-4 shadow-sm ${tarjeta}`}
                   >
                     <div className="flex items-center justify-between">
+
                       <div>
                         <p
                           className={`text-xs font-medium uppercase tracking-wide ${secundario}`}
@@ -1941,6 +1863,7 @@ function PanelEmpleado({ modoOscuro }) {
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
                         <DollarSign size={20} />
                       </div>
+
                     </div>
                   </div>
 
@@ -1969,6 +1892,7 @@ function PanelEmpleado({ modoOscuro }) {
                         : 'border-slate-200'
                     }`}
                   >
+
                     <div>
                       <h2 className="font-bold">
                         Ventas registradas
@@ -1984,22 +1908,18 @@ function PanelEmpleado({ modoOscuro }) {
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${etiquetaNeutral}`}
                     >
-                      {ventas.length}{' '}
-                      ventas
+                      {ventas.length} ventas
                     </span>
+
                   </div>
 
-                  <div
-                    className={fondoTabla}
-                  >
+                  <div className={fondoTabla}>
+
                     <table className="w-full table-fixed text-left text-xs">
 
-                      <thead
-                        className={
-                          encabezadoTabla
-                        }
-                      >
+                      <thead className={encabezadoTabla}>
                         <tr>
+
                           <th className="w-[10%] px-4 py-3 font-semibold">
                             Venta
                           </th>
@@ -2023,12 +1943,14 @@ function PanelEmpleado({ modoOscuro }) {
                           <th className="w-[15%] px-4 py-3 text-right font-semibold">
                             Total
                           </th>
+
                         </tr>
                       </thead>
 
                       <tbody>
 
                         {cargandoVentas ? (
+
                           <tr>
                             <td
                               colSpan="6"
@@ -2037,8 +1959,9 @@ function PanelEmpleado({ modoOscuro }) {
                               Cargando ventas...
                             </td>
                           </tr>
-                        ) : ventasPaginadas.length ===
-                          0 ? (
+
+                        ) : ventasPaginadas.length === 0 ? (
+
                           <tr>
                             <td
                               colSpan="6"
@@ -2047,15 +1970,13 @@ function PanelEmpleado({ modoOscuro }) {
                               No hay ventas registradas.
                             </td>
                           </tr>
+
                         ) : (
+
                           ventasPaginadas.map(
-                            (
-                              venta,
-                              index
-                            ) => {
+                            (venta, index) => {
                               const productosVenta =
-                                venta.productos ||
-                                []
+                                venta.productos || []
 
                               const cliente =
                                 venta.cliente ||
@@ -2075,6 +1996,7 @@ function PanelEmpleado({ modoOscuro }) {
                                   }
                                   className={`border-t transition ${fila}`}
                                 >
+
                                   <td className="px-4 py-3 font-semibold">
                                     #
                                     {venta.id_pedido ||
@@ -2084,9 +2006,7 @@ function PanelEmpleado({ modoOscuro }) {
 
                                   <td className="px-4 py-3">
                                     <span className="block truncate font-medium">
-                                      {
-                                        cliente
-                                      }
+                                      {cliente}
                                     </span>
                                   </td>
 
@@ -2102,9 +2022,7 @@ function PanelEmpleado({ modoOscuro }) {
                                     <span className="block truncate">
                                       {productosVenta
                                         .map(
-                                          (
-                                            producto
-                                          ) =>
+                                          (producto) =>
                                             `${producto.nombre || 'Producto'} x${producto.cantidad || 0}`
                                         )
                                         .join(
@@ -2131,15 +2049,18 @@ function PanelEmpleado({ modoOscuro }) {
                                       venta.total
                                     )}
                                   </td>
+
                                 </tr>
                               )
                             }
                           )
+
                         )}
 
                       </tbody>
 
                     </table>
+
                   </div>
 
                   <div
@@ -2150,9 +2071,7 @@ function PanelEmpleado({ modoOscuro }) {
                     }`}
                   >
                     <BotonesPaginacion
-                      pagina={
-                        paginaVentas
-                      }
+                      pagina={paginaVentas}
                       totalPaginas={
                         totalPaginasVentas
                       }
@@ -2199,15 +2118,10 @@ function PanelEmpleado({ modoOscuro }) {
 
                       <input
                         type="date"
-                        value={
-                          fechaReporte
-                        }
-                        onChange={(
-                          event
-                        ) =>
+                        value={fechaReporte}
+                        onChange={(event) =>
                           setFechaReporte(
-                            event.target
-                              .value
+                            event.target.value
                           )
                         }
                         className={`rounded-xl border px-3 py-2.5 text-sm outline-none focus:border-blue-500 ${
@@ -2260,6 +2174,7 @@ function PanelEmpleado({ modoOscuro }) {
                       className={`rounded-2xl border p-4 shadow-sm ${tarjeta}`}
                     >
                       <div className="flex items-center gap-3">
+
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
                           <CalendarDays size={20} />
                         </div>
@@ -2277,6 +2192,7 @@ function PanelEmpleado({ modoOscuro }) {
                             )}
                           </p>
                         </div>
+
                       </div>
                     </div>
 
@@ -2286,6 +2202,7 @@ function PanelEmpleado({ modoOscuro }) {
                         className={`rounded-2xl border p-4 shadow-sm ${tarjeta}`}
                       >
                         <div className="flex items-center justify-between">
+
                           <div>
                             <p
                               className={`text-xs font-medium uppercase tracking-wide ${secundario}`}
@@ -2303,6 +2220,7 @@ function PanelEmpleado({ modoOscuro }) {
                           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
                             <ShoppingBag size={20} />
                           </div>
+
                         </div>
                       </div>
 
@@ -2310,6 +2228,7 @@ function PanelEmpleado({ modoOscuro }) {
                         className={`rounded-2xl border p-4 shadow-sm ${tarjeta}`}
                       >
                         <div className="flex items-center justify-between">
+
                           <div>
                             <p
                               className={`text-xs font-medium uppercase tracking-wide ${secundario}`}
@@ -2327,6 +2246,7 @@ function PanelEmpleado({ modoOscuro }) {
                           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
                             <Boxes size={20} />
                           </div>
+
                         </div>
                       </div>
 
@@ -2334,6 +2254,7 @@ function PanelEmpleado({ modoOscuro }) {
                         className={`rounded-2xl border p-4 shadow-sm ${tarjeta}`}
                       >
                         <div className="flex items-center justify-between">
+
                           <div>
                             <p
                               className={`text-xs font-medium uppercase tracking-wide ${secundario}`}
@@ -2351,6 +2272,7 @@ function PanelEmpleado({ modoOscuro }) {
                           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
                             <DollarSign size={20} />
                           </div>
+
                         </div>
                       </div>
 
@@ -2367,6 +2289,7 @@ function PanelEmpleado({ modoOscuro }) {
                             : 'border-slate-200'
                         }`}
                       >
+
                         <div>
                           <h2 className="font-bold">
                             Ventas del día
@@ -2384,22 +2307,18 @@ function PanelEmpleado({ modoOscuro }) {
                         >
                           {
                             ventasReporte.length
-                          }{' '}
-                          ventas
+                          } ventas
                         </span>
+
                       </div>
 
-                      <div
-                        className={fondoTabla}
-                      >
+                      <div className={fondoTabla}>
+
                         <table className="w-full table-fixed text-left text-xs">
 
-                          <thead
-                            className={
-                              encabezadoTabla
-                            }
-                          >
+                          <thead className={encabezadoTabla}>
                             <tr>
+
                               <th className="w-[10%] px-4 py-3 font-semibold">
                                 Venta
                               </th>
@@ -2419,6 +2338,7 @@ function PanelEmpleado({ modoOscuro }) {
                               <th className="w-[20%] px-4 py-3 text-right font-semibold">
                                 Total
                               </th>
+
                             </tr>
                           </thead>
 
@@ -2426,6 +2346,7 @@ function PanelEmpleado({ modoOscuro }) {
 
                             {ventasReportePaginadas.length ===
                             0 ? (
+
                               <tr>
                                 <td
                                   colSpan="5"
@@ -2434,12 +2355,11 @@ function PanelEmpleado({ modoOscuro }) {
                                   No hay ventas para la fecha seleccionada.
                                 </td>
                               </tr>
+
                             ) : (
+
                               ventasReportePaginadas.map(
-                                (
-                                  venta,
-                                  index
-                                ) => {
+                                (venta, index) => {
                                   const productosVenta =
                                     venta.productos ||
                                     []
@@ -2462,6 +2382,7 @@ function PanelEmpleado({ modoOscuro }) {
                                       }
                                       className={`border-t transition ${fila}`}
                                     >
+
                                       <td className="px-4 py-3 font-semibold">
                                         #
                                         {venta.id_pedido ||
@@ -2510,15 +2431,18 @@ function PanelEmpleado({ modoOscuro }) {
                                           venta.total
                                         )}
                                       </td>
+
                                     </tr>
                                   )
                                 }
                               )
+
                             )}
 
                           </tbody>
 
                         </table>
+
                       </div>
 
                       <div
@@ -2573,6 +2497,7 @@ function PanelEmpleado({ modoOscuro }) {
                 >
 
                   <div className="mb-6 flex items-center gap-4">
+
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white">
                       <User size={27} />
                     </div>
@@ -2589,6 +2514,7 @@ function PanelEmpleado({ modoOscuro }) {
                         Empleado de CellWorld
                       </p>
                     </div>
+
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
