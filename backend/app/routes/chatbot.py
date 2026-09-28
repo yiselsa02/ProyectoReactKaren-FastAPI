@@ -25,13 +25,18 @@ class ChatRequest(BaseModel):
 
 @router.post("")
 def responder_chatbot(data: ChatRequest):
-    api_key = os.getenv("OPENAI_API_KEY")
+   api_key = os.getenv("OPENAI_API_KEY")
+   modelo = os.getenv("OPENAI_MODEL")
 
-    if not api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="La IA no está configurada. Se usará el asistente local.",
-        )
+   if not api_key:
+    raise HTTPException(
+        status_code=503,
+        detail={
+            "error": "OPENAI_API_KEY no está llegando al backend",
+            "api_key_configurada": False,
+            "modelo": modelo,
+        },
+    )
 
     mensajes = [
         {
