@@ -36,25 +36,43 @@ function PanelEmpleado({ modoOscuro }) {
   })
 
   const [ventas, setVentas] = useState([])
+
   const [reporte, setReporte] = useState(null)
 
-  const [cargandoVentas, setCargandoVentas] = useState(false)
-  const [cargandoReporte, setCargandoReporte] = useState(false)
+  const [cargandoVentas, setCargandoVentas] =
+    useState(false)
 
-  const [errorVentas, setErrorVentas] = useState('')
-  const [errorReporte, setErrorReporte] = useState('')
+  const [cargandoReporte, setCargandoReporte] =
+    useState(false)
 
-  const [paginaVentas, setPaginaVentas] = useState(1)
-  const [paginaReporte, setPaginaReporte] = useState(1)
+  const [ventasCargadas, setVentasCargadas] =
+    useState(false)
 
-  const [fechaReporte, setFechaReporte] = useState(() => {
-    const hoy = new Date()
-    const año = hoy.getFullYear()
-    const mes = String(hoy.getMonth() + 1).padStart(2, '0')
-    const dia = String(hoy.getDate()).padStart(2, '0')
+  const [errorVentas, setErrorVentas] =
+    useState('')
 
-    return `${año}-${mes}-${dia}`
-  })
+  const [errorReporte, setErrorReporte] =
+    useState('')
+
+  const [paginaVentas, setPaginaVentas] =
+    useState(1)
+
+  const [paginaReporte, setPaginaReporte] =
+    useState(1)
+
+  const [fechaReporte, setFechaReporte] =
+    useState(() => {
+      const hoy = new Date()
+      const año = hoy.getFullYear()
+      const mes = String(
+        hoy.getMonth() + 1
+      ).padStart(2, '0')
+      const dia = String(
+        hoy.getDate()
+      ).padStart(2, '0')
+
+      return `${año}-${mes}-${dia}`
+    })
 
   const elementosPorPagina = 5
 
@@ -93,240 +111,6 @@ function PanelEmpleado({ modoOscuro }) {
   const etiquetaNeutral = modoOscuro
     ? 'bg-slate-800 text-slate-200'
     : 'bg-slate-100 text-slate-600'
-
-  // =========================================================
-  // DATOS GENERALES
-  // =========================================================
-
-  const cargarDatos = async (token) => {
-    if (!token) {
-      navigate('/login')
-      return
-    }
-
-    try {
-      setCargando(true)
-
-      const [productosResponse, clientesResponse] =
-        await Promise.all([
-          fetch(`${API_URL}/api/productos`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
-
-          fetch(
-            `${API_URL}/api/usuarios/estadisticas`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          ),
-        ])
-
-      if (
-        productosResponse.status === 401 ||
-        productosResponse.status === 403 ||
-        clientesResponse.status === 401 ||
-        clientesResponse.status === 403
-      ) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('usuario')
-        navigate('/login')
-        return
-      }
-
-      const productos = await productosResponse.json()
-      const clientes = await clientesResponse.json()
-
-      const listaProductos = Array.isArray(productos)
-        ? productos
-        : Array.isArray(productos.productos)
-          ? productos.productos
-          : []
-
-      setEstadisticas({
-        totalProductos: listaProductos.length,
-        totalClientes:
-          Number(clientes.total_clientes) || 0,
-      })
-    } catch (error) {
-      console.error(
-        'ERROR CARGANDO DATOS DEL EMPLEADO:',
-        error
-      )
-    } finally {
-      setCargando(false)
-    }
-  }
-
-  // =========================================================
-  // USUARIO ACTUAL
-  // =========================================================
-
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    const usuarioGuardado = localStorage.getItem('usuario')
-
-    if (!token || !usuarioGuardado) {
-      navigate('/login')
-      return
-    }
-
-    try {
-      const actual = JSON.parse(usuarioGuardado)
-
-      if (Number(actual.rol_id) !== 3) {
-        navigate('/')
-        return
-      }
-
-      setUsuario(actual)
-      cargarDatos(token)
-    } catch {
-      localStorage.removeItem('token')
-      localStorage.removeItem('usuario')
-      navigate('/login')
-    }
-  }, [navigate])
-
-  // =========================================================
-  // VENTAS
-  // =========================================================
-
-  const cargarVentas = async () => {
-    const token = localStorage.getItem('token')
-
-    if (!token) {
-      navigate('/login')
-      return
-    }
-
-    try {
-      setCargandoVentas(true)
-      setErrorVentas('')
-
-      const respuesta = await fetch(
-        `${API_URL}/api/pedidos/historial`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      if (
-        respuesta.status === 401 ||
-        respuesta.status === 403
-      ) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('usuario')
-        navigate('/login')
-        return
-      }
-
-      const data = await respuesta.json()
-
-      if (!respuesta.ok) {
-        throw new Error(
-          data.detail ||
-            'No se pudo cargar el historial de ventas'
-        )
-      }
-
-      setVentas(
-        Array.isArray(data.ventas)
-          ? data.ventas
-          : []
-      )
-
-      setPaginaVentas(1)
-    } catch (error) {
-      setErrorVentas(error.message)
-    } finally {
-      setCargandoVentas(false)
-    }
-  }
-
-  // =========================================================
-  // REPORTE DIARIO
-  // =========================================================
-
-  const cargarReporte = async (
-    fecha = fechaReporte
-  ) => {
-    const token = localStorage.getItem('token')
-
-    if (!token) {
-      navigate('/login')
-      return
-    }
-
-    if (!fecha) {
-      setErrorReporte(
-        'Selecciona una fecha para consultar el reporte.'
-      )
-      return
-    }
-
-    try {
-      setCargandoReporte(true)
-      setErrorReporte('')
-
-      const respuesta = await fetch(
-        `${API_URL}/api/pedidos/reporte-diario?fecha=${encodeURIComponent(
-          fecha
-        )}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      if (
-        respuesta.status === 401 ||
-        respuesta.status === 403
-      ) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('usuario')
-        navigate('/login')
-        return
-      }
-
-      const data = await respuesta.json()
-
-      if (!respuesta.ok) {
-        throw new Error(
-          data.detail ||
-            'No se pudo generar el reporte diario'
-        )
-      }
-
-      setReporte(data)
-      setPaginaReporte(1)
-    } catch (error) {
-      setErrorReporte(error.message)
-      setReporte(null)
-    } finally {
-      setCargandoReporte(false)
-    }
-  }
-
-  // =========================================================
-  // CARGAR SEGÚN VISTA
-  // =========================================================
-
-  useEffect(() => {
-    if (vista === 'historial') {
-      cargarVentas()
-    }
-
-    if (vista === 'reporte') {
-      cargarReporte()
-    }
-  }, [vista])
 
   // =========================================================
   // FORMATEADORES
@@ -378,31 +162,430 @@ function PanelEmpleado({ modoOscuro }) {
   }
 
   // =========================================================
+  // DATOS GENERALES
+  // =========================================================
+
+  const cargarDatos = async (token) => {
+    if (!token) {
+      navigate('/login')
+      return
+    }
+
+    try {
+      setCargando(true)
+
+      const [
+        productosResponse,
+        clientesResponse,
+      ] = await Promise.all([
+        fetch(`${API_URL}/api/productos`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+
+        fetch(
+          `${API_URL}/api/usuarios/estadisticas`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        ),
+      ])
+
+      if (
+        productosResponse.status === 401 ||
+        productosResponse.status === 403 ||
+        clientesResponse.status === 401 ||
+        clientesResponse.status === 403
+      ) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('usuario')
+        navigate('/login')
+        return
+      }
+
+      const productos =
+        await productosResponse.json()
+
+      const clientes =
+        await clientesResponse.json()
+
+      const listaProductos =
+        Array.isArray(productos)
+          ? productos
+          : Array.isArray(productos.productos)
+            ? productos.productos
+            : []
+
+      setEstadisticas({
+        totalProductos:
+          listaProductos.length,
+
+        totalClientes:
+          Number(clientes.total_clientes) || 0,
+      })
+    } catch (error) {
+      console.error(
+        'ERROR CARGANDO DATOS DEL EMPLEADO:',
+        error
+      )
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  // =========================================================
+  // VENTAS
+  // =========================================================
+
+  const cargarVentas = async () => {
+    const token = localStorage.getItem('token')
+
+    if (!token) {
+      navigate('/login')
+      return
+    }
+
+    try {
+      setCargandoVentas(true)
+      setErrorVentas('')
+
+      const respuesta = await fetch(
+        `${API_URL}/api/pedidos/historial`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (
+        respuesta.status === 401 ||
+        respuesta.status === 403
+      ) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('usuario')
+        navigate('/login')
+        return
+      }
+
+      const data = await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          data.detail ||
+            'No se pudo cargar el historial de ventas'
+        )
+      }
+
+      setVentas(
+        Array.isArray(data.ventas)
+          ? data.ventas
+          : []
+      )
+
+      setVentasCargadas(true)
+      setPaginaVentas(1)
+    } catch (error) {
+      setErrorVentas(error.message)
+      setVentasCargadas(false)
+    } finally {
+      setCargandoVentas(false)
+    }
+  }
+
+  // =========================================================
+  // USUARIO ACTUAL
+  // =========================================================
+
+  useEffect(() => {
+    const token =
+      localStorage.getItem('token')
+
+    const usuarioGuardado =
+      localStorage.getItem('usuario')
+
+    if (!token || !usuarioGuardado) {
+      navigate('/login')
+      return
+    }
+
+    try {
+      const actual =
+        JSON.parse(usuarioGuardado)
+
+      if (Number(actual.rol_id) !== 3) {
+        navigate('/')
+        return
+      }
+
+      setUsuario(actual)
+
+      cargarDatos(token)
+      cargarVentas()
+    } catch {
+      localStorage.removeItem('token')
+      localStorage.removeItem('usuario')
+      navigate('/login')
+    }
+  }, [navigate])
+
+  // =========================================================
+  // REPORTE DIARIO
+  // =========================================================
+
+  const cargarReporte = async (
+    fecha = fechaReporte
+  ) => {
+    const token =
+      localStorage.getItem('token')
+
+    if (!token) {
+      navigate('/login')
+      return
+    }
+
+    if (!fecha) {
+      setErrorReporte(
+        'Selecciona una fecha para consultar el reporte.'
+      )
+      return
+    }
+
+    try {
+      setCargandoReporte(true)
+      setErrorReporte('')
+
+      const respuesta = await fetch(
+        `${API_URL}/api/pedidos/reporte-diario?fecha=${encodeURIComponent(
+          fecha
+        )}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (
+        respuesta.status === 401 ||
+        respuesta.status === 403
+      ) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('usuario')
+        navigate('/login')
+        return
+      }
+
+      const data =
+        await respuesta.json()
+
+      if (!respuesta.ok) {
+        throw new Error(
+          data.detail ||
+            'No se pudo generar el reporte diario'
+        )
+      }
+
+      setReporte(data)
+      setPaginaReporte(1)
+    } catch (error) {
+      setErrorReporte(error.message)
+      setReporte(null)
+    } finally {
+      setCargandoReporte(false)
+    }
+  }
+
+  // =========================================================
+  // CARGAR SEGÚN VISTA
+  // =========================================================
+
+  useEffect(() => {
+    if (
+      (vista === 'resumen' ||
+        vista === 'historial') &&
+      !ventasCargadas
+    ) {
+      cargarVentas()
+    }
+
+    if (vista === 'historial') {
+      cargarVentas()
+    }
+
+    if (vista === 'reporte') {
+      cargarReporte()
+    }
+  }, [vista])
+
+  // =========================================================
   // ESTADÍSTICAS DE VENTAS
   // =========================================================
 
   const totalHistorial = useMemo(() => {
     return ventas.reduce(
       (total, venta) =>
-        total + (Number(venta.total) || 0),
+        total +
+        (Number(venta.total) || 0),
       0
     )
   }, [ventas])
 
   const unidadesHistorial = useMemo(() => {
-    return ventas.reduce((total, venta) => {
-      const cantidad = (
-        venta.productos || []
-      ).reduce(
-        (suma, producto) =>
-          suma +
-          (Number(producto.cantidad) || 0),
-        0
-      )
+    return ventas.reduce(
+      (total, venta) => {
+        const cantidad = (
+          venta.productos || []
+        ).reduce(
+          (suma, producto) =>
+            suma +
+            (Number(
+              producto.cantidad
+            ) || 0),
+          0
+        )
 
-      return total + cantidad
-    }, 0)
+        return total + cantidad
+      },
+      0
+    )
   }, [ventas])
+
+  // =========================================================
+  // GRÁFICO: VENTAS POR FECHA
+  // =========================================================
+
+  const ventasPorFecha = useMemo(() => {
+    const agrupadas = {}
+
+    ventas.forEach((venta) => {
+      if (!venta.fecha) return
+
+      const fechaObj =
+        new Date(venta.fecha)
+
+      if (
+        Number.isNaN(
+          fechaObj.getTime()
+        )
+      ) {
+        return
+      }
+
+      const año =
+        fechaObj.getFullYear()
+
+      const mes = String(
+        fechaObj.getMonth() + 1
+      ).padStart(2, '0')
+
+      const dia = String(
+        fechaObj.getDate()
+      ).padStart(2, '0')
+
+      const clave =
+        `${año}-${mes}-${dia}`
+
+      if (!agrupadas[clave]) {
+        agrupadas[clave] = {
+          fecha: clave,
+          total: 0,
+          ventas: 0,
+        }
+      }
+
+      agrupadas[clave].total +=
+        Number(venta.total) || 0
+
+      agrupadas[clave].ventas += 1
+    })
+
+    return Object.values(agrupadas)
+      .sort((a, b) =>
+        a.fecha.localeCompare(b.fecha)
+      )
+      .slice(-7)
+  }, [ventas])
+
+  const maxVentaFecha = useMemo(() => {
+    if (!ventasPorFecha.length) {
+      return 0
+    }
+
+    return Math.max(
+      ...ventasPorFecha.map(
+        (item) => item.total
+      )
+    )
+  }, [ventasPorFecha])
+
+  // =========================================================
+  // GRÁFICO: PRODUCTOS MÁS VENDIDOS
+  // =========================================================
+
+  const productosMasVendidos = useMemo(() => {
+    const agrupados = {}
+
+    ventas.forEach((venta) => {
+      const productos =
+        Array.isArray(venta.productos)
+          ? venta.productos
+          : []
+
+      productos.forEach((producto) => {
+        const nombre =
+          producto.nombre ||
+          'Producto'
+
+        const cantidad =
+          Number(
+            producto.cantidad
+          ) || 0
+
+        if (!agrupados[nombre]) {
+          agrupados[nombre] = 0
+        }
+
+        agrupados[nombre] +=
+          cantidad
+      })
+    })
+
+    return Object.entries(agrupados)
+      .map(
+        ([nombre, cantidad]) => ({
+          nombre,
+          cantidad,
+        })
+      )
+      .sort(
+        (a, b) =>
+          b.cantidad - a.cantidad
+      )
+      .slice(0, 5)
+  }, [ventas])
+
+  const maxProductoVendido = useMemo(() => {
+    if (
+      !productosMasVendidos.length
+    ) {
+      return 0
+    }
+
+    return Math.max(
+      ...productosMasVendidos.map(
+        (producto) =>
+          producto.cantidad
+      )
+    )
+  }, [productosMasVendidos])
+
+  // =========================================================
+  // PAGINACIÓN
+  // =========================================================
 
   const ventasPaginadas = useMemo(() => {
     const inicio =
@@ -413,36 +596,47 @@ function PanelEmpleado({ modoOscuro }) {
       inicio,
       inicio + elementosPorPagina
     )
-  }, [ventas, paginaVentas])
+  }, [
+    ventas,
+    paginaVentas,
+  ])
 
   const ventasReporte =
     reporte?.ventas || []
 
-  const ventasReportePaginadas = useMemo(() => {
-    const inicio =
-      (paginaReporte - 1) *
-      elementosPorPagina
-
-    return ventasReporte.slice(
-      inicio,
-      inicio + elementosPorPagina
-    )
-  }, [ventasReporte, paginaReporte])
-
-  const totalPaginasVentas = Math.max(
-    1,
-    Math.ceil(
-      ventas.length / elementosPorPagina
-    )
-  )
-
-  const totalPaginasReporte = Math.max(
-    1,
-    Math.ceil(
-      ventasReporte.length /
+  const ventasReportePaginadas =
+    useMemo(() => {
+      const inicio =
+        (paginaReporte - 1) *
         elementosPorPagina
+
+      return ventasReporte.slice(
+        inicio,
+        inicio +
+          elementosPorPagina
+      )
+    }, [
+      ventasReporte,
+      paginaReporte,
+    ])
+
+  const totalPaginasVentas =
+    Math.max(
+      1,
+      Math.ceil(
+        ventas.length /
+          elementosPorPagina
+      )
     )
-  )
+
+  const totalPaginasReporte =
+    Math.max(
+      1,
+      Math.ceil(
+        ventasReporte.length /
+          elementosPorPagina
+      )
+    )
 
   const resumenReporte =
     reporte?.resumen || {}
@@ -466,17 +660,20 @@ function PanelEmpleado({ modoOscuro }) {
   // ESTADO DE VENTA
   // =========================================================
 
-  const obtenerEstiloEstado = (estado) => {
-    const estadoNormalizado = String(
-      estado || ''
-    )
-      .trim()
-      .toLowerCase()
+  const obtenerEstiloEstado = (
+    estado
+  ) => {
+    const estadoNormalizado =
+      String(estado || '')
+        .trim()
+        .toLowerCase()
 
     if (
       estadoNormalizado === 'pagado' ||
-      estadoNormalizado === 'completado' ||
-      estadoNormalizado === 'entregado'
+      estadoNormalizado ===
+        'completado' ||
+      estadoNormalizado ===
+        'entregado'
     ) {
       return modoOscuro
         ? 'bg-emerald-900/50 text-emerald-300 border border-emerald-700'
@@ -484,9 +681,12 @@ function PanelEmpleado({ modoOscuro }) {
     }
 
     if (
-      estadoNormalizado === 'pendiente' ||
-      estadoNormalizado === 'en proceso' ||
-      estadoNormalizado === 'procesando'
+      estadoNormalizado ===
+        'pendiente' ||
+      estadoNormalizado ===
+        'en proceso' ||
+      estadoNormalizado ===
+        'procesando'
     ) {
       return modoOscuro
         ? 'bg-amber-900/50 text-amber-300 border border-amber-700'
@@ -494,8 +694,10 @@ function PanelEmpleado({ modoOscuro }) {
     }
 
     if (
-      estadoNormalizado === 'cancelado' ||
-      estadoNormalizado === 'cancelada'
+      estadoNormalizado ===
+        'cancelado' ||
+      estadoNormalizado ===
+        'cancelada'
     ) {
       return modoOscuro
         ? 'bg-red-900/50 text-red-300 border border-red-700'
@@ -507,15 +709,22 @@ function PanelEmpleado({ modoOscuro }) {
       : 'bg-slate-100 text-slate-600 border border-slate-200'
   }
 
-  const obtenerTextoEstado = (estado) => {
+  const obtenerTextoEstado = (
+    estado
+  ) => {
     if (!estado) return 'Sin estado'
 
-    const texto = String(estado).trim()
+    const texto =
+      String(estado).trim()
 
-    if (!texto) return 'Sin estado'
+    if (!texto) {
+      return 'Sin estado'
+    }
 
-    return texto.charAt(0).toUpperCase() +
+    return (
+      texto.charAt(0).toUpperCase() +
       texto.slice(1)
+    )
   }
 
   // =========================================================
@@ -537,7 +746,10 @@ function PanelEmpleado({ modoOscuro }) {
           type="button"
           onClick={() =>
             setPagina((actual) =>
-              Math.max(1, actual - 1)
+              Math.max(
+                1,
+                actual - 1
+              )
             )
           }
           disabled={pagina === 1}
@@ -553,7 +765,8 @@ function PanelEmpleado({ modoOscuro }) {
         <span
           className={`text-xs ${secundario}`}
         >
-          Página {pagina} de {totalPaginas}
+          Página {pagina} de{' '}
+          {totalPaginas}
         </span>
 
         <button
@@ -585,7 +798,9 @@ function PanelEmpleado({ modoOscuro }) {
   // MENÚ
   // =========================================================
 
-  const cambiarVista = (nuevaVista) => {
+  const cambiarVista = (
+    nuevaVista
+  ) => {
     setVista(nuevaVista)
   }
 
@@ -622,8 +837,6 @@ function PanelEmpleado({ modoOscuro }) {
               : 'border-slate-200 bg-white'
           }`}
         >
-          {/* LOGO */}
-
           <div
             className={`flex h-[90px] shrink-0 items-center justify-center border-b ${
               modoOscuro
@@ -641,8 +854,6 @@ function PanelEmpleado({ modoOscuro }) {
               className="w-[100px] object-contain"
             />
           </div>
-
-          {/* INFORMACIÓN */}
 
           <div className="px-5 py-5">
             <div className="flex items-center gap-3">
@@ -664,8 +875,6 @@ function PanelEmpleado({ modoOscuro }) {
               </div>
             </div>
           </div>
-
-          {/* MENÚ */}
 
           <nav className="flex-1 px-3">
 
@@ -756,8 +965,6 @@ function PanelEmpleado({ modoOscuro }) {
 
           </nav>
 
-          {/* VOLVER */}
-
           <div
             className={`shrink-0 border-t p-4 ${
               modoOscuro
@@ -798,28 +1005,51 @@ function PanelEmpleado({ modoOscuro }) {
             {vista === 'resumen' && (
               <div className="space-y-5">
 
-                <div>
-                  <h1 className="text-2xl font-bold">
-                    Resumen
-                  </h1>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h1 className="text-2xl font-bold">
+                      Resumen
+                    </h1>
 
-                  <p
-                    className={`mt-1 text-sm ${secundario}`}
+                    <p
+                      className={`mt-1 text-sm ${secundario}`}
+                    >
+                      Consulta el estado general de la tienda y tus tareas como empleado.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={cargarVentas}
+                    disabled={cargandoVentas}
+                    className={`flex items-center gap-2 self-start rounded-xl border px-4 py-2 text-sm font-medium transition sm:self-auto ${botonSecundario}`}
                   >
-                    Consulta el estado general de la tienda y tus tareas como empleado.
-                  </p>
+                    <RefreshCw
+                      size={16}
+                      className={
+                        cargandoVentas
+                          ? 'animate-spin'
+                          : ''
+                      }
+                    />
+                    Actualizar gráficos
+                  </button>
                 </div>
 
                 {cargando ? (
                   <div
                     className={`rounded-2xl border p-8 text-center shadow-sm ${tarjeta}`}
                   >
-                    <p className={secundario}>
+                    <p
+                      className={secundario}
+                    >
                       Cargando estadísticas...
                     </p>
                   </div>
                 ) : (
                   <>
+                    {/* TARJETAS PRINCIPALES */}
+
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
 
                       <div
@@ -882,7 +1112,9 @@ function PanelEmpleado({ modoOscuro }) {
                             </p>
 
                             <p className="mt-1 text-2xl font-bold">
-                              {ventas.length}
+                              {
+                                ventas.length
+                              }
                             </p>
                           </div>
 
@@ -894,28 +1126,563 @@ function PanelEmpleado({ modoOscuro }) {
 
                     </div>
 
+                    {/* =================================================
+                        GRÁFICOS
+                    ================================================== */}
+
                     <div
                       className={`rounded-2xl border p-5 shadow-sm ${tarjeta}`}
                     >
-                      <div className="flex items-start gap-3">
-                        <ShieldCheck
-                          className="mt-0.5 text-emerald-500"
-                          size={21}
-                        />
+
+                      <div className="mb-5 flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                          <BarChart3 size={20} />
+                        </div>
 
                         <div>
                           <h2 className="font-bold">
-                            Funciones del empleado
+                            Análisis de ventas
                           </h2>
 
                           <p
-                            className={`mt-1 text-sm leading-6 ${secundario}`}
+                            className={`mt-0.5 text-xs ${secundario}`}
                           >
-                            Gestiona el catálogo de productos, consulta las ventas realizadas y revisa los reportes diarios de la tienda.
+                            Visualiza el comportamiento de las ventas y los productos con mayor movimiento.
                           </p>
                         </div>
                       </div>
+
+                      {cargandoVentas ? (
+                        <div
+                          className={`flex h-[230px] items-center justify-center rounded-xl border ${
+                            modoOscuro
+                              ? 'border-slate-700 bg-[#0b1625]'
+                              : 'border-slate-200 bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <RefreshCw
+                              size={18}
+                              className="animate-spin text-blue-500"
+                            />
+
+                            <span
+                              className={`text-sm ${secundario}`}
+                            >
+                              Cargando información de ventas...
+                            </span>
+                          </div>
+                        </div>
+                      ) : ventas.length === 0 ? (
+                        <div
+                          className={`flex h-[230px] items-center justify-center rounded-xl border ${
+                            modoOscuro
+                              ? 'border-slate-700 bg-[#0b1625]'
+                              : 'border-slate-200 bg-slate-50'
+                          }`}
+                        >
+                          <div className="text-center">
+                            <ShoppingBag
+                              size={28}
+                              className={`mx-auto mb-2 ${secundario}`}
+                            />
+
+                            <p className="text-sm font-semibold">
+                              Aún no hay ventas
+                            </p>
+
+                            <p
+                              className={`mt-1 text-xs ${secundario}`}
+                            >
+                              Los gráficos aparecerán cuando se registren ventas.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+
+                          {/* =================================================
+                              VENTAS POR FECHA
+                          ================================================== */}
+
+                          <div
+                            className={`rounded-xl border p-4 ${
+                              modoOscuro
+                                ? 'border-slate-700 bg-[#0b1625]'
+                                : 'border-slate-200 bg-slate-50'
+                            }`}
+                          >
+
+                            <div className="mb-4 flex items-center justify-between">
+                              <div>
+                                <h3 className="text-sm font-bold">
+                                  Ventas por fecha
+                                </h3>
+
+                                <p
+                                  className={`mt-0.5 text-[11px] ${secundario}`}
+                                >
+                                  Últimos días registrados
+                                </p>
+                              </div>
+
+                              <CalendarDays
+                                size={18}
+                                className="text-blue-500"
+                              />
+                            </div>
+
+                            {ventasPorFecha.length ===
+                            0 ? (
+                              <div
+                                className={`flex h-[175px] items-center justify-center text-xs ${secundario}`}
+                              >
+                                No hay fechas disponibles.
+                              </div>
+                            ) : (
+                              <div className="h-[190px]">
+                                <svg
+                                  viewBox="0 0 700 230"
+                                  className="h-full w-full"
+                                  preserveAspectRatio="none"
+                                >
+
+                                  {/* LÍNEAS DE REFERENCIA */}
+
+                                  <line
+                                    x1="45"
+                                    y1="20"
+                                    x2="680"
+                                    y2="20"
+                                    stroke={
+                                      modoOscuro
+                                        ? '#334155'
+                                        : '#e2e8f0'
+                                    }
+                                    strokeWidth="1"
+                                  />
+
+                                  <line
+                                    x1="45"
+                                    y1="90"
+                                    x2="680"
+                                    y2="90"
+                                    stroke={
+                                      modoOscuro
+                                        ? '#334155'
+                                        : '#e2e8f0'
+                                    }
+                                    strokeWidth="1"
+                                  />
+
+                                  <line
+                                    x1="45"
+                                    y1="160"
+                                    x2="680"
+                                    y2="160"
+                                    stroke={
+                                      modoOscuro
+                                        ? '#334155'
+                                        : '#e2e8f0'
+                                    }
+                                    strokeWidth="1"
+                                  />
+
+                                  {/* BARRAS */}
+
+                                  {ventasPorFecha.map(
+                                    (
+                                      item,
+                                      index
+                                    ) => {
+                                      const cantidad =
+                                        ventasPorFecha.length
+
+                                      const espacio =
+                                        635 /
+                                        cantidad
+
+                                      const ancho =
+                                        Math.min(
+                                          55,
+                                          espacio *
+                                            0.55
+                                        )
+
+                                      const x =
+                                        45 +
+                                        index *
+                                          espacio +
+                                        (espacio -
+                                          ancho) /
+                                          2
+
+                                      const porcentaje =
+                                        maxVentaFecha >
+                                        0
+                                          ? item.total /
+                                            maxVentaFecha
+                                          : 0
+
+                                      const altura =
+                                        Math.max(
+                                          5,
+                                          porcentaje *
+                                            140
+                                        )
+
+                                      const y =
+                                        160 -
+                                        altura
+
+                                      const fechaObj =
+                                        new Date(
+                                          `${item.fecha}T00:00:00`
+                                        )
+
+                                      const etiqueta =
+                                        Number.isNaN(
+                                          fechaObj.getTime()
+                                        )
+                                          ? item.fecha
+                                          : fechaObj.toLocaleDateString(
+                                              'es-CO',
+                                              {
+                                                day: '2-digit',
+                                                month: '2-digit',
+                                              }
+                                            )
+
+                                      return (
+                                        <g
+                                          key={
+                                            item.fecha
+                                          }
+                                        >
+                                          <rect
+                                            x={x}
+                                            y={y}
+                                            width={
+                                              ancho
+                                            }
+                                            height={
+                                              altura
+                                            }
+                                            rx="6"
+                                            className="fill-blue-500"
+                                          >
+                                            <title>
+                                              {etiqueta}:{' '}
+                                              {formatearPrecio(
+                                                item.total
+                                              )}{' '}
+                                              ·{' '}
+                                              {
+                                                item.ventas
+                                              }{' '}
+                                              ventas
+                                            </title>
+                                          </rect>
+
+                                          <text
+                                            x={
+                                              x +
+                                              ancho /
+                                                2
+                                            }
+                                            y="184"
+                                            textAnchor="middle"
+                                            className={
+                                              modoOscuro
+                                                ? 'fill-slate-400'
+                                                : 'fill-slate-500'
+                                            }
+                                            fontSize="11"
+                                          >
+                                            {etiqueta}
+                                          </text>
+                                        </g>
+                                      )
+                                    }
+                                  )}
+
+                                  {/* VALORES */}
+
+                                  {ventasPorFecha.map(
+                                    (
+                                      item,
+                                      index
+                                    ) => {
+                                      const cantidad =
+                                        ventasPorFecha.length
+
+                                      const espacio =
+                                        635 /
+                                        cantidad
+
+                                      const ancho =
+                                        Math.min(
+                                          55,
+                                          espacio *
+                                            0.55
+                                        )
+
+                                      const x =
+                                        45 +
+                                        index *
+                                          espacio +
+                                        (espacio -
+                                          ancho) /
+                                          2
+
+                                      const porcentaje =
+                                        maxVentaFecha >
+                                        0
+                                          ? item.total /
+                                            maxVentaFecha
+                                          : 0
+
+                                      const altura =
+                                        Math.max(
+                                          5,
+                                          porcentaje *
+                                            140
+                                        )
+
+                                      const y =
+                                        160 -
+                                        altura
+
+                                      return (
+                                        <text
+                                          key={`valor-${item.fecha}`}
+                                          x={
+                                            x +
+                                            ancho /
+                                              2
+                                          }
+                                          y={
+                                            Math.max(
+                                              12,
+                                              y -
+                                                6
+                                            )
+                                          }
+                                          textAnchor="middle"
+                                          className={
+                                            modoOscuro
+                                              ? 'fill-slate-300'
+                                              : 'fill-slate-600'
+                                          }
+                                          fontSize="10"
+                                          fontWeight="600"
+                                        >
+                                          {formatearPrecio(
+                                            item.total
+                                          ).replace(
+                                            /\s/g,
+                                            ''
+                                          )}
+                                        </text>
+                                      )
+                                    }
+                                  )}
+
+                                </svg>
+                              </div>
+                            )}
+
+                          </div>
+
+                          {/* =================================================
+                              PRODUCTOS MÁS VENDIDOS
+                          ================================================== */}
+
+                          <div
+                            className={`rounded-xl border p-4 ${
+                              modoOscuro
+                                ? 'border-slate-700 bg-[#0b1625]'
+                                : 'border-slate-200 bg-slate-50'
+                            }`}
+                          >
+
+                            <div className="mb-4 flex items-center justify-between">
+                              <div>
+                                <h3 className="text-sm font-bold">
+                                  Productos más vendidos
+                                </h3>
+
+                                <p
+                                  className={`mt-0.5 text-[11px] ${secundario}`}
+                                >
+                                  Según unidades vendidas
+                                </p>
+                              </div>
+
+                              <Boxes
+                                size={18}
+                                className="text-emerald-500"
+                              />
+                            </div>
+
+                            {productosMasVendidos.length ===
+                            0 ? (
+                              <div
+                                className={`flex h-[175px] items-center justify-center text-xs ${secundario}`}
+                              >
+                                No hay productos vendidos.
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+
+                                {productosMasVendidos.map(
+                                  (
+                                    producto,
+                                    index
+                                  ) => {
+                                    const porcentaje =
+                                      maxProductoVendido >
+                                      0
+                                        ? (producto.cantidad /
+                                            maxProductoVendido) *
+                                          100
+                                        : 0
+
+                                    return (
+                                      <div
+                                        key={
+                                          producto.nombre
+                                        }
+                                      >
+
+                                        <div className="mb-1 flex items-center justify-between gap-3">
+                                          <div className="flex min-w-0 items-center gap-2">
+                                            <span
+                                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${
+                                                modoOscuro
+                                                  ? 'bg-slate-700 text-slate-300'
+                                                  : 'bg-slate-200 text-slate-600'
+                                              }`}
+                                            >
+                                              {index +
+                                                1}
+                                            </span>
+
+                                            <span className="truncate text-xs font-medium">
+                                              {
+                                                producto.nombre
+                                              }
+                                            </span>
+                                          </div>
+
+                                          <span className="shrink-0 text-xs font-bold">
+                                            {
+                                              producto.cantidad
+                                            }
+                                          </span>
+                                        </div>
+
+                                        <div
+                                          className={`h-2 overflow-hidden rounded-full ${
+                                            modoOscuro
+                                              ? 'bg-slate-700'
+                                              : 'bg-slate-200'
+                                          }`}
+                                        >
+                                          <div
+                                            className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                                            style={{
+                                              width: `${porcentaje}%`,
+                                            }}
+                                          />
+                                        </div>
+
+                                      </div>
+                                    )
+                                  }
+                                )}
+
+                              </div>
+                            )}
+
+                          </div>
+
+                        </div>
+                      )}
+
+                      {/* RESUMEN NUMÉRICO */}
+
+                      {!cargandoVentas &&
+                        ventas.length >
+                          0 && (
+                          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+                            <div
+                              className={`rounded-xl border px-4 py-3 ${
+                                modoOscuro
+                                  ? 'border-slate-700 bg-[#17263c]'
+                                  : 'border-slate-200 bg-white'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p
+                                    className={`text-[11px] uppercase tracking-wide ${secundario}`}
+                                  >
+                                    Total vendido
+                                  </p>
+
+                                  <p className="mt-1 text-lg font-bold">
+                                    {formatearPrecio(
+                                      totalHistorial
+                                    )}
+                                  </p>
+                                </div>
+
+                                <DollarSign
+                                  size={20}
+                                  className="text-purple-500"
+                                />
+                              </div>
+                            </div>
+
+                            <div
+                              className={`rounded-xl border px-4 py-3 ${
+                                modoOscuro
+                                  ? 'border-slate-700 bg-[#17263c]'
+                                  : 'border-slate-200 bg-white'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p
+                                    className={`text-[11px] uppercase tracking-wide ${secundario}`}
+                                  >
+                                    Unidades vendidas
+                                  </p>
+
+                                  <p className="mt-1 text-lg font-bold">
+                                    {
+                                      unidadesHistorial
+                                    }
+                                  </p>
+                                </div>
+
+                                <Boxes
+                                  size={20}
+                                  className="text-emerald-500"
+                                />
+                              </div>
+                            </div>
+
+                          </div>
+                        )}
+
                     </div>
+
+                    {/* =================================================
+                        ACCIONES
+                    ================================================== */}
 
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 
@@ -943,7 +1710,9 @@ function PanelEmpleado({ modoOscuro }) {
                         <button
                           type="button"
                           onClick={() =>
-                            setVista('productos')
+                            setVista(
+                              'productos'
+                            )
                           }
                           className="mt-4 flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
                         >
@@ -977,7 +1746,9 @@ function PanelEmpleado({ modoOscuro }) {
                           <button
                             type="button"
                             onClick={() =>
-                              setVista('historial')
+                              setVista(
+                                'historial'
+                              )
                             }
                             className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
                               modoOscuro
@@ -991,7 +1762,9 @@ function PanelEmpleado({ modoOscuro }) {
                           <button
                             type="button"
                             onClick={() =>
-                              setVista('reporte')
+                              setVista(
+                                'reporte'
+                              )
                             }
                             className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
                           >
@@ -1029,7 +1802,9 @@ function PanelEmpleado({ modoOscuro }) {
                   <button
                     type="button"
                     onClick={() =>
-                      navigate('/productos')
+                      navigate(
+                        '/productos'
+                      )
                     }
                     className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition ${botonSecundario}`}
                   >
@@ -1039,7 +1814,9 @@ function PanelEmpleado({ modoOscuro }) {
                 </div>
 
                 <EmployeeProductForm
-                  modoOscuro={modoOscuro}
+                  modoOscuro={
+                    modoOscuro
+                  }
                   onCreated={() =>
                     cargarDatos(
                       localStorage.getItem(
@@ -1074,8 +1851,12 @@ function PanelEmpleado({ modoOscuro }) {
 
                   <button
                     type="button"
-                    onClick={cargarVentas}
-                    disabled={cargandoVentas}
+                    onClick={
+                      cargarVentas
+                    }
+                    disabled={
+                      cargandoVentas
+                    }
                     className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition ${botonSecundario}`}
                   >
                     <RefreshCw
@@ -1127,7 +1908,9 @@ function PanelEmpleado({ modoOscuro }) {
                         </p>
 
                         <p className="mt-1 text-2xl font-bold">
-                          {unidadesHistorial}
+                          {
+                            unidadesHistorial
+                          }
                         </p>
                       </div>
 
@@ -1201,14 +1984,21 @@ function PanelEmpleado({ modoOscuro }) {
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${etiquetaNeutral}`}
                     >
-                      {ventas.length} ventas
+                      {ventas.length}{' '}
+                      ventas
                     </span>
                   </div>
 
-                  <div className={fondoTabla}>
+                  <div
+                    className={fondoTabla}
+                  >
                     <table className="w-full table-fixed text-left text-xs">
 
-                      <thead className={encabezadoTabla}>
+                      <thead
+                        className={
+                          encabezadoTabla
+                        }
+                      >
                         <tr>
                           <th className="w-[10%] px-4 py-3 font-semibold">
                             Venta
@@ -1247,7 +2037,8 @@ function PanelEmpleado({ modoOscuro }) {
                               Cargando ventas...
                             </td>
                           </tr>
-                        ) : ventasPaginadas.length === 0 ? (
+                        ) : ventasPaginadas.length ===
+                          0 ? (
                           <tr>
                             <td
                               colSpan="6"
@@ -1258,9 +2049,13 @@ function PanelEmpleado({ modoOscuro }) {
                           </tr>
                         ) : (
                           ventasPaginadas.map(
-                            (venta, index) => {
+                            (
+                              venta,
+                              index
+                            ) => {
                               const productosVenta =
-                                venta.productos || []
+                                venta.productos ||
+                                []
 
                               const cliente =
                                 venta.cliente ||
@@ -1289,7 +2084,9 @@ function PanelEmpleado({ modoOscuro }) {
 
                                   <td className="px-4 py-3">
                                     <span className="block truncate font-medium">
-                                      {cliente}
+                                      {
+                                        cliente
+                                      }
                                     </span>
                                   </td>
 
@@ -1305,7 +2102,9 @@ function PanelEmpleado({ modoOscuro }) {
                                     <span className="block truncate">
                                       {productosVenta
                                         .map(
-                                          (producto) =>
+                                          (
+                                            producto
+                                          ) =>
                                             `${producto.nombre || 'Producto'} x${producto.cantidad || 0}`
                                         )
                                         .join(
@@ -1351,7 +2150,9 @@ function PanelEmpleado({ modoOscuro }) {
                     }`}
                   >
                     <BotonesPaginacion
-                      pagina={paginaVentas}
+                      pagina={
+                        paginaVentas
+                      }
                       totalPaginas={
                         totalPaginasVentas
                       }
@@ -1398,10 +2199,15 @@ function PanelEmpleado({ modoOscuro }) {
 
                       <input
                         type="date"
-                        value={fechaReporte}
-                        onChange={(event) =>
+                        value={
+                          fechaReporte
+                        }
+                        onChange={(
+                          event
+                        ) =>
                           setFechaReporte(
-                            event.target.value
+                            event.target
+                              .value
                           )
                         }
                         className={`rounded-xl border px-3 py-2.5 text-sm outline-none focus:border-blue-500 ${
@@ -1419,7 +2225,9 @@ function PanelEmpleado({ modoOscuro }) {
                           fechaReporte
                         )
                       }
-                      disabled={cargandoReporte}
+                      disabled={
+                        cargandoReporte
+                      }
                       className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
                     >
                       <Search size={17} />
@@ -1576,14 +2384,21 @@ function PanelEmpleado({ modoOscuro }) {
                         >
                           {
                             ventasReporte.length
-                          } ventas
+                          }{' '}
+                          ventas
                         </span>
                       </div>
 
-                      <div className={fondoTabla}>
+                      <div
+                        className={fondoTabla}
+                      >
                         <table className="w-full table-fixed text-left text-xs">
 
-                          <thead className={encabezadoTabla}>
+                          <thead
+                            className={
+                              encabezadoTabla
+                            }
+                          >
                             <tr>
                               <th className="w-[10%] px-4 py-3 font-semibold">
                                 Venta
@@ -1621,7 +2436,10 @@ function PanelEmpleado({ modoOscuro }) {
                               </tr>
                             ) : (
                               ventasReportePaginadas.map(
-                                (venta, index) => {
+                                (
+                                  venta,
+                                  index
+                                ) => {
                                   const productosVenta =
                                     venta.productos ||
                                     []
@@ -1653,7 +2471,9 @@ function PanelEmpleado({ modoOscuro }) {
 
                                       <td className="px-4 py-3">
                                         <span className="block truncate font-medium">
-                                          {cliente}
+                                          {
+                                            cliente
+                                          }
                                         </span>
                                       </td>
 
