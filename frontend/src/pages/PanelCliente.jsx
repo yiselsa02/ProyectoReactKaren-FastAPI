@@ -280,9 +280,13 @@ export default function PanelCliente({
     setErrorPerfil,
   ] = useState('')
 
-  const elementosPorPaginaCompras = 5
+  // =========================
+  // PAGINACIÓN
+  // =========================
+
+  const elementosPorPaginaCompras = 3
   const elementosPorPaginaFavoritos = 6
-  const elementosPorPaginaPqrs = 5
+  const elementosPorPaginaPqrs = 4
 
   const fondoPrincipal = modoOscuro
     ? 'bg-slate-950 text-white'
@@ -777,9 +781,11 @@ export default function PanelCliente({
   const comenzarEdicionPerfil = () => {
     setMensajePerfil('')
     setErrorPerfil('')
+
     setPerfilOriginal({
       ...perfil,
     })
+
     setEditandoPerfil(true)
   }
 
@@ -1069,7 +1075,7 @@ export default function PanelCliente({
 
   return (
     <div
-      className={`min-h-screen ${fondoPrincipal}`}
+      className={`h-screen overflow-hidden ${fondoPrincipal}`}
     >
       {/* ========================= */}
       {/* MENÚ LATERAL */}
@@ -1198,6 +1204,7 @@ export default function PanelCliente({
               }`}
             >
               <Heart size={19} />
+
               <span>
                 Mis seleccionados
               </span>
@@ -1247,9 +1254,9 @@ export default function PanelCliente({
       {/* CONTENIDO */}
       {/* ========================= */}
 
-      <main className="ml-[245px] min-h-screen">
+      <main className="ml-[245px] flex h-screen flex-col overflow-hidden">
         <header
-          className={`flex h-[78px] items-center border-b px-8 ${
+          className={`flex h-[78px] shrink-0 items-center border-b px-8 ${
             modoOscuro
               ? 'border-slate-800 bg-slate-950'
               : 'border-gray-200 bg-gray-100'
@@ -1296,7 +1303,7 @@ export default function PanelCliente({
           </div>
         </header>
 
-        <div className="p-8">
+        <div className="min-h-0 flex-1 overflow-hidden p-8">
           {/* ========================= */}
           {/* RESUMEN */}
           {/* ========================= */}
@@ -1438,7 +1445,7 @@ export default function PanelCliente({
                 </div>
               ) : (
                 <>
-                  <div className="grid gap-4">
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                     {comprasPaginaActual.map(
                       (compra, index) => {
                         const productos =
@@ -1515,7 +1522,7 @@ export default function PanelCliente({
                                     true
                                   )
                                 }}
-                                className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                                className="flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                               >
                                 <Eye
                                   size={17}
@@ -1645,9 +1652,9 @@ export default function PanelCliente({
           {/* ========================= */}
 
           {seccion === 'pqrs' && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div
-                className={`rounded-2xl border p-5 ${fondoTarjeta}`}
+                className={`rounded-2xl border p-4 ${fondoTarjeta}`}
               >
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -1725,19 +1732,18 @@ export default function PanelCliente({
                 </div>
               ) : (
                 <>
-                  {/* SOLO LAS PQR DE LA PÁGINA ACTUAL */}
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {pqrsPaginaActual.map(
                       (pqr) => (
                         <div
                           key={pqr.id_pqr}
-                          className={`rounded-2xl border p-5 ${fondoTarjeta}`}
+                          className={`rounded-2xl border p-4 ${fondoTarjeta}`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-3">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
                                 <MessageSquare
-                                  size={19}
+                                  size={18}
                                   className="text-blue-500"
                                 />
                               </div>
@@ -1776,7 +1782,7 @@ export default function PanelCliente({
                             </span>
                           </div>
 
-                          <div className="mt-4 grid grid-cols-2 gap-3">
+                          <div className="mt-3 grid grid-cols-2 gap-3">
                             <div>
                               <p
                                 className={`text-xs ${textoSecundario}`}
@@ -1784,7 +1790,7 @@ export default function PanelCliente({
                                 Tipo
                               </p>
 
-                              <p className="mt-1 text-sm font-semibold">
+                              <p className="mt-0.5 truncate text-sm font-semibold">
                                 {pqr.tipo}
                               </p>
                             </div>
@@ -1796,7 +1802,7 @@ export default function PanelCliente({
                                 Estado
                               </p>
 
-                              <p className="mt-1 text-sm font-semibold">
+                              <p className="mt-0.5 truncate text-sm font-semibold">
                                 {pqr.estado}
                               </p>
                             </div>
@@ -1809,7 +1815,7 @@ export default function PanelCliente({
                               Asunto
                             </p>
 
-                            <p className="mt-1 text-sm font-semibold">
+                            <p className="mt-0.5 truncate text-sm font-semibold">
                               {pqr.asunto}
                             </p>
                           </div>
@@ -1821,13 +1827,13 @@ export default function PanelCliente({
                               Descripción
                             </p>
 
-                            <p className="mt-1 text-sm line-clamp-2">
+                            <p className="mt-1 text-sm">
                               {pqr.descripcion}
                             </p>
                           </div>
 
                           <div
-                            className={`mt-4 rounded-xl border p-3 ${
+                            className={`mt-3 rounded-xl border p-3 ${
                               modoOscuro
                                 ? 'border-slate-800 bg-slate-950'
                                 : 'border-gray-200 bg-gray-50'
@@ -1838,7 +1844,7 @@ export default function PanelCliente({
                             </p>
 
                             {pqr.respuesta ? (
-                              <p className="mt-1 text-sm line-clamp-3">
+                              <p className="mt-1 text-sm">
                                 {pqr.respuesta}
                               </p>
                             ) : (
@@ -1855,7 +1861,6 @@ export default function PanelCliente({
                     )}
                   </div>
 
-                  {/* PAGINACIÓN */}
                   {totalPaginasPqrs >
                     1 && (
                     <div className="flex items-center justify-center gap-3 pt-2">
@@ -1883,6 +1888,7 @@ export default function PanelCliente({
                         <ChevronLeft
                           size={17}
                         />
+
                         Anterior
                       </button>
 
@@ -1918,6 +1924,7 @@ export default function PanelCliente({
                         }`}
                       >
                         Siguiente
+
                         <ChevronRight
                           size={17}
                         />
@@ -2062,6 +2069,7 @@ export default function PanelCliente({
                         <ChevronLeft
                           size={17}
                         />
+
                         Anterior
                       </button>
 
@@ -2101,6 +2109,7 @@ export default function PanelCliente({
                         }`}
                       >
                         Siguiente
+
                         <ChevronRight
                           size={17}
                         />
